@@ -1,0 +1,164 @@
+// The woogidex.xyz site, on top of Woogidex Core. Core is the Fakémon maker
+// and the battle simulator; this adds accounts, the Community Hub, events,
+// messages, notifications, cloud backup, the policy pages and the changelog.
+// Core's js/core/app.ts calls installHost() once, before boot, through the
+// '@woogidex/host' alias (vite.config.js); everything here goes through the
+// registries in Core's js/core/extend.ts.
+
+import { api } from './core/app.ts';
+import { ext, registerNav, registerPage, registerRoute } from './core/extend.ts';
+import { LANDING_PAGE } from './core/flags.ts';
+import { initAvatars } from './core/avatar.ts';
+import { mountIsland } from './app/island.tsx';
+import { TOURS } from './features/onboarding.ts';
+import { showConsoleWarning } from './core/console-warning.ts';
+
+import * as updates from './features/updates.ts';
+import * as auth from './features/auth.ts';
+import * as community from './features/community.ts';
+import * as notifications from './core/notifications.ts';
+import * as moderation from './core/moderation.ts';
+import * as events from './features/events.ts';
+import * as cloudSave from './features/cloud-save.ts';
+import * as legal from './features/legal.ts';
+import * as accountDeletion from './features/account-deletion.ts';
+import * as oauth from './features/oauth.ts';
+import * as globalSearch from './features/global-search.ts';
+import * as feedback from './features/feedback.ts';
+import * as social from './features/social.ts';
+import * as messaging from './features/messaging.ts';
+
+import './app/dialogs/account.tsx';
+import './app/dialogs/cloudBackup.tsx';
+import './app/dialogs/auth.tsx';
+import './app/dialogs/feedback.tsx';
+import { LegalPage } from './app/pages/LegalPage.tsx';
+import { UpdatesPage } from './app/pages/UpdatesPage.tsx';
+import { SearchPage } from './app/pages/SearchPage.tsx';
+import { ProfilePage } from './app/pages/ProfilePage.tsx';
+import { CommunityPage } from './app/pages/CommunityPage.tsx';
+import { CommunityDetailPage } from './app/pages/CommunityDetailPage.tsx';
+import { PostPage } from './app/pages/PostPage.tsx';
+import { MessagesPage } from './app/pages/MessagesPage.tsx';
+import { LandingPage } from './app/pages/LandingPage.tsx';
+import { registerAccountSettings } from './app/pages/SettingsAccount.tsx';
+import { CookieNotice } from './app/shell/CookieNotice.tsx';
+import { GlobalSearch } from './app/shell/GlobalSearch.tsx';
+import {
+    AccountButton, AccountMenuBottom, AccountMenuTop, FeedbackMenuItem, MessagesButton, Notifications, SignInButton
+} from './app/shell/HeaderAccount.tsx';
+
+export function installHost(): void {
+    Object.assign(api, auth, community, notifications, moderation, events, cloudSave, legal, accountDeletion, oauth, globalSearch, feedback, social, messaging, updates);
+    // avatars come from the same masked pipe artwork does; this hands Core's
+    // module a client getter rather than letting it import the account layer
+    initAvatars(() => api.getClient());
+
+    // ---- pages ----
+    // not out yet: only mounted when the build switches it on (js/core/flags.ts)
+    if (LANDING_PAGE) registerPage({ view: 'landing-view', Page: LandingPage });
+    registerPage({ view: 'legal-view', Page: LegalPage, lazy: true });
+    registerPage({ view: 'updates-view', Page: UpdatesPage, lazy: true });
+    registerPage({ view: 'search-view', Page: SearchPage, lazy: true });
+    registerPage({ view: 'profile-view', Page: ProfilePage, lazy: true });
+    registerPage({ view: 'community-view', Page: CommunityPage, lazy: true });
+    registerPage({ view: 'community-detail-view', Page: CommunityDetailPage, lazy: true });
+    registerPage({ view: 'post-view', Page: PostPage, lazy: true });
+    registerPage({ view: 'messages-view', Page: MessagesPage, lazy: true });
+
+    // ---- routes ----
+    // a page that shows the server's data waits (briefly) for sign-in at boot
+    registerRoute('community', {
+        needsAccount: true, needsShowdown: true, skeleton: () => api.renderCommunityGridSkeleton?.(),
+        open: async param => {
+            if (param) return await api.handleCommunityRoute?.(param) === true;
+            await api.openCommunityHub?.();
+            return true;
+        }
+    });
+    registerRoute('events', {
+        needsAccount: true, needsShowdown: true, skeleton: () => api.renderEventsSkeleton?.(),
+        open: async param => { await api.openEvents?.(param); return true; }
+    });
+    registerRoute('post', { needsAccount: true, open: async param => !!param && await api.openPost?.(param, { preserveRoute: true }) === true });
+    registerRoute('messages', { needsAccount: true, open: async param => await api.handleMessagesRoute?.(param) === true });
+    registerRoute('profile', {
+        needsAccount: true, skeleton: () => api.renderProfileLoading?.(),
+        open: async param => {
+            if (!param) return false;
+            api.activateTopLevelView?.('profile-view');
+            return await api.handleProfileRoute?.(param) === true;
+        }
+    });
+    registerRoute('privacy', { open: () => legal.openLegalPage('privacy') });
+    registerRoute('terms', { open: () => legal.openLegalPage('terms') });
+    registerRoute('search', { needsAccount: true, open: async () => { await api.openSearchPage?.(new URLSearchParams(window.location.search).get('q') || ''); return true; } });
+    registerRoute('updates', { needsAccount: true, open: async param => { await api.openUpdatesPage?.(param === 'credits' ? 'credits' : 'updates'); return true; } });
+
+    // ---- the header ----
+    registerNav({ page: 'community-view', label: 'Community', title: 'Community', icon: 'users', order: 20, open: () => api.openCommunityHub(), alsoFor: ['community-detail-view', 'post-view'] });
+    registerNav({ page: 'updates-view', label: 'Updates', title: 'Updates & Credits', icon: 'newspaper', order: 40, open: () => api.openUpdatesPage(), badge: () => updates.updatesUnreadCount() });
+    ext.headerLeft.push(GlobalSearch);
+    ext.headerActions.push(MessagesButton, Notifications, SignInButton);
+    ext.accountButton = AccountButton;
+    ext.accountMenuTop.push(AccountMenuTop);
+    ext.accountMenuItems.push(FeedbackMenuItem);
+    ext.accountMenuBottom.push(AccountMenuBottom);
+
+    // ---- settings ----
+    registerAccountSettings();
+
+    // ---- first-visit tips ----
+    TOURS.editor.push({
+        targets: ['[data-tour="editor-publish"]'],
+        title: 'Show it off',
+        body: 'Happy with it? Publish it to the Community Hub. That part needs a free account; making stuff never does.'
+    });
+    TOURS.community = [
+        {
+            targets: ['.hub-nav-list'],
+            title: 'Welcome to the Hub',
+            body: 'The feed, every published Fakémon, events, and your own uploads, all from here.'
+        },
+        {
+            targets: ['.hub-publish'],
+            title: 'Post your own',
+            body: 'Publish a Fakémon from your collection, or its whole evolution family at once.'
+        },
+        {
+            targets: ['.feed-rail', '.feed-tabs'],
+            title: 'Something new every week',
+            body: 'A fresh batch gets featured every week. Follow people you like and their stuff shows up under Following.'
+        }
+    ];
+    TOURS.events = [
+        {
+            targets: ['.ev-list-head'],
+            title: 'Contests and sign-ups',
+            body: 'Everything the community is running shows up here. Open one to read what to send in and when entries close.'
+        },
+        {
+            targets: ['.ev-tickets .ev-ticket:not(.is-skeleton)', '.ev-empty'],
+            title: 'Enter, vote, find out who won',
+            body: 'Entries, voting and results all happen on the event’s own page. Organizers can run one too.'
+        }
+    ];
+    ext.tourFor.push(() => {
+        const body = document.body;
+        // a public event opened signed out reads as a standalone page; no tips there
+        if (body.dataset.page !== 'community-view' || body.classList.contains('event-guest')) return null;
+        const cs = api.communityState?.();
+        if (cs?.panel === 'events') return events.events.view?.kind === 'list' ? 'events' : null;
+        return cs?.panel === 'feed' || !cs?.panel ? 'community' : null;
+    });
+
+    // ---- boot ----
+    ext.boot.push(() => {
+        // the "STOP, don't paste anything here" warning (production only)
+        showConsoleWarning();
+        mountIsland('cookie-notice-root', CookieNotice);
+        return api.initAuth();
+    });
+    // the unread count on the header's Updates tab
+    ext.ready.push(() => { updates.refreshUpdatesBadge(); });
+}

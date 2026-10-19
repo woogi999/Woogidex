@@ -1,0 +1,13 @@
+node_modules/
+*.log
+dist/
+
+# Woogidex Core, linked or cloned in by scripts/link-core.mjs (its own repo)
+/core
+
+# the landing page is not out yet: its painted scenery stays on this machine
+# (see docs/landing-page-launch.md)
+public/assets/landing/
+
+# local-only Vite settings (e.g. VITE_LANDING_PAGE=1 to preview the landing page)
+.env*.local
