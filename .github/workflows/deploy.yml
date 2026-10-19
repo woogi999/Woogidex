@@ -48,17 +48,17 @@ jobs:
     environment: production
     steps:
       - name: Check out woogidex-web
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Check out woogidex-core
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: woogi999/woogidex-core
           ref: main
           path: core
 
       - name: Check out woogidex-backend
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           repository: woogi999/woogidex-backend
           ref: main
@@ -78,7 +78,7 @@ jobs:
             echo "Triggered by: ${{ github.event_name }} ${{ github.event.action }}"
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
