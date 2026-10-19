@@ -1,0 +1,11 @@
+{
+  "folders": [
+    { "name": "web (private)", "path": "." },
+    { "name": "core (public)", "path": "../woogidex-core" },
+    { "name": "backend (private)", "path": "../woogidex-backend" }
+  ],
+  "settings": {
+    "files.exclude": { "core": true },
+    "search.exclude": { "core": true }
+  }
+}

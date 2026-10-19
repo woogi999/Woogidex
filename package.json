@@ -4,6 +4,7 @@
   "type": "module",
   "scripts": {
     "core": "node scripts/link-core.mjs",
+    "sync": "node scripts/sync.mjs",
     "predev": "node scripts/link-core.mjs",
     "dev": "vite",
     "prebuild": "node scripts/link-core.mjs",

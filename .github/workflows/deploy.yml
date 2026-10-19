@@ -14,10 +14,9 @@
 #   CLOUDFLARE_API_TOKEN    Workers Scripts: Edit on the account
 #   CLOUDFLARE_ACCOUNT_ID   the account the woogidex Worker lives in
 #   BACKEND_DEPLOY_KEY      read-only deploy key of woogidex-backend (SSH private key)
-#   SUPABASE_ACCESS_TOKEN   optional: deploys the edge functions when backend changes
 #
-# Database migrations are NOT applied here: the database is live, and a bad
-# migration is hard to undo. Apply them by hand (see woogidex-backend's README).
+# Supabase (migrations and edge functions) is NOT deployed here. The Supabase
+# GitHub integration on woogidex-backend does it (see that repo's README).
 
 name: Deploy
 
@@ -27,11 +26,6 @@ on:
   repository_dispatch:
     types: [core-updated, backend-updated]
   workflow_dispatch:
-    inputs:
-      functions:
-        description: Also deploy the Supabase edge functions
-        type: boolean
-        default: false
 
 # one deploy at a time, in order; a newer one waits for the running one
 concurrency:
@@ -100,15 +94,3 @@ jobs:
         run: |
           rm -rf dist && cp -r ../dist dist
           npx --yes wrangler@4 deploy --message "web $(git -C .. rev-parse --short HEAD), core $(git -C ../core rev-parse --short HEAD), backend $(git rev-parse --short HEAD)"
-
-      - name: Deploy the Supabase edge functions
-        if: github.event.action == 'backend-updated' || inputs.functions
-        working-directory: .backend
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: |
-          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
-            echo "::warning::SUPABASE_ACCESS_TOKEN is not set, so the edge functions were not deployed."
-            exit 0
-          fi
-          npx --yes supabase@2 functions deploy --project-ref qstbascfeolkyxtrqqwv
