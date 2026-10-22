@@ -20,6 +20,7 @@ import { BadgePicker, ProfileMons } from '../components/profile.tsx';
 import { LazyArt } from '../components/community.tsx';
 import { ShieldedArt } from '../components/ShieldedArt.tsx';
 import { useStore } from '../store.ts';
+import { useSlide } from '../hooks.ts';
 import { Modal } from '../components/Modal.tsx';
 import { openDialog, registerDialog, type DialogProps } from '../dialogs.tsx';
 import { NAME_MAX } from '../../core/data.ts';
@@ -137,6 +138,7 @@ function PublicProfileSkeleton() {
 
 function PublicProfile({ profile, isOwn }: { profile: any; isOwn: boolean }) {
     const [tab, setTab] = useState<Tab>('posts');
+    const pane = useSlide(tab, ['posts', 'fakemon'] as Tab[]);
     const displayName = profile.display_name || profile.username || 'Profile';
     const stats = profile.stats || {};
     const following = api.isFollowing?.(profile.id) || !!stats.i_follow;
@@ -213,8 +215,10 @@ function PublicProfile({ profile, isOwn }: { profile: any; isOwn: boolean }) {
                                 </button>
                             ))}
                         </div>
-                        {tab === 'posts' && (see('posts') ? <Timeline profile={profile} isOwn={isOwn} /> : <PrivatePart />)}
-                        {tab === 'fakemon' && (see('fakemon') ? <div className="profile-mons-grid"><ProfileMons mons={profile.mons || []} /></div> : <PrivatePart />)}
+                        <div ref={pane}>
+                            {tab === 'posts' && (see('posts') ? <Timeline profile={profile} isOwn={isOwn} /> : <PrivatePart />)}
+                            {tab === 'fakemon' && (see('fakemon') ? <div className="profile-mons-grid"><ProfileMons mons={profile.mons || []} /></div> : <PrivatePart />)}
+                        </div>
                     </div>
                 </div>
             )}

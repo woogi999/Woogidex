@@ -13,6 +13,7 @@ import { Modal } from './Modal.tsx';
 import { EmojiInput, EmojiText } from './EmojiInput.tsx';
 import { openDialog, registerDialog, type DialogProps } from '../dialogs.tsx';
 import { useStore } from '../store.ts';
+import { SkeletonRows } from './Skeleton.tsx';
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -184,7 +185,7 @@ function PollVotersDialog({ close, poll }: DialogProps<{ poll: Poll }>) {
                 ))}
             </div>
             <div className="reaction-list">
-                {rows === null ? <p className="comment-empty">Loading…</p>
+                {rows === null ? <SkeletonRows count={3} avatar label="Loading" />
                     : !list.length ? <p className="comment-empty">No votes here yet.</p>
                     : list.map(r => (
                         <button type="button" key={r.user.id} className="reaction-list-row" onClick={() => { close(); api.showUserProfile(r.user.id); }}>

@@ -22,6 +22,7 @@ import { ModButton, modContext, type ModTarget } from './ModButton.tsx';
 import { emptyPoll, type PollDraft } from '../../features/polls.ts';
 import type { FeedItem } from '../../features/feed-algorithm.ts';
 import { STAGE_LABEL, effectivePhase, fetchEvents } from '../../features/events.ts';
+import { SkeletonRows } from './Skeleton.tsx';
 
 // timeAgo lives with the comments now; it's re-exported for the pages that
 // already import it from here
@@ -479,7 +480,7 @@ function PickPostMons({ close, selected, onDone }: DialogProps<{ selected: any[]
             <p className="field-hint">Pick from what you've published to the hub (up to 12). Haven't published one yet? Publish it from your collection first.</p>
             <input type="search" placeholder="Find one…" value={query} onChange={e => setQuery(e.target.value)} />
             <div className="pick-post-mons-grid">
-                {mine === null ? <div className="community-empty">Loading…</div>
+                {mine === null ? <SkeletonRows count={3} avatar />
                     : !list.length ? <div className="community-empty">{mine.length ? 'Nothing matches.' : 'You haven’t published any Fakémon yet.'}</div>
                     : list.map(m => (
                         <button type="button" key={m.id} className={`pick-post-mon${picked.has(m.id) ? ' is-picked' : ''}`} onClick={() => toggle(m)} aria-pressed={picked.has(m.id)}>
@@ -526,7 +527,7 @@ function PickPostEvents({ close, selected, onDone }: DialogProps<{ selected: any
             <p className="field-hint">People can open it straight from your post (up to {POST_EVENTS_MAX}).</p>
             <input type="search" placeholder="Find one…" value={query} onChange={e => setQuery(e.target.value)} />
             <div className="pick-post-events-list">
-                {list === null ? <div className="community-empty">Loading…</div>
+                {list === null ? <SkeletonRows count={4} avatar />
                     : !shown.length ? <div className="community-empty">{list.length ? 'Nothing matches.' : 'There are no live events yet.'}</div>
                     : shown.map(e => (
                         <button type="button" key={e.id} className={`pick-post-event${picked.has(e.id) ? ' is-picked' : ''}`} onClick={() => toggle(e)} aria-pressed={picked.has(e.id)}>

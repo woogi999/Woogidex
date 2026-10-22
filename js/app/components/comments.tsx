@@ -20,6 +20,7 @@ import { Modal } from './Modal.tsx';
 import { openDialog, registerDialog, type DialogProps } from '../dialogs.tsx';
 import { PollEditor, PollView } from './polls.tsx';
 import { commentPollParent, emptyPoll, type PollDraft } from '../../features/polls.ts';
+import { SkeletonRows } from './Skeleton.tsx';
 
 export function timeAgo(iso: string): string {
     const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -137,7 +138,7 @@ function ReactionListDialog({ close, kind, id }: DialogProps<{ kind: ReactionKin
                 ))}
             </div>
             <div className="reaction-list">
-                {rows === null ? <p className="comment-empty">Loading…</p>
+                {rows === null ? <SkeletonRows count={3} avatar label="Loading comments" />
                     : !list.length ? <p className="comment-empty">No reactions yet.</p>
                     : list.map((r, i) => (
                         <button type="button" key={`${r.user.id}-${r.emoji}-${i}`} className="reaction-list-row" onClick={() => { close(); api.showUserProfile(r.user.id); }}>

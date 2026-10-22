@@ -1694,7 +1694,10 @@ const ART_MAX = 1_400_000;
 export async function fakemonForEntry(mon: any, maxArt = ART_MAX): Promise<any> {
     const copy = JSON.parse(JSON.stringify(mon));
     // the board it was drawn on points at the rest of the collection; the line goes in as `family` instead
-    for (const k of ['id', 'createdAt', 'updatedAt', 'regionIds', 'folderId', 'pinned', 'pendingVanilla', 'family', 'evolutionGraph', 'sourceId']) delete copy[k];
+    // an entry carries the main artwork only: artwork sets stay in the collection
+    for (const k of ['id', 'createdAt', 'updatedAt', 'regionIds', 'folderId', 'pinned', 'pendingVanilla', 'family', 'evolutionGraph', 'sourceId', 'artSets',
+        // the maker's private notebook (js/features/notebook.ts)
+        'notes', 'doodles', 'tags', 'status']) delete copy[k];
     if (typeof copy.name === 'string') copy.name = copy.name.trim().slice(0, NAME_MAX);
     for (const k of ['artwork', 'shinyArtwork']) {
         if (typeof copy[k] === 'string' && copy[k].startsWith('data:image/')) copy[k] = await shrinkImage(copy[k], 1200, maxArt).catch(() => '');

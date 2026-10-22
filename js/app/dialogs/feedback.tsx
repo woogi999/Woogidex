@@ -7,6 +7,8 @@ import { BODY_MAX, KINDS, STATUS, TITLE_MAX, loadMyFeedback, sendFeedback } from
 import { registerDialog, type DialogProps } from '../dialogs.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { Icon } from '../components/Icon.tsx';
+import { useSlide } from '../hooks.ts';
+import { SkeletonRows } from '../components/Skeleton.tsx';
 
 type Tab = 'send' | 'mine';
 
@@ -18,6 +20,7 @@ const PLACEHOLDER: Record<string, string> = {
 
 function FeedbackDialog({ close, tab: initialTab = 'send' }: DialogProps<{ tab?: Tab }>) {
     const [tab, setTab] = useState<Tab>(initialTab);
+    const pane = useSlide(tab, ['send', 'mine'] as Tab[]);
     return (
         <Modal onClose={close} className="feedback-modal" overlayClassName="feedback-overlay" labelledBy="feedback-title">
             <div className="modal-header">
@@ -39,7 +42,9 @@ function FeedbackDialog({ close, tab: initialTab = 'send' }: DialogProps<{ tab?:
                             <button type="button" className={`tab${tab === 'send' ? ' active' : ''}`} role="tab" aria-selected={tab === 'send'} onClick={() => setTab('send')}>Send a report</button>
                             <button type="button" className={`tab${tab === 'mine' ? ' active' : ''}`} role="tab" aria-selected={tab === 'mine'} onClick={() => setTab('mine')}>My reports</button>
                         </div>
-                        {tab === 'send' ? <SendForm close={close} onSent={() => setTab('mine')} /> : <MyReports onSend={() => setTab('send')} />}
+                        <div ref={pane}>
+                            {tab === 'send' ? <SendForm close={close} onSent={() => setTab('mine')} /> : <MyReports onSend={() => setTab('send')} />}
+                        </div>
                     </>
                 )}
             </div>
@@ -109,7 +114,7 @@ function MyReports({ onSend }: { onSend: () => void }) {
         return () => { live = false; };
     }, []);
 
-    if (!result) return <div className="feedback-empty">Loading your reports…</div>;
+    if (!result) return <SkeletonRows count={3} label="Loading your reports" />;
     if (result.error) return <div className="feedback-empty">Your reports could not be loaded: {result.error}</div>;
     if (!result.rows.length) {
         return (

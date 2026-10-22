@@ -55,6 +55,9 @@ export const PLACES: Entry[] = [
 ];
 export const ACTIONS: Entry[] = [
     { title: 'New Fakémon', sub: 'Create', icon: 'plus', keywords: 'create new fakemon add make', run: () => api.createNewFakemon?.() },
+    { title: 'Quick add an idea', sub: 'A name and a note, nothing else (N)', icon: 'light-bulb', keywords: 'quick add idea stub note jot', run: () => api.openQuickAdd?.() },
+    { title: 'Paste a list of names', sub: 'Each line becomes an idea', icon: 'clipboard-document-list', keywords: 'bulk paste list names import stubs', run: () => api.openBulkPaste?.() },
+    { title: 'Unfinished Fakémon', sub: 'Ideas and drafts', icon: 'pencil', keywords: 'unfinished draft idea continue todo wip', run: () => { api.showCollection?.(); api.setCollectionView?.('fakemon'); api.setCollectionSearch?.('is:unfinished'); } },
     { title: 'New folder', sub: 'Create', icon: 'folder-plus', keywords: 'create new folder', run: () => { api.showCollection?.(); api.createFolder?.(); } },
     { title: 'New region', sub: 'Create', icon: 'map', keywords: 'create new region dex', run: () => { api.showCollection?.(); api.createRegion?.(); } },
     { title: 'New custom move', sub: 'Create', icon: 'zap', keywords: 'create new custom move', run: () => { api.showCollection?.(); api.openLibraryEditorSheet?.('moves'); } },

@@ -14,6 +14,7 @@ import { Modal } from '../app/components/Modal.tsx';
 import { closeDialog, openDialog, registerDialog, type DialogProps } from '../app/dialogs.tsx';
 import { isActive, whenText } from '../features/moderation-model.ts';
 import type { ModTarget } from '../app/components/ModButton.tsx';
+import { SkeletonRows } from '../app/components/Skeleton.tsx';
 
 type Perms = Record<string, boolean | number>;
 const perms = (): Perms => (state.user?.permissions || {}) as Perms;
@@ -142,7 +143,7 @@ function ModMenu({ close, target, at }: DialogProps<{ target: ModTarget; at: { x
                     <span className="mod-menu-name">{name}</span>
                     {who?.username && who.display_name && <span className="mod-menu-handle">@{who.username}</span>}
                 </div>
-                {!who && !failed && <p className="mod-menu-note">Loading…</p>}
+                {!who && !failed && <SkeletonRows count={2} />}
                 {failed && <p className="mod-menu-note is-problem">{failed}</p>}
                 {who && (
                     <p className="mod-menu-note">

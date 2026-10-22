@@ -26,6 +26,22 @@ Put the three repos in one parent folder:
 
 Open `woogidex.code-workspace` in VS Code (File > Open Workspace from File). It shows all three repos in one window. Source Control lists each repo on its own, so a commit always goes to the repo that owns the file.
 
+### Git in all three repos
+
+In the parent folder, `git <command>` runs the command in `woogidex-core`, `woogidex-web` and `woogidex-backend`, one after the other. For example, `git status`, `git pull` or `git push`. A repo that fails, such as one with nothing to commit, does not stop the others. A summary line shows the result for each repo.
+
+`scripts/git-all.mjs` does the work. Each shell needs one small hook in the parent folder:
+
+| Shell | Hook |
+|---|---|
+| cmd | `git.cmd` in the parent folder: `node "%~dp0woogidex-web\scripts\git-all.mjs" %*` |
+| Git Bash | A `git` function in `~/.bashrc` that calls the script when `$PWD` is the parent folder |
+| PowerShell | A `git` function in your PowerShell profile that calls the script when the current folder is the parent folder, else `git.exe` |
+
+Without a hook, run `node woogidex-web/scripts/git-all.mjs <command>` from the parent folder.
+
+Inside a repo folder, `git` is plain git.
+
 ## Which repo gets my change?
 
 | You change | Commit it in |
@@ -50,6 +66,40 @@ npm run dev
 3. Set `WOOGIDEX_CORE` to use a Core folder somewhere else.
 
 `./core` is not part of this repo (it is in `.gitignore`).
+
+### The whole site in one command
+
+`npm run site` gets the other two repos if they are missing, links Core, installs packages, and starts the site. It also works from the parent folder that holds the three repos, if that folder has the small `package.json` that calls these scripts.
+
+| Command | What it does |
+|---|---|
+| `npm run site` | Dev server with the live backend |
+| `npm run site -- --backend=mock` | Dev server with a local mock backend |
+| `npm run site -- --backend=local` | Dev server with a real Supabase in Docker |
+| `npm run site -- build` | Production build into `dist/`, then serves it |
+| `npm run site -- build --no-serve` | Production build only |
+| `npm run site -- --sync` | Pulls all three repos first |
+| `npm run site -- --check` | Runs the typecheck first |
+| `npm run site -- --backend=<url>` | Uses another Supabase project |
+
+The backends:
+
+- **live**: the real Supabase project. Accounts and data are real. What you do there goes live.
+- **mock**: `scripts/mock-backend.mjs`, on 127.0.0.1 only. Any username and password signs you in. Tables are plain JSON lists in `node_modules/.cache/woogidex-mock/db.json`. Delete that file to start empty. It has no row-level rules, no storage, no Realtime and only two edge functions, so some features fail as they do offline.
+
+- **local**: a real Supabase in Docker (`scripts/local-db.mjs`) with the live schema and no live data. Row-level rules, triggers and database functions work as on the live site. Edge functions do not run, so sign in with an email address, not a username.
+
+Set up the local backend one time:
+
+1. Install Docker Desktop and the Supabase CLI.
+2. Start Docker Desktop.
+3. Run `supabase login`. It opens the browser.
+4. Run `npm run local-db -- setup`. It dumps the live schema (no data) into `woogidex-backend/local/`.
+5. Run `npm run site -- --backend=local`.
+
+Other commands: `npm run local-db -- stop` stops it. `npm run local-db -- reset` empties it. Run `setup` again to take a fresh schema dump after new migrations.
+
+The Worker does not run locally. Link previews, `/sheets` and TURN need Cloudflare and its secrets. The dev server stands in for the `/sb` proxy.
 
 ## How the files fit together
 

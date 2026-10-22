@@ -3,7 +3,7 @@
 // browsable grid, events and contests, and your own uploads. Data and actions
 // stay in js/features/community.ts and js/features/social.ts.
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, state } from '../../core/app.ts';
 import { CommunityFeed, LazyArt, type FeedRow } from '../components/community.tsx';
 import { EventsPanel } from '../components/EventsPanel.tsx';
@@ -12,12 +12,32 @@ import { Avatar } from '../components/Avatar.tsx';
 import { FeedCard, FeedSkeleton, PostComposer } from '../components/feed.tsx';
 import { events, getLiveEvents, showEventView } from '../../features/events.ts';
 import { useStore } from '../store.ts';
+import { useSlide } from '../hooks.ts';
 import type { FeedItem } from '../../features/feed-algorithm.ts';
 
 type Panel = 'feed' | 'browse' | 'events' | 'uploads';
 type FeedTab = 'foryou' | 'following' | 'latest';
 
 const TABS: Array<[Panel, string]> = [['feed', 'Feed'], ['browse', 'Browse Fakémon'], ['events', 'Events'], ['uploads', 'My uploads']];
+const PANELS = TABS.map(([k]) => k);
+const FEED_ORDER: FeedTab[] = ['foryou', 'following', 'latest'];
+
+// One column: the rail's sections become cards inside the feed. Keep in step
+// with the one-column rule for .feed-layout in css/feed.css.
+const ONE_COLUMN = '(max-width: 1000px), (max-aspect-ratio: 4/5)';
+
+/** Whether a media query matches, kept current. */
+function useMedia(query: string): boolean {
+    const [on, setOn] = useState(() => window.matchMedia(query).matches);
+    useEffect(() => {
+        const mq = window.matchMedia(query);
+        const set = () => setOn(mq.matches);
+        set();
+        mq.addEventListener('change', set);
+        return () => mq.removeEventListener('change', set);
+    }, [query]);
+    return on;
+}
 const FEED_TABS: Array<[FeedTab, string, string]> = [
     ['foryou', 'For you', 'sparkles'], ['following', 'Following', 'users'], ['latest', 'Latest', 'clock']
 ];
@@ -26,6 +46,9 @@ export function CommunityPage() {
     useStore();
     const cs = api.communityState();
     const panel: Panel = (['feed', 'browse', 'events', 'uploads'].includes(cs.panel) ? cs.panel : 'feed') as Panel;
+    // the sections list is a sidebar (sections go up and down) or, on a
+    // phone, a row of chips (sections go left and right)
+    const main = useSlide(panel, PANELS, useMedia('(max-width: 760px)') ? 'x' : 'y');
     return (
         <div className="hub">
             {/* the hub's sections, as a sidebar (a scrolling row of chips on a phone) */}
@@ -38,7 +61,7 @@ export function CommunityPage() {
                     ))}
                 </nav>
             </aside>
-            <div className="hub-main">
+            <div className="hub-main" ref={main}>
                 {panel === 'feed' && <Feed />}
                 {panel === 'browse' && <Browse />}
                 {panel === 'events' && <div className="community-panel"><EventsPanel /></div>}
@@ -59,6 +82,9 @@ function Feed() {
     const items: FeedItem[] = api.feedItems(tab);
     const [shown, setShown] = useState(CHUNK);
     const sentinel = useRef<HTMLDivElement>(null);
+    const list = useSlide(tab, FEED_ORDER);
+    const oneColumn = useMedia(ONE_COLUMN);
+    const creatorPool = social.feed.foryou.items.length ? social.feed.foryou.items : items;
 
     useEffect(() => { setShown(CHUNK); }, [tab, t.fetchedAt]);
     useEffect(() => { api.fetchFeed(tab); }, [tab]);
@@ -89,10 +115,18 @@ function Feed() {
                         <Icon name="arrow-path" size={16} className={t.loading ? 'spin' : ''} />
                     </button>
                 </div>
-                {t.error && <div className="feed-empty"><Icon name="exclamation-triangle" size={20} /><p>{t.error}</p></div>}
-                {!items.length && t.loading && <FeedSkeleton />}
-                {!items.length && !t.loading && !t.error && <EmptyFeed tab={tab} />}
-                {items.slice(0, shown).map(item => <FeedCard key={`${item.kind}:${item.id}`} item={item} />)}
+                <div className="feed-list" ref={list}>
+                    {t.error && <div className="feed-empty"><Icon name="exclamation-triangle" size={20} /><p>{t.error}</p></div>}
+                    {!items.length && t.loading && <FeedSkeleton />}
+                    {!items.length && !t.loading && !t.error && <EmptyFeed tab={tab} />}
+                    {oneColumn
+                        ? <WithInlineCards items={items.slice(0, shown)} done={shown >= items.length && !t.loading} cards={[
+                            [3, <LiveContests key="live" inline />],
+                            [6, <SuggestedCreators key="creators" items={creatorPool} inline />],
+                            [12, <FeaturedMini key="featured" inline />]
+                        ]} />
+                        : items.slice(0, shown).map(item => <FeedCard key={`${item.kind}:${item.id}`} item={item} />)}
+                </div>
                 <div ref={sentinel} className="feed-sentinel" />
                 {items.length > 0 && shown >= items.length && (
                     tab === 'foryou' ? (
@@ -105,12 +139,48 @@ function Feed() {
                 )}
                 {t.loading && items.length > 0 && <FeedSkeleton count={1} />}
             </div>
-            <aside className="feed-rail" aria-label="More from the hub">
-                <LiveContests />
-                <SuggestedCreators items={social.feed.foryou.items.length ? social.feed.foryou.items : items} />
-                <FeaturedMini />
-            </aside>
+            {!oneColumn && (
+                <aside className="feed-rail" aria-label="More from the hub">
+                    <LiveContests />
+                    <SuggestedCreators items={creatorPool} />
+                    <FeaturedMini />
+                </aside>
+            )}
         </div>
+    );
+}
+
+/**
+ * The feed with the rail's sections dealt in among the posts, the way a phone
+ * app shows "Suggested for you": each card goes in after the given number of
+ * posts. A card whose spot is past the end waits for the last page, then goes
+ * at the bottom. A section with nothing to show draws nothing.
+ */
+function WithInlineCards({ items, done, cards }: { items: FeedItem[]; done: boolean; cards: Array<[number, ReactNode]> }) {
+    if (!items.length) return null;
+    const out: ReactNode[] = [];
+    items.forEach((item, i) => {
+        out.push(<FeedCard key={`${item.kind}:${item.id}`} item={item} />);
+        for (const [after, card] of cards) if (after === i + 1) out.push(card);
+    });
+    if (done) for (const [after, card] of cards) if (after > items.length) out.push(card);
+    return <>{out}</>;
+}
+
+/** A rail section, or the same section as a card in the feed. */
+function RailCard({ inline, title, icon, action, className = '', children }: {
+    inline?: boolean; title: string; icon: string; action?: ReactNode; className?: string; children: ReactNode;
+}) {
+    if (!inline) return <section className={`feed-rail-card ${className}`}><h3>{title}</h3>{children}{action}</section>;
+    return (
+        <section className={`feed-card feed-inline ${className}`} aria-label={title}>
+            <header className="feed-inline-head">
+                <span className="feed-inline-icon"><Icon name={icon} size={16} /></span>
+                <h3>{title}</h3>
+                {action}
+            </header>
+            {children}
+        </section>
     );
 }
 
@@ -126,7 +196,7 @@ function EmptyFeed({ tab }: { tab: FeedTab }) {
 }
 
 /** People who show up in the feed that you don't follow yet, minus anyone who'd rather not be suggested. */
-function SuggestedCreators({ items }: { items: FeedItem[] }) {
+function SuggestedCreators({ items, inline }: { items: FeedItem[]; inline?: boolean }) {
     const ids = [...new Set(items.map(it => it.user_id))].sort();
     const hidden = useUndiscoverable(ids);
     if (!state.user || !hidden) return null;
@@ -139,9 +209,26 @@ function SuggestedCreators({ items }: { items: FeedItem[] }) {
     }
     const top = [...score.values()].sort((a, b) => b.n - a.n).slice(0, 5);
     if (!top.length) return null;
+    if (inline) {
+        return (
+            <RailCard inline title="Creators to follow" icon="users">
+                <div className="feed-inline-strip">
+                    {top.map(({ item }) => (
+                        <div className="feed-inline-person" key={item.user_id}>
+                            <button type="button" className="feed-inline-person-main" onClick={() => api.showUserProfile(item.user_id)}>
+                                <Avatar userId={item.user_id} url={item.author_avatar_url} name={item.author_name} className="feed-avatar feed-avatar-lg" />
+                                <strong>{item.author_name || 'Someone'}</strong>
+                                <small>In your feed</small>
+                            </button>
+                            <button type="button" className="feed-follow-btn" onClick={() => api.followUser(item.user_id)}>Follow</button>
+                        </div>
+                    ))}
+                </div>
+            </RailCard>
+        );
+    }
     return (
-        <section className="feed-rail-card">
-            <h3>Creators to follow</h3>
+        <RailCard title="Creators to follow" icon="users">
             {top.map(({ item }) => (
                 <div className="feed-rail-person" key={item.user_id}>
                     <button type="button" className="feed-rail-person-main" onClick={() => api.showUserProfile(item.user_id)}>
@@ -151,7 +238,7 @@ function SuggestedCreators({ items }: { items: FeedItem[] }) {
                     <button type="button" className="feed-follow-btn" onClick={() => api.followUser(item.user_id)}>Follow</button>
                 </div>
             ))}
-        </section>
+        </RailCard>
     );
 }
 
@@ -176,15 +263,19 @@ function useUndiscoverable(ids: string[]): Set<string> | null {
 }
 
 /** "Featured this week", now a small grid beside the feed. */
-function FeaturedMini() {
+function FeaturedMini({ inline }: { inline?: boolean }) {
     const cs = api.communityState();
     const rows: FeedRow[] = cs.mons || [];
     if (!rows.length) return null;
-    const featured: FeedRow[] = api.featuredThisWeek(rows, 6);
+    const featured: FeedRow[] = api.featuredThisWeek(rows, inline ? 10 : 6);
+    const browse = (
+        <button type="button" className="link-btn" onClick={() => api.showCommunityPanel('browse')}>
+            {inline ? 'See all' : 'Browse every Fakémon'} <Icon name="arrow-right" size={12} />
+        </button>
+    );
     return (
-        <section className="feed-rail-card">
-            <h3>Featured this week</h3>
-            <div className="feed-rail-grid">
+        <RailCard inline={inline} title="Featured this week" icon="star" action={browse}>
+            <div className={inline ? 'feed-inline-strip' : 'feed-rail-grid'}>
                 {featured.map(row => (
                     <button type="button" key={row.id} className="feed-rail-mon" onClick={() => api.openMonDetail(row.id)} title={row.fakemon_data?.name}>
                         <LazyArt row={row} className="feed-rail-mon-art" />
@@ -192,18 +283,16 @@ function FeaturedMini() {
                     </button>
                 ))}
             </div>
-            <button type="button" className="link-btn" onClick={() => api.showCommunityPanel('browse')}>Browse every Fakémon <Icon name="arrow-right" size={12} /></button>
-        </section>
+        </RailCard>
     );
 }
 
 // live events have a deadline, so they sit at the top of the rail
-function LiveContests() {
+function LiveContests({ inline }: { inline?: boolean }) {
     const live = getLiveEvents();
     if (!live.length) return null;
     return (
-        <section className="feed-rail-card community-contest-section">
-            <h3>Happening now</h3>
+        <RailCard inline={inline} title="Happening now" icon="trophy" className="community-contest-section">
             {live.slice(0, 3).map(ev => (
                 <button type="button" className="community-contest-card" key={ev.id} onClick={() => { api.showCommunityPanel('events'); showEventView({ kind: 'event', id: ev.id }); }}>
                     <span className="community-contest-phase">{ev.phase === 'voting' ? 'Voting open' : 'Taking entries'}</span>
@@ -211,7 +300,7 @@ function LiveContests() {
                     {ev.category && <span className="community-contest-count">{ev.category}</span>}
                 </button>
             ))}
-        </section>
+        </RailCard>
     );
 }
 

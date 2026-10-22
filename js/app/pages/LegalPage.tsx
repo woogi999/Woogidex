@@ -7,6 +7,7 @@ import { api } from '../../core/app.ts';
 import { Icon } from '../components/Icon.tsx';
 import { LEGAL_DOCS, loadLegalDoc, openLegalPage, takePendingLegalAnchor, type LegalKey } from '../../features/legal.ts';
 import { useRoute } from '../hooks.ts';
+import { SkeletonDoc } from '../components/Skeleton.tsx';
 
 export function LegalPage() {
     const route = useRoute();
@@ -52,7 +53,7 @@ export function LegalPage() {
             </div>
             {ready
                 ? <div className="legal-doc" ref={bodyRef} onClick={onDocClick} dangerouslySetInnerHTML={{ __html: html.html }} />
-                : <div className="legal-doc"><p className="legal-loading">Loading…</p></div>}
+                : <div className="legal-doc"><SkeletonDoc lines={14} label="Loading the document" /></div>}
         </div>
     );
 }

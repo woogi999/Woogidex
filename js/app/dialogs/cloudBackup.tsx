@@ -10,6 +10,7 @@ import { Modal } from '../components/Modal.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { CloudMeters } from '../components/CloudMeters.tsx';
 import { useStore } from '../store.ts';
+import { SkeletonRows } from '../components/Skeleton.tsx';
 
 function CloudBackupDialog(_: DialogProps) {
     useStore();
@@ -46,7 +47,7 @@ function CloudBackupDialog(_: DialogProps) {
                     <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.clearCloudBackupSelection()}>Clear</button>
                 </div>
                 <div className="cloud-pick-grid">
-                    {v.loading ? <div className="cloud-pick-empty">Loading your backup...</div>
+                    {v.loading ? <SkeletonRows count={4} label="Loading your backup" />
                         : !v.entries.length ? <div className="cloud-pick-empty">{v.empty}</div>
                             : v.entries.map((e: any) => (
                                 <button key={e.id} type="button" className={`cloud-pick-card${e.picked ? ' selected' : ''}`} aria-pressed={e.picked} onClick={() => api.toggleCloudBackupMon(e.id)}>

@@ -44,6 +44,7 @@ import { LandingPage } from './app/pages/LandingPage.tsx';
 import { registerAccountSettings } from './app/pages/SettingsAccount.tsx';
 import { CookieNotice } from './app/shell/CookieNotice.tsx';
 import { GlobalSearch } from './app/shell/GlobalSearch.tsx';
+import { QuickSearch } from './app/shell/QuickSearch.tsx';
 import {
     AccountButton, AccountMenuBottom, AccountMenuTop, FeedbackMenuItem, MessagesButton, Notifications, SignInButton
 } from './app/shell/HeaderAccount.tsx';
@@ -157,6 +158,8 @@ export function installHost(): void {
         // the "STOP, don't paste anything here" warning (production only)
         showConsoleWarning();
         mountIsland('cookie-notice-root', CookieNotice);
+        // Ctrl+K: a layer of its own, above the page and the dialogs
+        mountIsland(document.body.appendChild(Object.assign(document.createElement('div'), { id: 'quick-search-root' })), QuickSearch);
         return api.initAuth();
     });
     // the unread count on the header's Updates tab

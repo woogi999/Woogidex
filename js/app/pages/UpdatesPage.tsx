@@ -4,17 +4,18 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { Icon } from '../components/Icon.tsx';
 import { loadUpdates, openUpdatesPage, unreadUpdateIds, type Update } from '../../features/updates.ts';
-import { useRoute } from '../hooks.ts';
+import { useRoute, useSlide } from '../hooks.ts';
+import { SkeletonDoc } from '../components/Skeleton.tsx';
 
 export function UpdatesPage() {
     const route = useRoute();
     const tab = route.name === 'updates' && route.param === 'credits' ? 'credits' : 'updates';
+    const pane = useSlide(tab, ['updates', 'credits']);
     return (
         <>
             <div className="page-header">
                 <div className="page-heading">
                     <h1 className="page-title">Updates &amp; Credits</h1>
-                    <p className="page-subtitle">What's new in Woogidex, and the people who make it.</p>
                 </div>
             </div>
 
@@ -28,12 +29,14 @@ export function UpdatesPage() {
             </div>
 
             {/* the changelog stays mounted while Credits shows, so it isn't fetched again */}
-            <section className="updates-page-section" hidden={tab !== 'updates'}>
-                <div className="updates-page-list">
-                    <UpdatesPanel />
-                </div>
-            </section>
-            {tab === 'credits' && <Credits />}
+            <div ref={pane}>
+                <section className="updates-page-section" hidden={tab !== 'updates'}>
+                    <div className="updates-page-list">
+                        <UpdatesPanel />
+                    </div>
+                </section>
+                {tab === 'credits' && <Credits />}
+            </div>
         </>
     );
 }
@@ -58,7 +61,7 @@ function UpdatesPanel() {
 /** Every screen the changelog can show, as a function of its inputs. */
 export function UpdatesView({ status, updates = [], unreadIds = null }: { status: Status; updates?: Update[]; unreadIds?: Set<string> | null }) {
     if (status === 'loading') {
-        return <Empty icon="loader-circle" title="Loading updates...">Fetching the latest Woogidex updates.</Empty>;
+        return <div className="updates-skel"><SkeletonDoc lines={6} label="Loading updates" /><SkeletonDoc lines={5} label="Loading updates" /></div>;
     }
     if (status === 'error') {
         return (

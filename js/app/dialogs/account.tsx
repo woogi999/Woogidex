@@ -11,6 +11,7 @@ import { registerDialog, type DialogProps } from '../dialogs.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { NAME_MAX } from '../../core/data.ts';
+import { SkeletonDoc } from '../components/Skeleton.tsx';
 
 /** The policy-style dialog these share: title, body, and an action row. */
 function PolicyDialog({ title, close, children, dismissible = true }: { title: string; close: () => void; children: ReactNode; dismissible?: boolean }) {
@@ -93,7 +94,7 @@ function TermsDialog({ close }: DialogProps) {
     return (
         <PolicyDialog title={LEGAL_DOCS[doc.key].title} close={close}>
             {html === null
-                ? <div className="legal-doc"><p className="legal-loading">Loading…</p></div>
+                ? <div className="legal-doc"><SkeletonDoc label="Loading the document" /></div>
                 : <div className="legal-doc" ref={body} onClick={onClick} dangerouslySetInnerHTML={{ __html: html }} />}
             <div className="policy-actions">
                 <button type="button" className="btn btn-primary" onClick={close}>Got it</button>

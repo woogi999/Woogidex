@@ -9,7 +9,7 @@ import { Icon } from '../components/Icon.tsx';
 import { COMMUNITY_PAGE_LIMIT, GROUPS, PAGE_LIMIT, PEOPLE_PAGE_LIMIT, communityResults, localGroups, peopleResults, type GroupKey, type SearchResult } from '../../features/search.ts';
 import { openSearchPage, takeSearchFilter } from '../../features/global-search.ts';
 import { SearchRow } from '../components/SearchRow.tsx';
-import { useQueryParam } from '../hooks.ts';
+import { useQueryParam, useSlide } from '../hooks.ts';
 import { useStore } from '../store.ts';
 
 type Filter = 'all' | GroupKey;
@@ -69,6 +69,7 @@ export function SearchPage() {
         ['all', 'All', total],
         ...GROUPS.map(([key, label]): [Filter, string, number] => [key, label.replace(/^Your /, '').replace(/^./, c => c.toUpperCase()), groups[key].length])
     ];
+    const results = useSlide(filter, tabs.map(([k]) => k));
 
     const section = ([key, label]: [GroupKey, string], cap: number) => {
         const list = groups[key];
@@ -108,7 +109,6 @@ export function SearchPage() {
             <div className="page-header">
                 <div className="page-heading">
                     <h1 className="page-title">Search</h1>
-                    <p className="page-subtitle">{query ? `Results for “${query}”` : 'Search your collection, people, pages and the Community Hub.'}</p>
                 </div>
             </div>
 
@@ -127,7 +127,7 @@ export function SearchPage() {
                 ))}
             </div>
 
-            <div className="search-page-results">
+            <div className="search-page-results" ref={results}>
                 {!query ? (
                     <div className="search-page-empty"><Icon name="search" /><p>Type something to search for.</p></div>
                 ) : sections.length ? sections : (

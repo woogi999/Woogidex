@@ -16,6 +16,7 @@ import { useStore } from '../store.ts';
 import type { Attachment, ChatMessage, Conversation, ChatMember, Outgoing } from '../../features/messaging.ts';
 import { NAME_MAX } from '../../core/data.ts';
 import { isEmojiOnly } from '../../core/emoji.ts';
+import { SkeletonBlock, SkeletonRows } from '../components/Skeleton.tsx';
 
 export function MessagesPage() {
     useStore();
@@ -40,7 +41,7 @@ function KeyGate({ status }: { status: string }) {
     const [busy, setBusy] = useState(false);
     const [resetting, setResetting] = useState(false);
 
-    if (status === 'checking' || status === 'signed-out') return <div className="messenger-gate"><div className="spinner" /><p>Getting your chats ready…</p></div>;
+    if (status === 'checking' || status === 'signed-out') return <div className="messenger-gate messenger-gate-skel"><SkeletonRows count={6} avatar label="Getting your chats ready" /></div>;
     if (status === 'unsupported') return <div className="messenger-gate"><Icon name="exclamation-triangle" size={28} /><p>Messages need a browser that can do encryption (any recent Chrome, Firefox, Safari or Edge), on the real site.</p></div>;
     if (status === 'offline') return <div className="messenger-gate"><Icon name="wifi" size={28} /><p>Couldn’t reach the server. Check your connection.</p><button type="button" className="btn btn-secondary btn-sm" onClick={() => api.onMessagingAuthChange?.()}>Try again</button></div>;
 
@@ -212,7 +213,7 @@ function Thread({ conversationId, convo }: { conversationId: string; convo: Conv
                 </header>
 
                 <div className="chat-messages" ref={scroller} onScroll={onScroll}>
-                    {t.hasMore && <div className="chat-older">{t.loading ? 'Loading…' : <button type="button" className="link-btn" onClick={() => api.loadOlderMessages(conversationId)}>Load older messages</button>}</div>}
+                    {t.hasMore && <div className="chat-older">{t.loading ? <SkeletonRows count={2} avatar label="Loading older messages" /> : <button type="button" className="link-btn" onClick={() => api.loadOlderMessages(conversationId)}>Load older messages</button>}</div>}
                     <div className="chat-intro">
                         <ChatAvatar convo={convo} size="lg" />
                         <strong>{api.conversationTitle(convo)}</strong>
@@ -368,7 +369,7 @@ function MediaTile({ conversationId, att }: { conversationId: string; att: Attac
                     : (
                         <button type="button" className="chat-media-poster" onClick={async () => { if (await load()) setPlaying(true); }}>
                             {att.thumb && <img src={att.thumb} alt="" />}
-                            <span className="chat-media-play">{status === 'loading' ? <span className="spinner" /> : <Icon name="play" size={26} />}</span>
+                            {status === 'loading' ? <SkeletonBlock className="chat-media-skel" label="Loading video" /> : <span className="chat-media-play"><Icon name="play" size={26} /></span>}
                             <span className="chat-media-meta">{formatDuration(att.duration)} · {formatBytes(att.size)}</span>
                         </button>
                     )}
@@ -378,7 +379,8 @@ function MediaTile({ conversationId, att }: { conversationId: string; att: Attac
     return (
         <button type="button" className="chat-media-tile" style={{ aspectRatio: ratio }} onClick={async () => { const u = await load(); if (u) openDialog('chat-lightbox', { url: u, att, conversationId }); }}>
             <img src={url || att.thumb || ''} alt={att.name} className={url ? '' : 'is-preview'} draggable={false} />
-            {!url && <span className="chat-media-meta">{status === 'loading' ? 'Loading…' : status === 'error' ? 'Couldn’t load' : `Tap to load · ${formatBytes(att.size)}`}</span>}
+            {!url && status === 'loading' && <SkeletonBlock className="chat-media-skel" label="Loading image" />}
+            {!url && status !== 'loading' && <span className="chat-media-meta">{status === 'error' ? 'Couldn’t load' : `Tap to load · ${formatBytes(att.size)}`}</span>}
         </button>
     );
 }
@@ -391,7 +393,7 @@ function AudioTile({ conversationId, att }: { conversationId: string; att: Attac
             {url ? <audio src={url} controls autoPlay preload="auto" />
                 : (
                     <button type="button" className="chat-audio-play" onClick={load} aria-label="Play">
-                        {status === 'loading' ? <span className="spinner" /> : <Icon name="play" size={16} />}
+                        {status === 'loading' ? <span className="skel skel-circle chat-audio-skel" aria-label="Loading" /> : <Icon name="play" size={16} />}
                         <span>{att.kind === 'voice' ? 'Voice message' : att.name}</span>
                         <span className="chat-audio-len">{formatDuration(att.duration)}</span>
                     </button>
@@ -658,7 +660,7 @@ function FollowerPicker({ exclude = [], onPick, actionLabel, title, withName = f
             {withName && <input type="text" maxLength={NAME_MAX} placeholder="Group name (optional)" value={name} onChange={e => setName(e.target.value)} />}
             <input type="search" placeholder="Search your followers" value={query} onChange={e => setQuery(e.target.value)} />
             <div className="chat-dialog-list">
-                {followers === null ? <div className="community-empty">Loading…</div>
+                {followers === null ? <SkeletonRows count={4} avatar />
                     : !list.length ? <div className="community-empty">{followers.length ? 'Nobody matches.' : 'Nobody to add yet. Once people follow you, you can add them here.'}</div>
                     : list.map(f => (
                         <label key={f.id} className={`chat-pick${picked.has(f.id) ? ' is-picked' : ''}`}>

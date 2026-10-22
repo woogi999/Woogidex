@@ -41,12 +41,14 @@ import { EvoStrip } from './board/CommunityEvoStrip.tsx';
 import { openDialog, registerDialog, type DialogProps } from '../dialogs.tsx';
 import { cropThen } from '../dialogs/cropImage.tsx';
 import { notify, useStore } from '../store.ts';
+import { SlideStage } from './SlideStage.tsx';
 import { CommentThread, ReactionSummary } from './comments.tsx';
 import { BasicTab } from './editor/BasicTab.tsx';
 import { StatsTab } from './editor/StatsTab.tsx';
 import { MovesTab } from './editor/MovesTab.tsx';
 import { EditorBoard } from './board/EditorBoard.tsx';
 import { ThumbImg } from './ThumbImg.tsx';
+import { SkeletonRows } from './Skeleton.tsx';
 
 export function EventsPanel() {
     useStore();
@@ -1627,7 +1629,7 @@ registerDialog('event-fakemon-picker', FakemonPickerDialog);
 // Picked from a collection, the line comes along by itself; anyone else (a
 // file, or one made here) adds the rest and says how they connect.
 
-/** Who a member comes after, in words: "evolves from Sproutle (Level 16)". */
+/** Who a member comes after */
 function lineLink(line: LineMember[], m: LineMember): string {
     const parent = m.from ? line.find(x => x.sourceId === m.from)?.mon?.name || '?' : '';
     const how = m.method ? ` (${m.method})` : '';
@@ -1981,12 +1983,12 @@ function EventFakemonEditorDialog({ close, mon, rules, face = true, onSave }: Di
             {problems.length > 0 && <p className="ev-notice is-problem"><Icon name="shield-exclamation" size={15} /><span>{monRuleSentence(problems)}</span></p>}
             <div className="ev-maker-body editor-form-col">
                 {!ready ? <span className="skel" style={{ display: 'block', height: 360, borderRadius: 'var(--panel-r)' }} /> : (
-                    <>
+                    <SlideStage current={tab} order={MAKER_TABS.map(([k]) => k)}>
                         {tab === 'basic' && <div className="tab-content"><BasicTab /></div>}
                         {tab === 'stats' && <div className="tab-content"><StatsTab evolutions={false} /></div>}
                         {tab === 'moves' && <div className="tab-content"><MovesTab /></div>}
                         {tab === 'preview' && <div className="tab-content editor-preview-pane"><EditorBoard id="pokedex-board-event-maker" /></div>}
-                    </>
+                    </SlideStage>
                 )}
             </div>
             <div className="modal-actions ev-maker-actions">
@@ -2299,13 +2301,15 @@ function Dashboard({ id, tab }: { id: string; tab: DashTab }) {
                     </button>
                 ))}
             </nav>
-            {current === 'overview' && <Overview ev={ev} d={d} />}
-            {current === 'entries' && <EntriesTab ev={ev} d={d} />}
-            {current === 'announcements' && <AnnouncementsTab ev={ev} d={d} />}
-            {current === 'results' && <ResultsTab ev={ev} d={d} />}
-            {current === 'team' && <TeamTab ev={ev} d={d} />}
-            {current === 'audit' && <AuditLogTab ev={ev} d={d} />}
-            {current === 'settings' && <EventEditor event={ev} />}
+            <SlideStage current={current} order={tabs.map(t => t[0])}>
+                {current === 'overview' && <Overview ev={ev} d={d} />}
+                {current === 'entries' && <EntriesTab ev={ev} d={d} />}
+                {current === 'announcements' && <AnnouncementsTab ev={ev} d={d} />}
+                {current === 'results' && <ResultsTab ev={ev} d={d} />}
+                {current === 'team' && <TeamTab ev={ev} d={d} />}
+                {current === 'audit' && <AuditLogTab ev={ev} d={d} />}
+                {current === 'settings' && <EventEditor event={ev} />}
+            </SlideStage>
         </div>
     );
 }
@@ -2430,14 +2434,16 @@ function EntriesTab({ ev, d }: { ev: EventRow; d: Detail }) {
                     ))}
                 </div>
                 {!d.entries.length && <p className="ev-hint">{ev.phase === 'draft' ? 'Responses show up here once the event is live and taking entries.' : 'No responses yet. Share the entry link to get people in.'}</p>}
-                {d.entries.length > 0 && view === 'summary' && (
-                    <div className="ev-summary">
-                        {questions.map(f => <QuestionSummary key={f.id} d={d} f={f} onOpen={open} />)}
-                        {!questions.length && <p className="ev-hint">The form has no questions, so each response is a sign-up.</p>}
-                    </div>
-                )}
-                {d.entries.length > 0 && view === 'question' && <QuestionResponses d={d} questions={questions} qid={qid} onQid={setQid} onOpen={open} />}
-                {d.entries.length > 0 && view === 'individual' && <IndividualResponse ev={ev} d={d} perms={perms} at={Math.min(at, d.entries.length - 1)} onAt={setAt} />}
+                <SlideStage current={view} order={RESPONSE_VIEWS.map(([k]) => k)}>
+                    {d.entries.length > 0 && view === 'summary' && (
+                        <div className="ev-summary">
+                            {questions.map(f => <QuestionSummary key={f.id} d={d} f={f} onOpen={open} />)}
+                            {!questions.length && <p className="ev-hint">The form has no questions, so each response is a sign-up.</p>}
+                        </div>
+                    )}
+                    {d.entries.length > 0 && view === 'question' && <QuestionResponses d={d} questions={questions} qid={qid} onQid={setQid} onOpen={open} />}
+                    {d.entries.length > 0 && view === 'individual' && <IndividualResponse ev={ev} d={d} perms={perms} at={Math.min(at, d.entries.length - 1)} onAt={setAt} />}
+                </SlideStage>
             </section>
             <SheetLink ev={ev} d={d} />
             {perms.edit && <ExtraEntries ev={ev} d={d} />}
@@ -2644,11 +2650,13 @@ function VoteResponses({ ev, d, perms }: { ev: EventRow; d: Detail; perms: Retur
                 ))}
             </div>
             {!d.votes.length && <p className="ev-hint">{effectivePhase(ev) === 'voting' ? 'No votes yet. They show up here as people vote.' : 'Votes show up here once voting opens.'}</p>}
-            {d.votes.length > 0 && view === 'summary' && <VotesSummary ev={ev} d={d} voters={voters} checked={checked} onOpen={openVoter} />}
-            {d.votes.length > 0 && view === 'voters' && <VoterResponse ev={ev} d={d} voters={voters} at={Math.min(at, voters.length - 1)} onAt={setAt} checked={checked} onCheck={setChecked} />}
-            {d.votes.length > 0 && view === 'entries' && (d.entries.length
-                ? <VoterFeedback ev={ev} d={d} perms={perms} at={Math.min(entryAt, d.entries.length - 1)} onAt={setEntryAt} />
-                : <p className="ev-hint">No entries to show votes for.</p>)}
+            <SlideStage current={view} order={VOTE_VIEWS.map(([k]) => k)}>
+                {d.votes.length > 0 && view === 'summary' && <VotesSummary ev={ev} d={d} voters={voters} checked={checked} onOpen={openVoter} />}
+                {d.votes.length > 0 && view === 'voters' && <VoterResponse ev={ev} d={d} voters={voters} at={Math.min(at, voters.length - 1)} onAt={setAt} checked={checked} onCheck={setChecked} />}
+                {d.votes.length > 0 && view === 'entries' && (d.entries.length
+                    ? <VoterFeedback ev={ev} d={d} perms={perms} at={Math.min(entryAt, d.entries.length - 1)} onAt={setEntryAt} />
+                    : <p className="ev-hint">No entries to show votes for.</p>)}
+            </SlideStage>
         </section>
         <SheetLink ev={ev} d={d} kind="votes" />
         </>
@@ -2842,7 +2850,7 @@ function AuditLogTab({ ev, d }: { ev: EventRow; d: Detail }) {
                 {AUDIT_FILTERS.map(([key, label]) => <button key={key} type="button" role="tab" aria-selected={filter === key} className={filter === key ? 'active' : ''} onClick={() => setFilter(key)}>{label}</button>)}
             </div>
             {error && <p className="ev-error">{error}</p>}
-            {!rows && !error && <p className="ev-hint">Loading…</p>}
+            {!rows && !error && <SkeletonRows count={4} />}
             {rows && !shown.length && <p className="ev-hint">Nothing here yet.</p>}
             <ol className="ev-audit-list">
                 {shown.map(r => {
@@ -3978,7 +3986,7 @@ function TemplatesDialog({ close, onLoad }: DialogProps<{ onLoad: (values: any, 
         <Modal onClose={close} title="Templates" className="ev-template-modal">
             <p className="ev-hint">Loading one fills in its setup: the form, voting, rules, about text and team. Dates and the link stay yours to set.</p>
             <h4 className="ev-template-group">Yours</h4>
-            {status === 'loading' && !list.length ? <p className="ev-hint">Loading…</p>
+            {status === 'loading' && !list.length ? <SkeletonRows count={3} />
                 : !list.length ? <p className="ev-hint">None yet. Set up an event the way you like it, then "Save as template" at the top of the editor.</p>
                 : (
                     <ul className="ev-template-list">

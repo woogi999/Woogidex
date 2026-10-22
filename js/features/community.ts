@@ -9,6 +9,7 @@ import { getCachedArt, getCachedArtBatch, putCachedArt, dropCachedArt } from '..
 import { artworkBlob, frameCount, maskedArtwork, artworkDataUri, isMaskedArtwork } from '../core/art-shield.ts';
 import { confirmDialog } from '../core/confirm-dialog.ts';
 import { cloudLimits, refreshCloudLimits, asCap } from './cloud-save.ts';
+import { cleanArtSets } from '../editor/art-sets.ts';
 
 // ==================== live roles ====================
 // roles are db-driven so staff can edit them from the admin panel. cache
@@ -127,6 +128,79 @@ function pickFamilyDisplayMember(family) {
     return pool.reduce((best, m) => (m.stage > best.stage ? m : best), pool[0]);
 }
 
+// ==================== extra artwork on a post ====================
+// A post carries every artwork set (js/editor/art-sets.ts) as display copies.
+// Every still image is drawn on a canvas and encoded again: that drops the
+// file's metadata (EXIF, a phone's GPS position) and keeps a Fakemon's extra
+// artwork under the server's cap (art_sets_problem() in Postgres). Sprites
+// and icons stay PNG at their own size, so their pixels do not change.
+const SET_IMAGE_PX = 1600;
+const SET_IMAGE_MAX_CHARS = 450_000;
+const SET_TOTAL_MAX_CHARS = 6_000_000;
+
+async function publishableSetImage(src: string, pixel: boolean): Promise<string> {
+    // an animated image would lose its frames on a canvas: keep it as it is
+    if (await frameCount(src) > 1) return src;
+    const blob = await artworkBlob(src);
+    if (!blob) throw new Error('An artwork set image could not be read.');
+    const bitmap = await createImageBitmap(blob);
+    const scale = pixel ? 1 : Math.min(1, SET_IMAGE_PX / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = canvas.getContext('2d')!;
+    ctx.imageSmoothingEnabled = !pixel;
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    if (pixel) return canvas.toDataURL('image/png');
+    let out = '';
+    for (const q of [0.9, 0.8, 0.7, 0.6]) {
+        out = canvas.toDataURL('image/webp', q);
+        if (!out.startsWith('data:image/webp')) return canvas.toDataURL('image/png');   // no WebP encoder
+        if (out.length <= SET_IMAGE_MAX_CHARS) break;
+    }
+    return out;
+}
+
+/**
+ * A Fakemon without its private notebook (notes, doodles, tags, status:
+ * js/features/notebook.ts). Those are for its maker; a post never carries them.
+ */
+export function withoutNotebook(mon: any): any {
+    if (!mon || typeof mon !== 'object') return mon;
+    const { notes: _n, doodles: _d, tags: _t, status: _s, ...rest } = mon;
+    return rest;
+}
+
+/** A Fakemon with its artwork sets checked and re-encoded for a post. Rejects with a message to show. */
+async function withPublishableArtSets(mon: any): Promise<any> {
+    mon = withoutNotebook(mon);
+    const sets = cleanArtSets(mon?.artSets).filter(set => set.images.length);
+    if (!sets.length) {
+        const { artSets: _dropped, ...rest } = mon || {};
+        return rest;
+    }
+    for (const set of sets) {
+        const pixel = set.kind === 'sprites' || set.kind === 'icon';
+        set.images = await Promise.all(set.images.map(async img => ({ ...img, src: await publishableSetImage(img.src, pixel) })));
+    }
+    const total = sets.reduce((n, set) => n + set.images.reduce((m, img) => m + img.src.length, 0), 0);
+    if (total > SET_TOTAL_MAX_CHARS) {
+        throw new Error(`The extra artwork on ${mon?.name || 'this Fakémon'} is too large to publish. Remove some sprites or concept art, or use smaller files.`);
+    }
+    return { ...mon, artSets: sets };
+}
+
+/** The evolution family of a post, each member ready to publish, or null after it says why not. */
+async function publishableFamily(mon: any) {
+    try {
+        return await Promise.all(collectEvolutionFamily(mon).map(async (entry: any) => ({ ...entry, mon: await withPublishableArtSets(entry.mon) })));
+    } catch (e: any) {
+        api.showToast?.(String(e?.message || 'That Fakémon could not be prepared for the Community Hub.'), 'error');
+        return null;
+    }
+}
+
 // small per-member summary embedded on the row so the evo badge
 // (renderCommunityEvoBadge) can show "3-Stage"/"Has Mega" without an extra
 // fetch. deliberately excludes artwork - family_full below already carries
@@ -183,11 +257,15 @@ function monTextForScreening(payload) {
     const parts: any[] = [];
     const walk = (d) => {
         if (!d || typeof d !== 'object') return;
-        parts.push(d.name, d.species, d.dexEntry1, d.dexEntry2, d.artCredit, d.color, d.notes);
+        parts.push(d.name, d.species, d.dexEntry1, d.dexEntry2, d.artCredit, d.shinyArtCredit, d.artDescription, d.shinyArtDescription, d.color, d.notes);
         (d.abilities || []).forEach(a => parts.push(a?.name, a?.desc));
         (d.customAbilities || []).forEach(a => parts.push(a?.name, a?.desc));
         (d.learnset || []).forEach(m => parts.push(m?.name, m?.desc));
         (d.sampleSets || []).forEach(sset => parts.push(sset?.name, sset?.notes));
+        (Array.isArray(d.artSets) ? d.artSets : []).forEach(set => {
+            parts.push(set?.label);
+            (Array.isArray(set?.images) ? set.images : []).forEach(img => parts.push(img?.credit, img?.description));
+        });
     };
     walk(payload.fakemon_data);
     (payload.family_full || []).forEach(entry => walk(entry?.mon || entry));
@@ -257,7 +335,8 @@ async function publishSnapshot(mon, rulesChecked = false, open = false) {
 
     // bundle the whole evolution family into one post/row, other stages as
     // embedded snapshots.
-    const family = collectEvolutionFamily(mon);
+    const family = await publishableFamily(mon);
+    if (!family) return;
     const isFamily = family.length > 1;
     // diagnostic: family size 1 when evolutions were expected means
     // mon.evolutionGraph or its sibling stages aren't resolving via state.fakemonDB.
@@ -265,7 +344,7 @@ async function publishSnapshot(mon, rulesChecked = false, open = false) {
 
     // the card/default preview always shows the LAST evolution stage, not
     // necessarily whichever mon in the chain was clicked "publish" on.
-    const display = isFamily ? pickFamilyDisplayMember(family) : { mon };
+    const display = isFamily ? pickFamilyDisplayMember(family) : family[0];
 
     const payload = {
         user_id: state.user!.id,
@@ -325,19 +404,20 @@ async function updatePublishedMon(publishedId, selectedSourceId = '') {
     if (!mon) { api.showToast?.('Could not find that Fakemon in your collection.', 'error'); return; }
 
     // re-walk the graph from the newly selected mon so the bundled family stays current.
-    const family = collectEvolutionFamily(mon);
+    const family = await publishableFamily(mon);
+    if (!family) return;
     const isFamily = family.length > 1;
     // unlike publishSnapshot, skip pickFamilyDisplayMember - the update modal
     // lets the user explicitly choose the display member; overriding that made
     // picking a mon look like it did nothing.
-    const selfEntry = family.find(f => String(f.mon.id) === String(mon.id)) || { mon };
+    const selfEntry = family.find(f => String(f.mon.id) === String(mon.id)) || { mon: await withPublishableArtSets(mon).catch(() => ({ ...withoutNotebook(mon), artSets: undefined })) };
 
     const payload = {
         author_name: publicName(state.user),
         author_avatar_url: state.user.avatarUrl || null,
         author_role: state.user.role || 'user',
         author_badges: state.user.badges || [],
-        fakemon_data: { ...(await withThumbnail(mon)), customTypes: postCustomTypes(family) },
+        fakemon_data: { ...(await withThumbnail(selfEntry.mon)), customTypes: postCustomTypes(family) },
         source_fakemon_id: String(mon.id),
         evolution_stage: selfEntry.stage || mon.evolutionStage || 1,
         family_snapshots: isFamily ? buildFamilySnapshotsPayload(family) : [],
@@ -961,6 +1041,7 @@ function renderCommunityLanding() {
 const THUMB_MAX_PX = 160;
 
 async function withThumbnail(mon) {
+    mon = withoutNotebook(mon);
     return { ...withAbilityPrograms(mon), thumbnail: await makeThumbnail(mon?.artwork) };
 }
 
@@ -1219,7 +1300,8 @@ async function renderCommunityPreviewBoard(mon, row) {
     api.loadFakemonIntoEditor({
         ...mon,
         artwork: await artworkDataUri(mon.artwork),
-        shinyArtwork: await artworkDataUri(mon.shinyArtwork)
+        shinyArtwork: await artworkDataUri(mon.shinyArtwork),
+        artSets: await unmaskedArtSets(mon.artSets)
     });
     // the page draws the board from the editor's state (CommunityDetailPage.tsx)
     ensureCommunityState().boardFor = row?.id ?? null;
@@ -1258,29 +1340,45 @@ async function fetchMonDetailRow(publishedId) {
         if (error) { log.debug('COMMUNITY', 'Not an open Fakemon', error); return null; }
         return data || null;
     }
-    const [detail, images] = await Promise.all([
+    const [detail, images, setImages] = await Promise.all([
         client.rpc('community_mon_detail', { p_id: publishedId }),
-        client.rpc('community_mon_images', { p_id: publishedId })
+        client.rpc('community_mon_images', { p_id: publishedId }),
+        client.rpc('community_mon_set_images', { p_id: publishedId })
     ]);
     if (detail.error) throw detail.error;
     const row = detail.data;
     if (!row) return null;
     // an images failure is not fatal: the post still reads, it just has no art
     if (images.error) log.warn('COMMUNITY', 'Could not load artwork for this post', images.error);
+    // the extra artwork sets: also not fatal, and absent before the art sets migration
+    if (setImages.error) log.debug('COMMUNITY', 'No artwork sets for this post', setImages.error);
 
     // '' as the source id is the post's own mon; anything else names a family
     // member, keyed the way family_full is.
     const byMember = new Map();
-    for (const img of images.data || []) {
+    for (const img of [...(images.data || []), ...(setImages.data || [])]) {
         const art = maskedArtwork(img.image);
         if (!art) continue;
         const key = String(img.source_id || '');
         if (!byMember.has(key)) byMember.set(key, {});
         byMember.get(key)[img.kind] = art;
     }
-    Object.assign(row.fakemon_data ||= {}, byMember.get('') || {});
+    const fill = (mon: any, images: Record<string, string>) => {
+        for (const [kind, art] of Object.entries(images)) {
+            // 'artSets:<set>:<image>' (community_mon_set_images() in Postgres)
+            const at = /^artSets:(\d+):(\d+)$/.exec(kind);
+            if (!at) { mon[kind] = art; continue; }
+            const image = mon.artSets?.[Number(at[1])]?.images?.[Number(at[2])];
+            if (image && typeof image === 'object') image.src = art;
+        }
+    };
+    fill(row.fakemon_data ||= {}, byMember.get('') || {});
     for (const entry of row.family_full || []) {
-        Object.assign(entry.mon ||= {}, byMember.get(String(entry.sourceId || '')) || {});
+        fill(entry.mon ||= {}, byMember.get(String(entry.sourceId || '')) || {});
+        // the server sends the face's set images once, with fakemon_data
+        if (String(entry.sourceId || '') === String(row.source_fakemon_id || '') && Array.isArray(row.fakemon_data.artSets)) {
+            entry.mon.artSets = row.fakemon_data.artSets;
+        }
     }
     return row;
 }
@@ -1422,8 +1520,19 @@ async function unmaskedRecords(records: any[]) {
     return Promise.all(records.map(async r => {
         const out = { ...r };
         for (const [k, v] of Object.entries(out)) if (isMaskedArtwork(v)) out[k] = await artworkDataUri(v as string);
+        if (Array.isArray(out.artSets)) out.artSets = await unmaskedArtSets(out.artSets);
         return out;
     }));
+}
+
+/** Artwork sets with their masked images decoded, in memory; an image with none is dropped. */
+async function unmaskedArtSets(sets: any): Promise<any[]> {
+    if (!Array.isArray(sets)) return [];
+    return Promise.all(sets.map(async set => ({
+        ...set,
+        images: (await Promise.all((Array.isArray(set?.images) ? set.images : []).map(async img =>
+            typeof img?.src === 'string' ? { ...img, src: await artworkDataUri(img.src) } : null))).filter(img => img?.src)
+    })));
 }
 
 /**
