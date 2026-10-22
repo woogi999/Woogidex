@@ -25,6 +25,11 @@ export function matchesCommunitySearch(row, search) {
 
 const time = v => new Date(v || 0).getTime();
 
+/** One base stat of a post's face, or the total, for the table's sorts. */
+export const STAT_KEYS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
+const stat = (row, key) => Number(row.fakemon_data?.stats?.[key]) || 0;
+export const communityBst = row => STAT_KEYS.reduce((sum, k) => sum + stat(row, k), 0);
+
 const SORT_KEYS = {
     activity: (a, b) => time(a.activity_at || a.published_at) - time(b.activity_at || b.published_at),
     likes: (a, b) => Number(a.like_count || 0) - Number(b.like_count || 0),
@@ -32,7 +37,9 @@ const SORT_KEYS = {
     name: (a, b) => String(a.fakemon_data?.name || '').localeCompare(String(b.fakemon_data?.name || '')),
     author: (a, b) => String(a.author_name || '').localeCompare(String(b.author_name || '')),
     number: (a, b) => getCommunityDexNumber(a.fakemon_data) - getCommunityDexNumber(b.fakemon_data),
-    published: (a, b) => time(a.published_at) - time(b.published_at)
+    published: (a, b) => time(a.published_at) - time(b.published_at),
+    bst: (a, b) => communityBst(a) - communityBst(b),
+    ...Object.fromEntries(STAT_KEYS.map(k => [k, (a, b) => stat(a, k) - stat(b, k)]))
 };
 
 /**

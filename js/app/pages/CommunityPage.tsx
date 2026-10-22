@@ -13,6 +13,7 @@ import { FeedCard, FeedSkeleton, PostComposer } from '../components/feed.tsx';
 import { events, getLiveEvents, showEventView } from '../../features/events.ts';
 import { useStore } from '../store.ts';
 import { useSlide } from '../hooks.ts';
+import { fadeSwap } from '../../core/motion.ts';
 import type { FeedItem } from '../../features/feed-algorithm.ts';
 
 type Panel = 'feed' | 'browse' | 'events' | 'uploads';
@@ -309,7 +310,7 @@ function LiveContests({ inline }: { inline?: boolean }) {
 function Browse() {
     const cs = api.communityState();
     const prefs = api.getCommunityPrefs();
-    const list = api.communityLayoutMode() === 'list';
+    const table = api.communityLayoutMode() === 'table';
     return (
         <div className="community-panel">
             <div className="search-bar community-controls">
@@ -323,19 +324,34 @@ function Browse() {
                     <option value="name">Name</option>
                     <option value="author">Creator</option>
                     <option value="number">Pokédex number</option>
+                    <option value="bst">BST</option>
+                    <option value="hp">HP</option>
+                    <option value="atk">Attack</option>
+                    <option value="def">Defense</option>
+                    <option value="spa">Sp. Atk</option>
+                    <option value="spd">Sp. Def</option>
+                    <option value="spe">Speed</option>
                 </select>
                 <select value={prefs.sortOrder} onChange={e => api.changeCommunitySort(prefs.sortBy, e.target.value)} aria-label="Community sort direction">
                     <option value="desc">Descending</option>
                     <option value="asc">Ascending</option>
                 </select>
-                <button className="btn btn-secondary btn-icon" type="button" onClick={() => api.toggleCommunityLayout()}
-                    title={list ? 'Switch to grid view' : 'Switch to list view'} aria-label="Toggle list or grid view" aria-pressed={list}>
-                    <Icon name={list ? 'layout-grid' : 'list'} />
-                </button>
+                <div className="segmented collection-layout" role="group" aria-label="Layout">
+                    {([['grid', 'layout-grid', 'Grid'], ['table', 'table-cells', 'Table']] as const).map(([key, icon, label]) => {
+                        const on = (key === 'table') === table;
+                        return (
+                            <button key={key} type="button" className={on ? 'active' : ''} aria-pressed={on} aria-label={label} title={label}
+                                // the listing fades out, changes layout, and fades back in, as in My Collection
+                                onClick={() => { if (!on) fadeSwap(document.getElementById('community-listing'), () => api.setCommunityLayout(key)); }}>
+                                <Icon name={icon} />
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
-            <div id="community-grid" className={`collection-grid${list ? ' collection-list' : ''}`}>
+            <div id="community-listing">
                 <CommunityFeed rows={cs.mons || []} loading={!!cs.loading} prefs={{ ...prefs, search: (cs.search || '').trim().toLowerCase() }}
-                    viewerId={state.user?.id || null} viewerIsStaff={!!api.isStaff?.()} />
+                    viewerId={state.user?.id || null} viewerIsStaff={!!api.isStaff?.()} table={table} />
             </div>
         </div>
     );

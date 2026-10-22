@@ -149,7 +149,7 @@ function Palette({ seed, onClose }: { seed: string; onClose: () => void }) {
 
     let index = 0;
     return (
-        <div ref={layer} className="qs-layer" data-lenis-prevent onMouseDown={e => { if (e.target === e.currentTarget) close(); }}>
+        <div ref={layer} className="qs-layer" onMouseDown={e => { if (e.target === e.currentTarget) close(); }}>
             <div ref={panel} className="qs-panel" role="dialog" aria-modal="true" aria-label="Quick search" onKeyDown={onKeyDown}>
                 <div className="qs-field">
                     <Icon name="magnifying-glass" size={20} />

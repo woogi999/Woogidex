@@ -642,7 +642,7 @@ async function fetchCommunityFeed(options: Record<string, any> = {}) {
             // no thumbnail here any more: a thumbnail is an image, and an
             // image in this response is an image in the network panel. Cards
             // ask community_mon_artwork() for a masked one instead.
-            .select('id, user_id, published_at, activity_at, view_count, source_fakemon_id, author_name, author_avatar_url, author_role, author_badges, family_snapshots, evolution_stage, fakemon_data->>name, fakemon_data->>species, fakemon_data->>number, fakemon_data->>type1, fakemon_data->>type2, customTypes:fakemon_data->customTypes')
+            .select('id, user_id, published_at, activity_at, view_count, source_fakemon_id, author_name, author_avatar_url, author_role, author_badges, family_snapshots, evolution_stage, fakemon_data->>name, fakemon_data->>species, fakemon_data->>number, fakemon_data->>type1, fakemon_data->>type2, customTypes:fakemon_data->customTypes, stats:fakemon_data->stats')
             .order('activity_at', { ascending: false })
             .limit(100);
         if (error) throw error;
@@ -669,11 +669,11 @@ async function fetchCommunityFeed(options: Record<string, any> = {}) {
 // columns, but every renderer expects row.fakemon_data.name etc. - rebuild
 // that shape and drop the flat columns so a slim row isn't mistaken for a full one.
 function unflattenSlimMonRow(row) {
-    const { name, species, number, type1, type2, customTypes, ...rest } = row;
+    const { name, species, number, type1, type2, customTypes, stats, ...rest } = row;
     api.registerTypeLooks?.(customTypes);
     // every image is deliberately absent from the feed query -- a card asks
     // for a masked one on scroll, and artworkCache is where that lands.
-    return { ...rest, fakemon_data: { name, species, number, type1, type2, customTypes: customTypes || [], artwork: artworkCache.get(row.id) || '' } };
+    return { ...rest, fakemon_data: { name, species, number, type1, type2, stats: stats && typeof stats === 'object' ? stats : undefined, customTypes: customTypes || [], artwork: artworkCache.get(row.id) || '' } };
 }
 
 // ==================== community stats ====================
@@ -850,8 +850,9 @@ import { NAME_MAX } from '../core/data.ts';
 
 const COMMUNITY_SORT_KEY = 'woogidex.community.sort.v2';
 const COMMUNITY_LAYOUT_KEY = 'woogidex.community.layout.v1';
+// grid or table; a saved "list" (the old layout) opens as the table
 let communityLayout = (() => {
-    try { return localStorage.getItem(COMMUNITY_LAYOUT_KEY) === 'list' ? 'list' : 'grid'; }
+    try { const saved = localStorage.getItem(COMMUNITY_LAYOUT_KEY); return saved === 'list' || saved === 'table' ? 'table' : 'grid'; }
     catch { return 'grid'; }
 })();
 
@@ -863,10 +864,14 @@ function applyCommunityLayoutUI() {
     notify();
 }
 
-function toggleCommunityLayout() {
-    communityLayout = communityLayout === 'list' ? 'grid' : 'list';
+function setCommunityLayout(layout) {
+    communityLayout = layout === 'table' ? 'table' : 'grid';
     try { localStorage.setItem(COMMUNITY_LAYOUT_KEY, communityLayout); } catch {}
     notify();
+}
+
+function toggleCommunityLayout() {
+    setCommunityLayout(communityLayout === 'table' ? 'grid' : 'table');
 }
 
 function getCommunityPrefs() {
@@ -874,7 +879,7 @@ function getCommunityPrefs() {
     try {
         const saved = JSON.parse(localStorage.getItem(COMMUNITY_SORT_KEY) || 'null');
         if (saved) {
-            cs.sortBy = ['activity','likes','comments','published','name','author','number'].includes(saved.sortBy) ? saved.sortBy : 'activity';
+            cs.sortBy = ['activity','likes','comments','published','name','author','number','bst','hp','atk','def','spa','spd','spe'].includes(saved.sortBy) ? saved.sortBy : 'activity';
             cs.sortOrder = saved.sortOrder === 'asc' ? 'asc' : 'desc';
         }
     } catch {}
@@ -1627,7 +1632,7 @@ export {
     openMonDetail, openPublishedMonById, closeMonDetail, handleCommunityRoute, exitCommunityRoute, copyCommunityShareLink, copyOpenCommunityShareLink,
     openCommunityUpdateModal, closeCommunityUpdateModal,
     renderCommunityGridSkeleton,
-    switchCommunityPreviewMon, toggleCommunityLayout, applyCommunityLayoutUI, communityLayoutMode, getCommunityPrefs,
+    switchCommunityPreviewMon, toggleCommunityLayout, setCommunityLayout, applyCommunityLayoutUI, communityLayoutMode, getCommunityPrefs,
     requestCardArtwork,
     showCommunityLanding, browseCommunityFakemon, renderCommunityLanding, featuredThisWeek,
     showCommunityPanel, renderCommunityUploads, openCommunityPublishModal, openCommunityUpdateModalFor,

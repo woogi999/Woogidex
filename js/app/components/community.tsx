@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api } from '../../core/app.ts';
-import { emptyFeedMessage, evoBadgeLabel, prepareCommunityFeed } from '../../features/community-feed-model.ts';
+import { STAT_KEYS, communityBst, emptyFeedMessage, evoBadgeLabel, prepareCommunityFeed } from '../../features/community-feed-model.ts';
 import { Avatar } from './Avatar.tsx';
 import { BadgeRow } from './Badge.tsx';
 import { ReactionSummary } from './comments.tsx';
@@ -149,17 +149,104 @@ interface FeedProps {
     viewerIsStaff: boolean;
 }
 
-export function CommunityFeed({ rows, loading, prefs, viewerId, viewerIsStaff }: FeedProps) {
-    if (loading) return <>{Array.from({ length: 8 }, (_, i) => <SkeletonCard key={i} />)}</>;
+// ---- the table: My Collection's (Showdown's dex search), plus reactions, comments and the creator ----
+
+const STAT_LABEL: Record<string, string> = { hp: 'HP', atk: 'Atk', def: 'Def', spa: 'SpA', spd: 'SpD', spe: 'Spe' };
+// label, class, the sort it uses, and whether a first click sorts high to low
+const TABLE_COLUMNS: Array<[string, string, string?, boolean?]> = [
+    ['', 'col-icon'], ['#', 'col-num', 'number'], ['Name', 'col-name', 'name'], ['Types', 'col-types'],
+    ...STAT_KEYS.map(k => [STAT_LABEL[k], 'col-stat', k, true] as [string, string, string, boolean]),
+    ['BST', 'col-stat col-bst', 'bst', true], ['Reactions', 'col-reactions', 'likes', true],
+    ['Comments', 'col-stat', 'comments', true], ['Creator', 'col-author', 'author']
+];
+
+function TableHead({ prefs }: { prefs: FeedProps['prefs'] }) {
+    return (
+        <thead>
+            <tr>
+                {TABLE_COLUMNS.map(([label, cls, key, high]) => {
+                    const on = !!key && prefs.sortBy === key;
+                    return (
+                        <th key={cls + label} className={cls} scope="col" aria-sort={on ? (prefs.sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}>
+                            {key
+                                ? <button type="button" className={`table-sort${on ? ' active' : ''}`}
+                                    onClick={() => api.changeCommunitySort(key, on ? (prefs.sortOrder === 'asc' ? 'desc' : 'asc') : high ? 'desc' : 'asc')}>
+                                    {label}{on && <Icon name={prefs.sortOrder === 'asc' ? 'arrow-up' : 'arrow-down'} size={11} />}
+                                </button>
+                                : label}
+                        </th>
+                    );
+                })}
+            </tr>
+        </thead>
+    );
+}
+
+const Num = ({ label, value, cls = 'col-stat' }: { label: string; value: ReactNode; cls?: string }) => <td className={cls}><em>{label}</em>{value}</td>;
+
+function CommunityRow({ row, isMine, canDelete }: { row: FeedRow; isMine: boolean; canDelete: boolean }) {
+    const mon = row.fakemon_data || {};
+    const open = () => api.openMonDetail(row.id);
+    const evo = evoBadgeLabel(row);
+    const stats = mon.stats;
+    return (
+        <tr className="dex-row" tabIndex={0} aria-label={mon.name || 'Fakémon'} onClick={open}
+            onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(); } }}
+            {...modContext({ userId: row.user_id, userName: row.author_name, content: { kind: 'mon', id: row.id, label: `"${mon.name || 'a Fakémon'}"` }, onRemoved: () => api.dropFeedItem?.('mon', row.id) })}>
+            <td className="col-icon"><LazyArt row={row} className="card-art dex-art" /></td>
+            <td className="col-num">{mon.number || '—'}</td>
+            <td className="col-name">
+                <span className="dex-name">
+                    <span className="card-name dex-name-text" title={mon.name}>{mon.name || 'Unnamed'}</span>
+                    {evo && <span className="vanilla-card-tag vanilla-card-tag-inline">{evo}</span>}
+                </span>
+            </td>
+            <td className="col-types"><TypeBadges type1={mon.type1} type2={mon.type2} /></td>
+            {STAT_KEYS.map(k => <Num key={k} label={STAT_LABEL[k]} value={stats?.[k] ?? '—'} />)}
+            <Num label="BST" value={stats ? communityBst(row) : '—'} cls="col-stat col-bst" />
+            <td className="col-reactions"><MonReactions row={row} /></td>
+            <Num label="Comments" value={row.comment_count || 0} />
+            <td className="col-author">
+                <AuthorLine row={row} />
+                {canDelete && (
+                    <button className="btn btn-secondary btn-icon btn-sm dex-row-remove" type="button" title={isMine ? 'Unpublish' : 'Remove (staff)'} aria-label={isMine ? 'Unpublish' : 'Remove (staff)'}
+                        onClick={e => { e.stopPropagation(); api.unpublishMon(row.id); }}>
+                        <Icon name="trash-2" size={14} />
+                    </button>
+                )}
+            </td>
+        </tr>
+    );
+}
+
+export function CommunityFeed({ rows, loading, prefs, viewerId, viewerIsStaff, table = false }: FeedProps & { table?: boolean }) {
+    if (loading) return table
+        ? <div className="dex-table-wrap community-table-loading">{Array.from({ length: 8 }, (_, i) => <div key={i} className="skel skel-text" />)}</div>
+        : <div id="community-grid" className="collection-grid">{Array.from({ length: 8 }, (_, i) => <SkeletonCard key={i} />)}</div>;
     const visible: FeedRow[] = prepareCommunityFeed(rows, prefs);
     if (!visible.length) return <div className="community-empty">{emptyFeedMessage(prefs.search)}</div>;
+    if (table) {
+        return (
+            <div className="dex-table-wrap" id="community-grid">
+                <table className="dex-table dex-table-community">
+                    <TableHead prefs={prefs} />
+                    <tbody>
+                        {visible.map(row => {
+                            const isMine = !!viewerId && row.user_id === viewerId;
+                            return <CommunityRow key={row.id} row={row} isMine={isMine} canDelete={isMine || viewerIsStaff} />;
+                        })}
+                    </tbody>
+                </table>
+            </div>
+        );
+    }
     return (
-        <>
+        <div id="community-grid" className="collection-grid">
             {visible.map(row => {
                 const isMine = !!viewerId && row.user_id === viewerId;
                 return <CommunityCard key={row.id} row={row} isMine={isMine} canDelete={isMine || viewerIsStaff} />;
             })}
-        </>
+        </div>
     );
 }
 
