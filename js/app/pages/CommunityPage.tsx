@@ -14,6 +14,7 @@ import { events, getLiveEvents, showEventView } from '../../features/events.ts';
 import { useStore } from '../store.ts';
 import { useSlide } from '../hooks.ts';
 import { fadeSwap } from '../../core/motion.ts';
+import { NetworkNotice } from '../components/NetworkNotice.tsx';
 import type { FeedItem } from '../../features/feed-algorithm.ts';
 
 type Panel = 'feed' | 'browse' | 'events' | 'uploads';
@@ -63,6 +64,7 @@ export function CommunityPage() {
                 </nav>
             </aside>
             <div className="hub-main" ref={main}>
+                <NetworkNotice />
                 {panel === 'feed' && <Feed />}
                 {panel === 'browse' && <Browse />}
                 {panel === 'events' && <div className="community-panel"><EventsPanel /></div>}

@@ -137,7 +137,7 @@ export async function followUser(userId: string): Promise<boolean> {
     const client = await api.getClient();
     const { error } = await client.from('follows').insert({ follower_id: state.user!.id, followee_id: userId });
     if (error && error.code !== '23505') {
-        api.showToast?.(error.message || 'Could not follow.', 'error');
+        api.showToast?.(api.friendlyModerationError?.(error) || error.message || 'Could not follow.', 'error');
         return false;
     }
     ss().following.add(userId);

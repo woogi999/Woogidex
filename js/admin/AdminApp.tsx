@@ -14,11 +14,15 @@ import { FeedbackTab, feedbackOpenCount, refreshOpenCount } from './FeedbackTab.
 import { BadgesTab, LimitsTab } from './SiteTabs.tsx';
 import { MessageReportsTab } from './MessageReportsTab.tsx';
 import { IpBansTab } from './IpBansTab.tsx';
+import { AppealsTab, NumbersTab, QueueTab, SafetySettingsTab, SignalsTab } from './ReviewTabs.tsx';
 import { Toast } from './ui.tsx';
 
-type TabKey = 'users' | 'comments' | 'posts' | 'events' | 'messages' | 'filter' | 'history' | 'feedback' | 'ip-bans' | 'badges' | 'limits';
+type TabKey = 'queue' | 'appeals' | 'signals' | 'numbers' | 'safety' | 'users' | 'comments' | 'posts' | 'events' | 'messages' | 'filter' | 'history' | 'feedback' | 'ip-bans' | 'badges' | 'limits';
 
 const TABS: Array<{ key: TabKey; label: string; icon: string; group: 'Moderation' | 'Site'; needs?: string; Page: ComponentType }> = [
+    // reports, filter hits, repeats and copy rings that need a human; deciding needs delete_content, same as the server
+    { key: 'queue', label: 'Review queue', icon: 'flag', group: 'Moderation', needs: 'delete_content', Page: QueueTab },
+    { key: 'appeals', label: 'Appeals', icon: 'hand-raised', group: 'Moderation', needs: 'delete_content', Page: AppealsTab },
     { key: 'users', label: 'Users', icon: 'users', group: 'Moderation', Page: UsersTab },
     { key: 'comments', label: 'Comments', icon: 'message-square', group: 'Moderation', Page: CommentsTab },
     { key: 'posts', label: 'Posts', icon: 'newspaper', group: 'Moderation', Page: PostsTab },
@@ -30,8 +34,13 @@ const TABS: Array<{ key: TabKey; label: string; icon: string; group: 'Moderation
     { key: 'history', label: 'Mod log', icon: 'scroll-text', group: 'Moderation', needs: 'view_log', Page: ModLogTab },
     // addresses that can't use the site; banning one also needs ban (the RPCs check)
     { key: 'ip-bans', label: 'Bans', icon: 'no-symbol', group: 'Moderation', needs: 'view_ips', Page: IpBansTab },
+    // writing-style and copy-ring leads; as sensitive as addresses, so the same permission
+    { key: 'signals', label: 'Signals', icon: 'arrows-right-left', group: 'Moderation', needs: 'view_ips', Page: SignalsTab },
+    { key: 'numbers', label: 'Numbers', icon: 'chart-bar', group: 'Moderation', needs: 'view_log', Page: NumbersTab },
     { key: 'feedback', label: 'Feedback', icon: 'message-circle-warning', group: 'Moderation', needs: 'manage_feedback', Page: FeedbackTab },
     { key: 'badges', label: 'Badges', icon: 'award', group: 'Site', needs: 'manage_badges', Page: BadgesTab },
+    // thresholds, retention and the VPN network list; the RPCs check manage_filter / ban
+    { key: 'safety', label: 'Safety settings', icon: 'shield-check', group: 'Site', Page: SafetySettingsTab },
     { key: 'limits', label: 'Limits', icon: 'gauge', group: 'Site', needs: 'manage_limits', Page: LimitsTab }
 ];
 

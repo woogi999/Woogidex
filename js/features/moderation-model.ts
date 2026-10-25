@@ -101,7 +101,10 @@ const LOG_ICONS = {
     purge_comments: ['eraser', 'sev-bad'], purge_mons: ['eraser', 'sev-bad'],
     automod_block: ['shield-x', 'sev-bad'], automod_flag: ['flag', 'sev-warn'],
     badge_change: ['award', ''], badge_upsert: ['award', ''], badge_removed: ['award', 'sev-warn'],
-    term_added: ['plus', ''], term_updated: ['pencil', ''], term_removed: ['minus', '']
+    term_added: ['plus', ''], term_updated: ['pencil', ''], term_removed: ['minus', ''],
+    case_remove: ['trash-2', 'sev-warn'], case_restrict: ['hand-raised', 'sev-warn'], account_limit: ['hand-raised', 'sev-warn'],
+    account_limit_cleared: ['undo-2', 'sev-good'], appeal_reversed: ['undo-2', 'sev-good'], appeal_upheld: ['hand-raised', ''],
+    settings_changed: ['cog-6-tooth', ''], network_rule_saved: ['shield-check', ''], network_rule_removed: ['minus', '']
 };
 
 const LOG_VERBS = {
@@ -114,11 +117,14 @@ const LOG_VERBS = {
     automod_block: 'blocked a post by', automod_flag: 'flagged a post by',
     badge_change: 'changed the badges of', badge_upsert: 'saved a badge',
     badge_removed: 'deleted a badge', term_added: 'added a filter rule',
-    term_updated: 'edited a filter rule', term_removed: 'removed a filter rule'
+    term_updated: 'edited a filter rule', term_removed: 'removed a filter rule',
+    case_remove: 'removed content by', case_restrict: 'limited the account of', account_limit: 'limited the account of',
+    account_limit_cleared: 'lifted the limit on', appeal_reversed: 'accepted an appeal from', appeal_upheld: 'turned down an appeal from',
+    settings_changed: 'changed the moderation settings', network_rule_saved: 'saved a VPN network rule', network_rule_removed: 'removed a VPN network rule'
 };
 
 // site-level actions have no person target -- naming one would invent it
-const NO_TARGET = new Set(['term_added', 'term_updated', 'term_removed', 'badge_upsert', 'badge_removed']);
+const NO_TARGET = new Set(['term_added', 'term_updated', 'term_removed', 'badge_upsert', 'badge_removed', 'settings_changed', 'network_rule_saved', 'network_rule_removed']);
 
 /**
  * Turns a log row into the pieces a sentence is built from.

@@ -162,7 +162,7 @@ export function IpNeighbours({ rows }: { rows: any[] }) {
 /** Which filter rules a test text trips. */
 export function FilterHits({ hits }: { hits: any[] }) {
     if (!hits.length) return <span className="admin-hit-pill clear">no rule matches this</span>;
-    return <>{hits.map((h, i) => <span key={h.id || i} className={`admin-hit-pill ${h.action === 'block' ? 'block' : 'flag'}`}>{h.label} / {h.action}</span>)}</>;
+    return <>{hits.map((h, i) => <span key={h.id || i} className={`admin-hit-pill ${h.action === 'block' || h.action === 'reject' ? 'block' : 'flag'}`}>{h.label} / {h.action}</span>)}</>;
 }
 
 /**

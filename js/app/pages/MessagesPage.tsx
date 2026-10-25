@@ -16,6 +16,7 @@ import { useStore } from '../store.ts';
 import type { Attachment, ChatMessage, Conversation, ChatMember, Outgoing } from '../../features/messaging.ts';
 import { NAME_MAX } from '../../core/data.ts';
 import { isEmojiOnly } from '../../core/emoji.ts';
+import { NetworkNotice } from '../components/NetworkNotice.tsx';
 import { SkeletonBlock, SkeletonRows } from '../components/Skeleton.tsx';
 
 export function MessagesPage() {
@@ -26,6 +27,7 @@ export function MessagesPage() {
     const active: Conversation | null = m.conversations.find((c: Conversation) => c.id === m.activeId) || null;
     return (
         <div className={`messenger${m.activeId ? ' has-active' : ''}`}>
+            <NetworkNotice />
             <ChatList conversations={m.conversations} loaded={m.conversationsLoaded} activeId={m.activeId} />
             {m.activeId ? <Thread key={m.activeId} conversationId={m.activeId} convo={active} /> : <NoChatOpen />}
         </div>

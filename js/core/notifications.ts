@@ -110,6 +110,10 @@ function notificationText(n) {
     if (n.type === 'badge_granted') return `gave you the ${n.target_name || 'new'} badge`;
     if (n.type === 'role_granted') return `made you ${/^[aeiou]/i.test(n.target_name || '') ? 'an' : 'a'} ${n.target_name || 'staff member'}`;
     if (n.type === 'mod_banned') return 'suspended your account';
+    // from the site itself: admin_decide_case, admin_decide_appeal (Settings > Safety shows the details)
+    if (n.type === 'mod_content_removed') return `removed your ${n.target_name === 'comment' ? 'comment' : 'post'} after a review. Reason:`;
+    if (n.type === 'report_reviewed') return 'reviewed your report:';
+    if (n.type === 'appeal_decided') return `${n.target_name === 'reversed' ? 'accepted' : 'turned down'} your appeal:`;
     if (n.type === 'mod_comment_deleted') return 'removed one of your comments';
     if (n.type === 'profile_comment') return 'commented on your profile';
     if (n.type === 'follow') return 'started following you';
@@ -259,6 +263,8 @@ async function openNotification(id) {
         await api.openPublishedMonById?.(n.target_id);
     } else if (n.type === 'profile_comment' && n.target_id) {
         await api.showProfileView?.(n.target_id);
+    } else if (n.type === 'mod_content_removed' || n.type === 'report_reviewed' || n.type === 'appeal_decided') {
+        api.openSettings?.('safety');
     } else if (n.type === 'badge_granted' || n.type === 'role_granted') {
         // your own profile, where the badge now shows
         await api.showProfileView?.(state.user?.id);

@@ -14,6 +14,7 @@ import { Icon } from '../components/Icon.tsx';
 import { TypeBadges } from '../components/profile.tsx';
 import { useStore } from '../store.ts';
 import { ModButton } from '../components/ModButton.tsx';
+import { openCommentControls, openReportDialog } from '../../features/safety.ts';
 
 const STAT_LABELS: Array<[string, string]> = [['hp', 'HP'], ['atk', 'Attack'], ['def', 'Defense'], ['spa', 'Sp. Atk'], ['spd', 'Sp. Def'], ['spe', 'Speed']];
 
@@ -102,6 +103,9 @@ export function CommunityDetailPage() {
                             <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openCommunityUpdateModal()} title="Update this Community Hub listing from one of your Fakemon">
                                 <Icon name="refresh-cw" size={14} /> Update Listing
                             </button>
+                            {row && <button className="btn btn-secondary btn-sm" type="button" onClick={() => openCommentControls('mon', row.id)} title="Choose who can comment on this Fakémon">
+                                <Icon name="chat-bubble-left-right" size={14} /> Comments
+                            </button>}
                             <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.setOpenCommunityMon(!isOpen)}
                                 title={isOpen ? 'Shield its artwork again, and keep it to members' : 'Share it freely: no art shield, anyone can export it, readable signed out'}>
                                 <Icon name={isOpen ? 'lock-closed' : 'lock-open'} size={14} /> {isOpen ? 'Close It' : 'Make Open'}
@@ -120,6 +124,11 @@ export function CommunityDetailPage() {
                                 <Icon name="download" size={14} /> Export JSON
                             </button>
                         </>
+                    )}
+                    {row && !isMine && state.user && (
+                        <button className="btn btn-secondary btn-sm" type="button" onClick={() => openReportDialog('mon', row.id, null, row.author_name || '')} title="Report this Fakémon to the moderators">
+                            <Icon name="flag" size={14} /> Report
+                        </button>
                     )}
                     {row && <ModButton className="mod-btn-box" target={{ userId: row.user_id, userName: row.author_name, content: { kind: 'mon', id: row.id, label: `"${row.fakemon_data?.name || 'a Fakémon'}"` },
                         onRemoved: () => { api.dropFeedItem?.('mon', row.id); api.openCommunityHub?.(); } }} />}

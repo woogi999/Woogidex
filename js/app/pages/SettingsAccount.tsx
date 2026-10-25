@@ -2,7 +2,7 @@
 // you are, the Notifications and Account sections, and Cloud backup under
 // Data & Storage. Registered by registerAccountSettings(), from js/host.ts.
 
-import { useId } from 'react';
+import { useId, type ReactNode } from 'react';
 import { api, state } from '../../core/app.ts';
 import { registerSettingsGroup, registerSettingsSection, ext } from '../../core/extend.ts';
 import { Icon } from '../components/Icon.tsx';
@@ -18,6 +18,7 @@ import { ConnectedAccounts } from '../components/ConnectedAccounts.tsx';
 import { NOTIFICATION_KINDS, notificationPrefs, setNotificationPref } from '../../core/notifications.ts';
 import { myPrivacy, setMyPrivacy } from '../../features/social.ts';
 import { GroupHead, Switch } from './SettingsPage.tsx';
+import { HiddenCommentsGroup, HiddenWordsGroup, MyReportsGroup, StandingGroup } from './SettingsSafety.tsx';
 
 const signedIn = () => !!state.user;
 
@@ -59,7 +60,26 @@ export function registerAccountSettings(): void {
             { id: 'danger', title: 'Danger zone', keywords: 'delete account remove', render: () => <AccountDeletionGroup /> }
         ]
     });
+    registerSettingsSection({
+        key: 'safety', label: 'Safety', when: signedIn, order: 35,
+        blurb: 'Hidden words, your account standing, appeals and your reports.',
+        groups: [
+            { id: 'hidden-words', title: 'Hidden words', keywords: 'hidden words filter block comments spam hide', render: () => <SafetyGroup title="Hidden words" desc="Hide comments on your things that use these words."><HiddenWordsGroup /></SafetyGroup> },
+            { id: 'hidden-comments', title: 'Hidden comments', keywords: 'hidden comments unhide restrict', render: () => <SafetyGroup title="Hidden comments" desc="Comments hidden by your words, or by you."><HiddenCommentsGroup /></SafetyGroup> },
+            { id: 'standing', title: 'Account standing', keywords: 'warning strike mute suspend ban appeal moderation standing', render: () => <SafetyGroup title="Account standing" desc="Moderation on your account, and appeals."><StandingGroup /></SafetyGroup> },
+            { id: 'reports', title: 'Your reports', keywords: 'report reports flag status', render: () => <SafetyGroup title="Your reports" desc="What happened to the things you reported."><MyReportsGroup /></SafetyGroup> }
+        ]
+    });
     registerSettingsGroup('data', { id: 'cloud', title: 'Cloud backup', when: signedIn, keywords: 'cloud backup restore upload server', render: () => <CloudBackupGroup /> });
+}
+
+function SafetyGroup({ title, desc, children }: { title: string; desc: string; children: ReactNode }) {
+    return (
+        <section className="st-group">
+            <GroupHead title={title} desc={desc} />
+            <div className="st-card safety-card">{children}</div>
+        </section>
+    );
 }
 
 /** Who is signed in, or why you might want to be. */

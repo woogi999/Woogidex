@@ -23,6 +23,7 @@ import { emptyPoll, type PollDraft } from '../../features/polls.ts';
 import type { FeedItem } from '../../features/feed-algorithm.ts';
 import { STAGE_LABEL, effectivePhase, fetchEvents } from '../../features/events.ts';
 import { SkeletonRows } from './Skeleton.tsx';
+import { openCommentControls, openReportDialog } from '../../features/safety.ts';
 
 // timeAgo lives with the comments now; it's re-exported for the pages that
 // already import it from here
@@ -275,13 +276,15 @@ export function PostFeedCard({ item, full = false }: { item: FeedItem; full?: bo
         <article className={`feed-card feed-card-post${full ? ' is-full' : ''}`} ref={ref as any} {...modContext(modTarget(item))}>
             <div className="feed-card-head">
                 <Byline item={item} verb={verb} />
-                {(isMine || canDelete) && (
+                {(isMine || canDelete || state.user) && (
                     <div className="feed-menu-wrap">
                         <button type="button" className="feed-menu-btn" aria-label="Post options" onClick={() => setMenu(v => !v)}><Icon name="ellipsis-horizontal" size={18} /></button>
                         {menu && (
                             <div className="feed-menu" onMouseLeave={() => setMenu(false)}>
                                 {isMine && <button type="button" onClick={() => { setMenu(false); setDraft(item.body || ''); setEditing(true); }}><Icon name="pencil" size={14} /> Edit</button>}
+                                {isMine && <button type="button" onClick={() => { setMenu(false); openCommentControls('post', item.id); }}><Icon name="chat-bubble-left-right" size={14} /> Who can comment</button>}
                                 <button type="button" onClick={() => { setMenu(false); api.copyPostLink(item.id); }}><Icon name="link" size={14} /> Copy link</button>
+                                {!isMine && state.user && <button type="button" onClick={() => { setMenu(false); openReportDialog('post', item.id, null, item.author_name || ''); }}><Icon name="flag" size={14} /> Report</button>}
                                 {canDelete && <button type="button" className="is-danger" onClick={() => { setMenu(false); api.deletePost(item.id); }}><Icon name="trash-2" size={14} /> {isMine ? 'Delete' : 'Remove (staff)'}</button>}
                             </div>
                         )}

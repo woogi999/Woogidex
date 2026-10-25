@@ -25,6 +25,7 @@ import { Modal } from '../components/Modal.tsx';
 import { openDialog, registerDialog, type DialogProps } from '../dialogs.tsx';
 import { NAME_MAX } from '../../core/data.ts';
 import { ModButton } from '../components/ModButton.tsx';
+import { openCommentControls, openReportDialog } from '../../features/safety.ts';
 
 type Message = { text: string; ok?: boolean };
 type Tab = 'posts' | 'fakemon';
@@ -247,6 +248,8 @@ function ProfileMenu({ profile, isOwn, blocked }: { profile: any; isOwn: boolean
                     {!isOwn && state.user && (blocked
                         ? <button type="button" onClick={() => { setOpen(false); api.unblockUser(profile.id); }}><Icon name="no-symbol" size={14} /> Unblock {name}</button>
                         : <button type="button" className="is-danger" onClick={() => { setOpen(false); api.blockUser(profile.id, name); }}><Icon name="no-symbol" size={14} /> Block {name}</button>)}
+                    {!isOwn && state.user && <button type="button" onClick={() => { setOpen(false); openReportDialog('profile', profile.id, null, name); }}><Icon name="flag" size={14} /> Report {name}</button>}
+                    {isOwn && <button type="button" onClick={() => { setOpen(false); openCommentControls('profile', profile.id); }}><Icon name="chat-bubble-left-right" size={14} /> Who can post on my wall</button>}
                     <button type="button" onClick={() => { setOpen(false); api.showCollection(); }}><Icon name="arrow-left" size={14} /> Back to my collection</button>
                 </div>
             )}

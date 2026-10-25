@@ -714,7 +714,7 @@ export async function sendMessage(conversationId: string, text: string, files: O
         // files that made it up before the failure would otherwise sit there unused
         if (uploaded.length) { try { (await api.getClient()).storage.from(BUCKET).remove(uploaded); } catch {} }
         t.items = t.items.filter(x => x.id !== tempId);
-        api.showToast?.(e?.message || 'Could not send that.', 'error');
+        api.showToast?.(api.friendlyModerationError?.(e) || e?.message || 'Could not send that.', 'error');
         notify();
         return false;
     }

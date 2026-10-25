@@ -107,14 +107,33 @@ export function ModLogTab() {
 }
 
 // ==================== the content filter ====================
-interface Term { id: string; label: string; pattern: string; severity: string; action: string; enabled: boolean; notes?: string | null; }
+interface Term { id: string; label: string; pattern: string; severity: string; action: string; enabled: boolean; notes?: string | null; applies_to?: string[]; exception_pattern?: string; }
+
+// what each rule action does, strongest last (public.mod_action_rank)
+const RULE_ACTIONS: [string, string][] = [
+    ['warn', 'Warn the writer, let it through'],
+    ['flag', 'Let it through, open a review case'],
+    ['hide', 'Hide it until a moderator reviews it'],
+    ['escalate', 'Hide it, urgent case for senior staff'],
+    ['reject', 'Refuse it, no strike'],
+    ['block', 'Refuse it and give a strike']
+];
+const RULE_SCOPES: [string, string][] = [['post', 'Posts'], ['comment', 'Comments'], ['mon', 'Fakémon'], ['profile', 'Profiles']];
+const refuses = (action: string) => action === 'block' || action === 'reject';
+
+function saveRule(client: any, id: string | null, t: Omit<Term, 'id'>) {
+    return client.rpc('admin_upsert_filter_rule', {
+        p_id: id, p_pattern: t.pattern, p_label: t.label, p_severity: t.severity, p_action: t.action, p_enabled: t.enabled,
+        p_notes: t.notes || '', p_applies_to: t.applies_to || [], p_exception: t.exception_pattern || ''
+    });
+}
 
 let terms: Term[] = [];
 
 const TERM_SORTS: SortOption<Term>[] = [
     ['severity', 'Most severe first', (a, b) => byRank<Term>(t => t.severity, ['severe', 'moderate', 'mild'])(a, b) || byText<Term>(t => t.label)(a, b)],
     ['label', 'Label (A–Z)', byText(t => t.label)],
-    ['action', 'Blocks first', (a, b) => byRank<Term>(t => t.action, ['block', 'flag'])(a, b) || byText<Term>(t => t.label)(a, b)],
+    ['action', 'Strongest action first', (a, b) => byRank<Term>(t => t.action, ['block', 'reject', 'escalate', 'hide', 'flag', 'warn'])(a, b) || byText<Term>(t => t.label)(a, b)],
     ['enabled', 'Disabled first', (a, b) => Number(a.enabled) - Number(b.enabled)]
 ];
 
@@ -144,9 +163,7 @@ export function FilterTab() {
     async function toggle(t: Term) {
         try {
             const client = await getClient();
-            const { error } = await client.rpc('admin_upsert_banned_term', {
-                p_id: t.id, p_pattern: t.pattern, p_label: t.label, p_severity: t.severity, p_action: t.action, p_enabled: !t.enabled, p_notes: t.notes || ''
-            });
+            const { error } = await saveRule(client, t.id, { ...t, enabled: !t.enabled });
             if (error) throw error;
             t.enabled = !t.enabled;
             setVersion(v => v + 1);
@@ -163,7 +180,7 @@ export function FilterTab() {
                 <h3>Content filter</h3>
                 {canEdit && <button type="button" className="btn btn-primary btn-sm" onClick={() => edit(null)}><Icon name="plus" /> Rule</button>}
             </div>
-            <p className="admin-section-sub">POSIX regular expressions, matched case-insensitively against every comment, profile and published Fakemon. <strong>Block</strong> refuses the post and counts a strike; <strong>flag</strong> lets it through and records it. Strikes escalate on their own: warning &rarr; 24h mute &rarr; 7d mute &rarr; 30d suspension &rarr; permanent.</p>
+            <p className="admin-section-sub">POSIX regular expressions, matched case-insensitively against posts, comments, profiles and published Fakemon (or only the kinds a rule names). An <strong>exception</strong> pattern is cut out of the text before the rule runs, so a rule can skip a harmless phrase. <strong>Warn</strong> tells the writer, <strong>flag</strong> opens a review case, <strong>hide</strong> and <strong>escalate</strong> hold the post until review, <strong>reject</strong> refuses it, <strong>block</strong> refuses it and counts a strike. Strikes escalate on their own: warning &rarr; 24h mute &rarr; 7d mute &rarr; 30d suspension &rarr; permanent. The Numbers tab shows how often each rule is wrong.</p>
             <FilterTester />
             <div className="admin-search-bar admin-sort-only"><SortSelect sort={sort} /></div>
             <div>
@@ -174,12 +191,14 @@ export function FilterTab() {
                             <div>
                                 <div className="admin-term-head">
                                     <span>{t.label}</span>
-                                    <span className={`admin-hit-pill ${t.action === 'block' ? 'block' : 'flag'}`}>{t.action}</span>
+                                    <span className={`admin-hit-pill ${refuses(t.action) ? 'block' : 'flag'}`}>{t.action}</span>
                                     <span className="admin-perm-pill">{t.severity}</span>
+                                    {!!t.applies_to?.length && <span className="admin-perm-pill">only {t.applies_to.join(', ')}</span>}
                                     {!t.enabled && <span className="admin-perm-pill">disabled</span>}
                                 </div>
                                 {/* shown verbatim as text, never interpreted as markup */}
                                 <code>{t.pattern}</code>
+                                {t.exception_pattern && <small>except: <code>{t.exception_pattern}</code></small>}
                                 {t.notes && <small>{t.notes}</small>}
                             </div>
                             <div className="admin-term-actions">
@@ -226,7 +245,8 @@ function FilterTester() {
 function TermDialog({ close, term, onSaved }: DialogProps<{ term: Term | null; onSaved: () => void }>) {
     const [f, setF] = useState({
         label: term?.label || '', pattern: term?.pattern || '', severity: term?.severity || 'severe', action: term?.action || 'block',
-        notes: term?.notes || '', enabled: term ? !!term.enabled : true
+        notes: term?.notes || '', enabled: term ? !!term.enabled : true,
+        applies_to: term?.applies_to || [] as string[], exception_pattern: term?.exception_pattern || ''
     });
     const set = (patch: Partial<typeof f>) => setF(v => ({ ...v, ...patch }));
     const [phrase, setPhrase] = useState('');
@@ -253,9 +273,8 @@ function TermDialog({ close, term, onSaved }: DialogProps<{ term: Term | null; o
         e.preventDefault();
         try {
             const client = await getClient();
-            const { error } = await client.rpc('admin_upsert_banned_term', {
-                p_id: term?.id || null, p_pattern: f.pattern.trim(), p_label: f.label.trim(), p_severity: f.severity,
-                p_action: f.action, p_enabled: f.enabled, p_notes: f.notes.trim()
+            const { error } = await saveRule(client, term?.id || null, {
+                ...f, pattern: f.pattern.trim(), label: f.label.trim(), notes: f.notes.trim(), exception_pattern: f.exception_pattern.trim()
             });
             if (error) throw error;
             close();
@@ -309,10 +328,22 @@ function TermDialog({ close, term, onSaved }: DialogProps<{ term: Term | null; o
                     <div className="form-group">
                         <label htmlFor="admin-term-action">Action</label>
                         <select id="admin-term-action" value={f.action} onChange={e => set({ action: e.target.value })}>
-                            <option value="block">Block + strike</option>
-                            <option value="flag">Allow, log for review</option>
+                            {RULE_ACTIONS.map(([v, label]) => <option key={v} value={v}>{label}</option>)}
                         </select>
                     </div>
+                </div>
+                <fieldset className="form-group admin-scope-row">
+                    <legend>Applies to <span>(none ticked: everything)</span></legend>
+                    {RULE_SCOPES.map(([v, label]) => (
+                        <label key={v} className="admin-checkbox-row">
+                            <input type="checkbox" checked={f.applies_to.includes(v)}
+                                onChange={e => set({ applies_to: e.target.checked ? [...f.applies_to, v] : f.applies_to.filter(x => x !== v) })} /> {label}
+                        </label>
+                    ))}
+                </fieldset>
+                <div className="form-group">
+                    <label htmlFor="admin-term-exception">Exception pattern <span>(optional: matches are cut out before the rule runs)</span></label>
+                    <input id="admin-term-exception" type="text" spellCheck={false} placeholder="kill count|killer move" value={f.exception_pattern} onChange={e => set({ exception_pattern: e.target.value })} />
                 </div>
                 <div className="form-group">
                     <label htmlFor="admin-term-notes">Notes <span>(staff only)</span></label>

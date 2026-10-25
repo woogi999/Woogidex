@@ -21,6 +21,16 @@ import { openDialog, registerDialog, type DialogProps } from '../dialogs.tsx';
 import { PollEditor, PollView } from './polls.tsx';
 import { commentPollParent, emptyPoll, type PollDraft } from '../../features/polls.ts';
 import { SkeletonRows } from './Skeleton.tsx';
+import { openReportDialog, setCommentHidden } from '../../features/safety.ts';
+
+/** Hides a comment on your own thing from everyone else. It stays visible to its writer; Settings > Safety can unhide it. */
+async function hideComment(kind: CommentKind, parentId: string, comment: Comment) {
+    if (!window.confirm('Hide this comment from everyone except its writer? You can unhide it in Settings > Safety.')) return;
+    const problem = await setCommentHidden(`${kind}_comments`, comment.id, true);
+    if (problem) { api.showToast?.(problem, 'error'); return; }
+    api.showToast?.('Comment hidden.', 'success');
+    loadThread(kind, parentId);
+}
 
 export function timeAgo(iso: string): string {
     const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
@@ -281,6 +291,11 @@ function CommentItem({ kind, parentId, parentOwnerId, comment, replies: tree, de
                         {state.user && <button type="button" className="comment-act" onClick={() => setReplying(r => !r)} aria-expanded={replying}>Reply</button>}
                         {mine && <button type="button" className="comment-act" onClick={() => { setDraft(comment.body); setEditing(true); }}>Edit</button>}
                         {canDelete && <button type="button" className="comment-act" onClick={remove}>Delete</button>}
+                        {/* the owner of the post, Fakémon or event can hide a comment from everyone else */}
+                        {!mine && state.user && parentOwnerId === state.user.id && (
+                            <button type="button" className="comment-act" onClick={() => hideComment(kind, parentId, comment)}>Hide</button>
+                        )}
+                        {!mine && state.user && <button type="button" className="comment-act" onClick={() => openReportDialog('comment', comment.id, kind, comment.author_name || '')}>Report</button>}
                         <ModButton target={commentModTarget(kind, parentId, comment)} className="mod-btn-sm" />
                     </div>
                 )}
@@ -436,12 +451,14 @@ export function WallPostCard({ profileId, profileName, comment }: { profileId: s
                     </div>
                 </div>
                 <ModButton target={commentModTarget('profile', profileId, comment)} />
-                {(mine || canDelete) && (
+                {(mine || canDelete || state.user) && (
                     <div className="feed-menu-wrap">
                         <button type="button" className="feed-menu-btn" aria-label="Wall post options" onClick={() => setMenu(v => !v)}><Icon name="ellipsis-horizontal" size={18} /></button>
                         {menu && (
                             <div className="feed-menu" onMouseLeave={() => setMenu(false)}>
                                 {mine && <button type="button" onClick={() => { setMenu(false); setDraft(comment.body); setEditing(true); }}><Icon name="pencil" size={14} /> Edit</button>}
+                                {!mine && state.user?.id === profileId && <button type="button" onClick={() => { setMenu(false); hideComment('profile', profileId, comment); }}><Icon name="eye-slash" size={14} /> Hide from others</button>}
+                                {!mine && state.user && <button type="button" onClick={() => { setMenu(false); openReportDialog('comment', comment.id, 'profile', comment.author_name || ''); }}><Icon name="flag" size={14} /> Report</button>}
                                 {canDelete && <button type="button" className="is-danger" onClick={remove}><Icon name="trash-2" size={14} /> Delete</button>}
                             </div>
                         )}

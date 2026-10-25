@@ -6,6 +6,8 @@
 
 import { getClient } from './supabase.ts';
 import { log } from './log.ts';
+import { VPN_MESSAGE, isNetworkBlock, screenNotice } from '../features/safety-model.ts';
+import { noteNetworkBlock, refreshNetworkStatus } from '../features/safety.ts';
 
 let standing: any = null;          // last my_standing() result
 let standingFetchedAt = 0;
@@ -90,22 +92,26 @@ async function guardContent(text, context = 'content', toast: any = null) {
     const say = toast || window.showToast || (() => {});
     const s = await refreshStanding();
     if (s && (s.banned || s.muted)) { say(standingMessage(s), 'error'); return false; }
+    // the server refuses Hub writes from listed VPN and hosting networks (guard_network_write)
+    if (await refreshNetworkStatus()) { say(VPN_MESSAGE, 'error'); return false; }
 
     const verdict = await screenContent(text, context);
     if (!verdict.allowed) { say(blockedMessage(verdict), 'error'); return false; }
-    // mild flags pass through, but let the user know staff can see it
-    if (verdict.matches?.length && verdict.severity === 'mild') {
-        say('Heads up: that language is flagged for staff review. Keep it friendly.', 'warning');
-    }
+    // warn, flag and hide let the text through; say what happens next
+    const notice = screenNotice(verdict);
+    if (notice) say(notice.text, notice.tone);
     return true;
 }
 
 // matches the pre-check wording for paths where the write reaches the server first
 function friendlyModerationError(error) {
+    if (isNetworkBlock(error)) { noteNetworkBlock(); return VPN_MESSAGE; }
     const msg = String(error?.message || '');
     if (/content filter/i.test(msg)) return 'That can\'t be posted - our filter flagged it.';
     if (/account is suspended/i.test(msg)) return 'Your account is suspended.';
     if (/you are muted/i.test(msg)) return 'You\'re muted and can\'t post right now.';
+    // comment controls, slow mode, repeats and limits already speak plainly
+    if (/Comments are turned off|Only people who follow|Slow mode is on|already posted that|A moderator limited it|posting too quickly/i.test(msg)) return msg;
     return '';
 }
 

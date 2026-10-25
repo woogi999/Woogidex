@@ -726,3 +726,51 @@ input[type="checkbox"] { accent-color: var(--accent); width: 16px; height: 16px;
 }
 .admin-linkmap-tip code { word-break: break-all; }
 .admin-fp { color: var(--warning); }
+
+/* ==================== review queue, appeals, signals, numbers, safety settings (js/admin/ReviewTabs.tsx) ==================== */
+.admin-case {
+    border: 1px solid var(--border); border-radius: var(--panel-r); background: var(--bg-card);
+    margin-bottom: var(--sp-2); border-left: 4px solid var(--border-strong);
+}
+.admin-case.prio-2 { border-left-color: var(--warning); }
+.admin-case.prio-3, .admin-case.escalated { border-left-color: var(--danger); }
+.admin-case.resolved { opacity: .8; border-left-color: var(--border); }
+.admin-case-head {
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px var(--sp-3); width: 100%;
+    padding: var(--sp-3) var(--sp-4); background: none; border: 0; text-align: left; color: inherit; font: inherit; cursor: pointer;
+}
+.admin-case-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.admin-case-what { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-2); font-size: 13.5px; }
+.admin-case-meta { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.admin-case-excerpt { grid-column: 1 / -1; font-size: 13px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-case-body { padding: var(--sp-3) var(--sp-4) var(--sp-4); display: grid; gap: var(--sp-3); border-top: 1px solid var(--border-light); }
+.admin-case-body h4, .admin-subhead { margin: 0 0 var(--sp-1); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-muted); }
+.admin-subhead { margin-top: var(--sp-5); }
+.admin-case-body p { margin: 0; font-size: 13px; }
+.admin-case-text {
+    margin: 0 0 var(--sp-2); padding: var(--sp-2) var(--sp-3); background: var(--bg-input); border-left: 3px solid var(--border-strong);
+    font-size: 13px; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 240px; overflow: auto;
+}
+.admin-case-list { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; font-size: 13px; }
+.admin-case-list small { color: var(--text-muted); }
+.admin-case-event { color: var(--text-muted); }
+.admin-case-actions { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+.admin-btn-warn { border-color: color-mix(in srgb, var(--warning) 55%, var(--border)); }
+.admin-signal-note { display: block; color: var(--text-muted); }
+.admin-stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--sp-2); }
+.admin-stat { display: grid; gap: 2px; padding: var(--sp-3); border: 1px solid var(--border); border-radius: var(--panel-r); background: var(--bg-card); }
+.admin-stat span { font-size: 12px; color: var(--text-muted); }
+.admin-stat strong { font-size: 22px; }
+.admin-stat small { font-size: 12px; color: var(--text-secondary); }
+.admin-settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--sp-3); }
+.admin-settings-grid .form-group { display: grid; gap: 4px; margin: 0; font-size: 13px; }
+.admin-settings-grid small { color: var(--text-muted); font-size: 12px; }
+.admin-settings-grid input[type="checkbox"] { justify-self: start; }
+.admin-scope-row { border: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--sp-3); }
+.admin-scope-row legend { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+.admin-scope-row legend span { font-weight: 400; color: var(--text-muted); }
+.btn.is-disabled { opacity: .5; pointer-events: none; }
+@media (max-width: 640px) {
+    .admin-case-head { grid-template-columns: 1fr; }
+    .admin-case-meta { white-space: normal; }
+}
