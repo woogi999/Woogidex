@@ -42,9 +42,8 @@ export const PLACES: Entry[] = [
     { title: 'Community Hub', sub: 'See what others are making', icon: 'users', keywords: 'community hub feed', run: () => api.openCommunityHub?.() },
     { title: 'Browse Fakémon', sub: 'Community Hub', icon: 'layout-grid', keywords: 'browse community explore', run: () => api.openCommunityHub?.({ panel: 'browse' }) },
     { title: 'Events', sub: 'Community Hub', icon: 'trophy', keywords: 'events contests competitions vote sign-ups', run: () => api.openEvents?.() },
-    { title: 'My uploads', sub: 'Community Hub', icon: 'upload', keywords: 'uploads published publish', run: () => api.showProfileView?.(null) },
+    { title: 'My uploads', sub: 'Your profile', icon: 'upload', keywords: 'uploads published publish', run: () => api.showProfileView?.(null) },
     { title: 'Battle', sub: 'Battle your Fakémon', icon: 'swords', keywords: 'battle fight simulator team', run: () => api.openBattle?.() },
-    { title: 'Updates', sub: "What's new in Woogidex", icon: 'newspaper', keywords: 'updates changelog news whats new woogidex', run: () => api.showUserProfile?.('woogidex') },
     { title: 'Credits', sub: 'Who makes Woogidex', icon: 'badge-info', keywords: 'credits about team', run: () => api.openSettings?.('about') },
     { title: 'Settings', sub: 'Appearance, data and account', icon: 'settings', keywords: 'settings preferences options backup', run: () => api.openSettings?.() },
     { title: 'My profile', sub: 'Your public page', icon: 'user', keywords: 'profile account me', when: () => !!state.user, run: () => api.showProfileView?.() },
@@ -70,7 +69,7 @@ export const ACTIONS: Entry[] = [
     { title: 'Sign out', sub: 'Account', icon: 'log-out', keywords: 'sign out logout log', when: () => !!state.user, run: () => api.handleSignOutClick?.() }
 ];
 /** what the box offers before you type anything */
-export const QUICK = ['New Fakémon', 'My Collection', 'Community Hub', 'Battle', 'Updates'];
+export const QUICK = ['New Fakémon', 'My Collection', 'Community Hub', 'Battle'];
 
 export type GroupKey = 'fakemon' | 'library' | 'people' | 'community' | 'pages';
 /** the result groups, in display order; the page's filter tabs use the keys */
