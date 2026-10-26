@@ -62,7 +62,7 @@ export function LazyArt({ row, className = 'card-art', children, full = false }:
 
     const Tag = className.includes('community-landing-art') || className.includes('community-upload-art') ? 'span' : 'div';
     return (
-        <Tag className={className} ref={ref as any}>
+        <Tag className={className} ref={ref as any} data-scaling={mon.artScaling === 'smooth' ? 'smooth' : 'pixel'}>
             {art
                 ? <ShieldedArt src={art} alt={`${mon.name || 'Fakémon'} artwork`} />
                 : <img className="no-art-placeholder" src="assets/no_art_placeholder.png" alt="No artwork" draggable={false} />}

@@ -19,7 +19,8 @@ import { createPoll, pollProblem, type PollDraft } from './polls.ts';
 import { applyMyReaction } from './comments.ts';
 import { effectivePhase } from './events.ts';
 
-export type FeedTab = 'foryou' | 'following' | 'latest';
+// one feed, ranked "For you"; the key stays so the feed state keeps its shape
+export type FeedTab = 'foryou';
 
 interface SocialState {
     following: Set<string>;
@@ -35,7 +36,7 @@ function ss(): SocialState {
     if (!state.social) {
         state.social = {
             following: new Set<string>(), followingFor: null, blocked: new Set<string>(),
-            feed: { foryou: emptyTab(), following: emptyTab(), latest: emptyTab() },
+            feed: { foryou: emptyTab() },
             post: { id: null, row: null, comments: null, loading: false, error: '' }
         } as SocialState;
     }
@@ -111,7 +112,7 @@ export async function onSocialAuthChange() {
     s.followingFor = uid;
     s.following = new Set();
     s.blocked = new Set();
-    s.feed = { foryou: emptyTab(), following: emptyTab(), latest: emptyTab() };
+    s.feed = { foryou: emptyTab() };
     if (!uid) { notify(); return; }
     try {
         const client = await api.getClient();
@@ -213,7 +214,7 @@ function shapeItem(raw: any): FeedItem {
         api.registerTypeLooks?.(raw.customTypes);
         return {
             ...raw, ...shared,
-            fakemon_data: { name: raw.name, species: raw.species, number: raw.number, type1: raw.type1, type2: raw.type2, customTypes: raw.customTypes || [] },
+            fakemon_data: { name: raw.name, species: raw.species, number: raw.number, type1: raw.type1, type2: raw.type2, customTypes: raw.customTypes || [], artScaling: raw.artScaling },
             published_at: raw.created_at
         };
     }
@@ -233,6 +234,13 @@ function withEmbeds(rows: any[]): any[] {
  * the feed's rows don't carry them, so they're looked up once per load. Until
  * the migration adding event_ids is in, nothing is found and nothing shows.
  */
+/** Raw feed rows (community_feed, group_feed) as cards: shaped, with author info and the events they show. */
+export async function prepareFeedRows(data: any[]): Promise<FeedItem[]> {
+    const rows = (data || []).map(shapeItem);
+    await Promise.all([api.attachLiveAuthorInfo?.(withEmbeds(rows)), attachPostEvents(rows)]);
+    return rows;
+}
+
 async function attachPostEvents(rows: any[]) {
     const posts = withEmbeds(rows).filter(r => r?.kind === 'post' && r.id);
     if (!posts.length) return;
@@ -268,11 +276,10 @@ export async function fetchFeed(tab: FeedTab = 'foryou', { force = false, older 
         const client = await api.getClient();
         const before = older && t.items.length ? chronological(t.items).at(-1)!.created_at : null;
         const { data, error } = await client.rpc('community_feed', {
-            p_before: before, p_limit: tab === 'foryou' && !older ? 120 : 40, p_following_only: tab === 'following'
+            p_before: before, p_limit: older ? 40 : 120, p_following_only: false
         });
         if (error) throw error;
-        const rows = (data || []).map(shapeItem);
-        await Promise.all([api.attachLiveAuthorInfo?.(withEmbeds(rows)), attachPostEvents(rows)]);
+        const rows = await prepareFeedRows(data);
         if (older) {
             const known = new Set(t.items.map(i => `${i.kind}:${i.id}`));
             const fresh = rows.filter(r => !known.has(`${r.kind}:${r.id}`));
@@ -301,7 +308,6 @@ export function feedItems(tab: FeedTab): FeedItem[] {
     const t = ss().feed[tab];
     const blocked = ss().blocked;
     const items = t.items.filter(i => !blocked.has(i.user_id));
-    if (tab !== 'foryou') return chronological(items);
     const cached = rankedCache.get(tab);
     const byKey = new Map(items.map(i => [`${i.kind}:${i.id}`, i]));
     if (cached && cached.fetchedAt === t.fetchedAt) {
@@ -338,7 +344,7 @@ function emptyPostMessage(error: any): string {
         : '';
 }
 
-export async function createPost({ body = '', monIds = [] as string[], eventIds = [] as string[], poll = null as PollDraft | null }): Promise<string | null> {
+export async function createPost({ body = '', monIds = [] as string[], eventIds = [] as string[], poll = null as PollDraft | null, groupId = null as string | null }): Promise<string | null> {
     if (!api.requireAccount?.('Sign in to post.')) return null;
     const text = String(body || '').trim();
     if (!text && !monIds.length && !eventIds.length && !poll) { api.showToast?.('Write something or add a Fakemon first.', 'warning'); return null; }
@@ -351,7 +357,7 @@ export async function createPost({ body = '', monIds = [] as string[], eventIds 
     // tells the database's "a post needs something in it" rule one is coming
     const pollOnly = !!poll && !text && !monIds.length && !eventIds.length;
     const { data, error } = await client.from('community_posts')
-        .insert({ user_id: state.user!.id, body: text, mon_ids: monIds.slice(0, 12), tags: tagsIn(text), ...(eventIds.length ? { event_ids: eventIds.slice(0, 4) } : {}), ...(pollOnly ? { has_poll: true } : {}) })
+        .insert({ user_id: state.user!.id, body: text, mon_ids: monIds.slice(0, 12), tags: tagsIn(text), ...(eventIds.length ? { event_ids: eventIds.slice(0, 4) } : {}), ...(pollOnly ? { has_poll: true } : {}), ...(groupId ? { group_id: groupId } : {}) })
         .select('id').single();
     if (error) {
         log.error('SOCIAL', 'Post failed', error);
@@ -370,7 +376,8 @@ export async function createPost({ body = '', monIds = [] as string[], eventIds 
     api.showToast?.('Posted!', 'success');
     for (const t of Object.values(ss().feed)) t.fetchedAt = 0;
     api.invalidateProfile?.(state.user!.id);
-    fetchFeed(currentFeedTab(), { force: true });
+    fetchFeed('foryou', { force: true });
+    if (groupId) api.refreshGroupFeed?.(groupId);
     return data?.id || null;
 }
 
@@ -526,7 +533,7 @@ export async function quoteRepost(item: any, body: string): Promise<boolean> {
     recordInteraction(target.user_id);
     for (const t of Object.values(ss().feed)) t.fetchedAt = 0;
     api.invalidateProfile?.(state.user!.id);
-    fetchFeed(currentFeedTab(), { force: true });
+    fetchFeed('foryou', { force: true });
     api.showToast?.('Shared!', 'success');
     return true;
 }
@@ -675,20 +682,6 @@ export async function fetchFollowList(userId: string, which: 'followers' | 'foll
 export async function myFollowers() {
     if (!state.user) return [];
     return fetchFollowList(state.user.id, 'followers');
-}
-
-// ==================== which tab ====================
-const TAB_KEY = 'woogidex.community.feedtab.v1';
-export function currentFeedTab(): FeedTab {
-    try {
-        const t = localStorage.getItem(TAB_KEY);
-        return t === 'following' || t === 'latest' ? t : 'foryou';
-    } catch { return 'foryou'; }
-}
-export function setFeedTab(tab: FeedTab) {
-    try { localStorage.setItem(TAB_KEY, tab); } catch {}
-    notify();
-    fetchFeed(tab);
 }
 
 // ==================== your mention and discovery settings ====================

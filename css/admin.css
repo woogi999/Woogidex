@@ -1,3 +1,10 @@
+/* BDO Grotesk, the site's font (woogidex-core public/fonts/) */
+@font-face { font-family: 'BDO Grotesk'; font-style: normal; font-weight: 300 900; font-display: swap; src: url('/fonts/BDOGrotesk-VF.woff2') format('woff2'); }
+
+/* a user's account type (UsersTab.tsx AccountType) */
+.admin-account-type { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 10px; font-size: 13px; }
+.admin-account-type input { height: 30px; max-width: 200px; }
+
 /* ==================== staff panel ====================
    admin.html's own stylesheet. It doesn't link the site's CSS (a site restyle
    shouldn't be able to break the panel), but it copies the site's tokens and
@@ -32,7 +39,7 @@
     --panel-r: 14px; --card-r: 12px;
     --header-h: 52px;
     --sidebar-w: 216px;
-    --font: 'Exo 2', sans-serif;
+    --font: 'BDO Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
     --mono: 'Inconsolata', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
     /* older names some rendered markup still reads */

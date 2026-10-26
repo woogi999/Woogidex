@@ -69,6 +69,15 @@ function Byline({ item, verb }: { item: FeedItem; verb?: string }) {
                 <span className="feed-byline-name">
                     <span className="community-author-link" data-user-id={item.user_id} onClick={() => api.showUserProfile(item.user_id)}>{item.author_name || 'Someone'}</span>
                     <BadgeRow badgeKeys={item.author_badges} size={13} />
+                    {/* a post in a group: "Name > Group", like Facebook */}
+                    {item.group && (
+                        <>
+                            <Icon name="chevron-right" size={12} className="feed-byline-sep" />
+                            <button type="button" className="feed-byline-group" onClick={() => api.showGroupView({ kind: 'group', slug: item.group.slug, tab: 'posts' })}>
+                                {item.group.name}
+                            </button>
+                        </>
+                    )}
                 </span>
                 <span className="feed-byline-meta">
                     {verb && <>{verb} · </>}
@@ -108,6 +117,8 @@ function RepostButton({ item }: { item: FeedItem }) {
     const [menu, setMenu] = useState(false);
     const target = api.repostTarget(item);
     const mine = !!target.reposted_by_me;
+    // a private group's post stays in the group: only its link can be copied
+    const privateGroup = target.group?.visibility === 'private';
     const ref = useClickAway(menu, () => setMenu(false));
     return (
         <div className="feed-menu-wrap feed-repost-wrap" ref={ref}>
@@ -117,12 +128,16 @@ function RepostButton({ item }: { item: FeedItem }) {
             </button>
             {menu && (
                 <div className="feed-menu feed-repost-menu" role="menu">
-                    <button type="button" role="menuitem" onClick={() => { setMenu(false); if (api.requireAccount?.('Sign in to repost.')) api.toggleRepost(item); }}>
-                        <Icon name="arrow-path-rounded-square" size={14} /> {mine ? 'Undo repost' : 'Repost'}
-                    </button>
-                    <button type="button" role="menuitem" onClick={() => { setMenu(false); if (api.requireAccount?.('Sign in to share.')) openDialog('quote-repost', { item: target }); }}>
-                        <Icon name="pencil-square" size={14} /> Share with your thoughts
-                    </button>
+                    {!privateGroup && (
+                        <>
+                            <button type="button" role="menuitem" onClick={() => { setMenu(false); if (api.requireAccount?.('Sign in to repost.')) api.toggleRepost(item); }}>
+                                <Icon name="arrow-path-rounded-square" size={14} /> {mine ? 'Undo repost' : 'Repost'}
+                            </button>
+                            <button type="button" role="menuitem" onClick={() => { setMenu(false); if (api.requireAccount?.('Sign in to share.')) openDialog('quote-repost', { item: target }); }}>
+                                <Icon name="pencil-square" size={14} /> Share with your thoughts
+                            </button>
+                        </>
+                    )}
                     <button type="button" role="menuitem" onClick={() => { setMenu(false); target.kind === 'mon' ? api.copyCommunityShareLink(target.id) : api.copyPostLink(target.id); }}>
                         <Icon name="link" size={14} /> Copy link
                     </button>
@@ -263,7 +278,9 @@ function EventEmbed({ item }: { item: any }) {
 export function PostFeedCard({ item, full = false }: { item: FeedItem; full?: boolean }) {
     const ref = useImpression(`post:${item.id}`);
     const isMine = !!state.user && state.user.id === item.user_id;
-    const canDelete = isMine || !!api.isStaff?.();
+    // group moderators remove posts in their group too
+    const groupMod = !!item.group && !!api.canModerateGroup?.(item.group.id);
+    const canDelete = isMine || !!api.isStaff?.() || groupMod;
     const [editing, setEditing] = useState(false);
     const [draft, setDraft] = useState(item.body || '');
     const [menu, setMenu] = useState(false);
@@ -283,9 +300,10 @@ export function PostFeedCard({ item, full = false }: { item: FeedItem; full?: bo
                             <div className="feed-menu" onMouseLeave={() => setMenu(false)}>
                                 {isMine && <button type="button" onClick={() => { setMenu(false); setDraft(item.body || ''); setEditing(true); }}><Icon name="pencil" size={14} /> Edit</button>}
                                 {isMine && <button type="button" onClick={() => { setMenu(false); openCommentControls('post', item.id); }}><Icon name="chat-bubble-left-right" size={14} /> Who can comment</button>}
+                                {isMine && api.isBusiness?.() && <button type="button" onClick={() => { setMenu(false); api.togglePin(item.id); }}><Icon name="pin" size={14} /> {api.isPinned(item.id) ? 'Unpin from profile' : 'Pin to profile'}</button>}
                                 <button type="button" onClick={() => { setMenu(false); api.copyPostLink(item.id); }}><Icon name="link" size={14} /> Copy link</button>
                                 {!isMine && state.user && <button type="button" onClick={() => { setMenu(false); openReportDialog('post', item.id, null, item.author_name || ''); }}><Icon name="flag" size={14} /> Report</button>}
-                                {canDelete && <button type="button" className="is-danger" onClick={() => { setMenu(false); api.deletePost(item.id); }}><Icon name="trash-2" size={14} /> {isMine ? 'Delete' : 'Remove (staff)'}</button>}
+                                {canDelete && <button type="button" className="is-danger" onClick={() => { setMenu(false); api.deletePost(item.id); }}><Icon name="trash-2" size={14} /> {isMine ? 'Delete' : groupMod && !api.isStaff?.() ? 'Remove from group' : 'Remove (staff)'}</button>}
                             </div>
                         )}
                     </div>
@@ -384,8 +402,13 @@ export function FeedSkeleton({ count = 3 }: { count?: number }) {
 
 // ==================== writing a post ====================
 
-export function PostComposer({ onPosted }: { onPosted?: () => void }) {
+/**
+ * Writes a post. On a group's page it posts there (group); on the home feed
+ * you can pick one of your groups, or everyone.
+ */
+export function PostComposer({ onPosted, group }: { onPosted?: () => void; group?: { id: string; name: string } }) {
     const [open, setOpen] = useState(false);
+    const [where, setWhere] = useState('');
     const [text, setText] = useState('');
     const [mons, setMons] = useState<any[]>([]);
     const [evs, setEvs] = useState<any[]>([]);
@@ -397,7 +420,7 @@ export function PostComposer({ onPosted }: { onPosted?: () => void }) {
     async function post() {
         if (busy) return;
         setBusy(true);
-        const id = await api.createPost({ body: text, monIds: mons.map(m => m.id), eventIds: evs.map(e => e.id), poll });
+        const id = await api.createPost({ body: text, monIds: mons.map(m => m.id), eventIds: evs.map(e => e.id), poll, groupId: group?.id || where || null });
         setBusy(false);
         if (id) { setText(''); setMons([]); setEvs([]); setPoll(null); setOpen(false); onPosted?.(); }
     }
@@ -405,7 +428,7 @@ export function PostComposer({ onPosted }: { onPosted?: () => void }) {
         return (
             <div className="post-composer is-collapsed">
                 <Avatar userId={user.id} url={user.avatarUrl} name={name} className="feed-avatar" />
-                <button type="button" className="post-composer-prompt" onClick={() => setOpen(true)}>What are you making, {name.split(' ')[0]}?</button>
+                <button type="button" className="post-composer-prompt" onClick={() => setOpen(true)}>{group ? `Post in ${group.name}` : `What are you making, ${name.split(' ')[0]}?`}</button>
                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setOpen(true); openDialog('pick-post-mons', { selected: mons, onDone: setMons }); }}>
                     <Icon name="sparkles" size={14} /> Show off Fakémon
                 </button>
@@ -417,6 +440,14 @@ export function PostComposer({ onPosted }: { onPosted?: () => void }) {
             <div className="post-composer-top">
                 <Avatar userId={user.id} url={user.avatarUrl} name={name} className="feed-avatar" />
                 <strong>{name}</strong>
+                {group ? (
+                    <span className="post-composer-where"><Icon name="chevron-right" size={12} /> {group.name}</span>
+                ) : (api.myGroups?.() || []).length > 0 && (
+                    <select className="post-composer-where-pick" value={where} onChange={e => setWhere(e.target.value)} aria-label="Where to post">
+                        <option value="">Everyone</option>
+                        {api.myGroups().map((g: any) => <option key={g.id} value={g.id}>{g.name}</option>)}
+                    </select>
+                )}
             </div>
             <EmojiInput value={text} onChange={setText} maxLength={4000} rows={4} autoFocus toolbar
                 placeholder="Say something! Use #tags, @mentions and :emojis: (try typing :sob or :tatsu)" />

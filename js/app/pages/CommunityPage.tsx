@@ -1,11 +1,11 @@
-// The Community Hub (/community): the feed (Fakemon and posts from everyone,
-// ranked "For you", or just the people you follow, or newest first), the
-// browsable grid, events and contests, and your own uploads. Data and actions
+// The Community Hub (/community): the feed (Fakemon and posts from everyone
+// and from your groups, ranked "For you"), the browsable grid, groups
+// (/groups), and events and contests. Your own uploads are on your profile. Data and actions
 // stay in js/features/community.ts and js/features/social.ts.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, state } from '../../core/app.ts';
-import { CommunityFeed, LazyArt, type FeedRow } from '../components/community.tsx';
+import { CommunityFeed } from '../components/community.tsx';
 import { EventsPanel } from '../components/EventsPanel.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { Avatar } from '../components/Avatar.tsx';
@@ -13,16 +13,15 @@ import { FeedCard, FeedSkeleton, PostComposer } from '../components/feed.tsx';
 import { events, getLiveEvents, showEventView } from '../../features/events.ts';
 import { useStore } from '../store.ts';
 import { useSlide } from '../hooks.ts';
-import { fadeSwap } from '../../core/motion.ts';
+import { fadeSwap, staggerIn } from '../../core/motion.ts';
 import { NetworkNotice } from '../components/NetworkNotice.tsx';
+import { GroupsPanel, YourGroupsRail } from '../components/groups.tsx';
 import type { FeedItem } from '../../features/feed-algorithm.ts';
 
-type Panel = 'feed' | 'browse' | 'events' | 'uploads';
-type FeedTab = 'foryou' | 'following' | 'latest';
+type Panel = 'feed' | 'browse' | 'events' | 'groups';
 
-const TABS: Array<[Panel, string]> = [['feed', 'Feed'], ['browse', 'Browse Fakémon'], ['events', 'Events'], ['uploads', 'My uploads']];
+const TABS: Array<[Panel, string]> = [['feed', 'Feed'], ['browse', 'Browse Fakémon'], ['groups', 'Groups'], ['events', 'Events']];
 const PANELS = TABS.map(([k]) => k);
-const FEED_ORDER: FeedTab[] = ['foryou', 'following', 'latest'];
 
 // One column: the rail's sections become cards inside the feed. Keep in step
 // with the one-column rule for .feed-layout in css/feed.css.
@@ -40,14 +39,11 @@ function useMedia(query: string): boolean {
     }, [query]);
     return on;
 }
-const FEED_TABS: Array<[FeedTab, string, string]> = [
-    ['foryou', 'For you', 'sparkles'], ['following', 'Following', 'users'], ['latest', 'Latest', 'clock']
-];
 
 export function CommunityPage() {
     useStore();
     const cs = api.communityState();
-    const panel: Panel = (['feed', 'browse', 'events', 'uploads'].includes(cs.panel) ? cs.panel : 'feed') as Panel;
+    const panel: Panel = (PANELS.includes(cs.panel) ? cs.panel : 'feed') as Panel;
     // the sections list is a sidebar (sections go up and down) or, on a
     // phone, a row of chips (sections go left and right)
     const main = useSlide(panel, PANELS, useMedia('(max-width: 760px)') ? 'x' : 'y');
@@ -59,7 +55,11 @@ export function CommunityPage() {
                 <nav className="hub-nav-list" id="community-tabs" role="tablist" aria-orientation="vertical">
                     {TABS.map(([key, label]) => (
                         <button key={key} className={`hub-nav-item${panel === key ? ' active' : ''}`} type="button" role="tab" aria-selected={panel === key}
-                            onClick={() => { if (key === 'events') events.view = { kind: 'list' }; api.showCommunityPanel(key); }}>{label}</button>
+                            onClick={() => {
+                                if (key === 'events') events.view = { kind: 'list' };
+                                if (key === 'groups') api.groupsState().view = { kind: 'list' };
+                                api.showCommunityPanel(key);
+                            }}>{label}</button>
                     ))}
                 </nav>
             </aside>
@@ -68,7 +68,7 @@ export function CommunityPage() {
                 {panel === 'feed' && <Feed />}
                 {panel === 'browse' && <Browse />}
                 {panel === 'events' && <div className="community-panel"><EventsPanel /></div>}
-                {panel === 'uploads' && <Uploads />}
+                {panel === 'groups' && <div className="community-panel"><GroupsPanel /></div>}
             </div>
         </div>
     );
@@ -78,18 +78,23 @@ export function CommunityPage() {
 
 const CHUNK = 12;
 
+// one feed, ranked "For you" (js/features/feed-algorithm.ts)
+const FEED = 'foryou';
+
 function Feed() {
-    const tab: FeedTab = api.currentFeedTab();
+    const tab = FEED;
     const social = api.socialState();
     const t = social.feed[tab];
     const items: FeedItem[] = api.feedItems(tab);
     const [shown, setShown] = useState(CHUNK);
     const sentinel = useRef<HTMLDivElement>(null);
-    const list = useSlide(tab, FEED_ORDER);
     const oneColumn = useMedia(ONE_COLUMN);
-    const creatorPool = social.feed.foryou.items.length ? social.feed.foryou.items : items;
+    const creatorPool = items;
 
+    const list = useRef<HTMLDivElement>(null);
     useEffect(() => { setShown(CHUNK); }, [tab, t.fetchedAt]);
+    // a fresh load: the cards arrive one after another
+    useEffect(() => { if (t.fetchedAt && list.current) staggerIn(Array.from(list.current.children)); }, [t.fetchedAt]);
     useEffect(() => { api.fetchFeed(tab); }, [tab]);
 
     // more cards as you near the bottom; at the very end, older items
@@ -99,7 +104,6 @@ function Feed() {
         const io = new IntersectionObserver(entries => {
             if (!entries.some(e => e.isIntersecting)) return;
             if (shown < items.length) setShown(n => n + CHUNK);
-            else if (tab !== 'foryou' && t.hasMore && !t.loading) api.fetchFeed(tab, { older: true });
         }, { rootMargin: '600px' });
         io.observe(el);
         return () => io.disconnect();
@@ -109,44 +113,32 @@ function Feed() {
         <div className="feed-layout">
             <div className="feed-main">
                 <PostComposer />
-                <div className="feed-tabs" role="tablist" aria-label="Which feed">
-                    {FEED_TABS.map(([key, label, icon]) => (
-                        <button key={key} type="button" role="tab" aria-selected={tab === key} className={`feed-tab${tab === key ? ' active' : ''}`}
-                            onClick={() => api.setFeedTab(key)}><Icon name={icon} size={16} />{label}</button>
-                    ))}
-                    <button type="button" className="feed-refresh" title="Refresh" aria-label="Refresh the feed" onClick={() => api.fetchFeed(tab, { force: true })}>
-                        <Icon name="arrow-path" size={16} className={t.loading ? 'spin' : ''} />
-                    </button>
-                </div>
                 <div className="feed-list" ref={list}>
                     {t.error && <div className="feed-empty"><Icon name="exclamation-triangle" size={20} /><p>{t.error}</p></div>}
                     {!items.length && t.loading && <FeedSkeleton />}
-                    {!items.length && !t.loading && !t.error && <EmptyFeed tab={tab} />}
+                    {!items.length && !t.loading && !t.error && <EmptyFeed />}
                     {oneColumn
                         ? <WithInlineCards items={items.slice(0, shown)} done={shown >= items.length && !t.loading} cards={[
                             [3, <LiveContests key="live" inline />],
-                            [6, <SuggestedCreators key="creators" items={creatorPool} inline />],
-                            [12, <FeaturedMini key="featured" inline />]
+                            [6, <SuggestedCreators key="creators" items={creatorPool} inline />]
                         ]} />
                         : items.slice(0, shown).map(item => <FeedCard key={`${item.kind}:${item.id}`} item={item} />)}
                 </div>
                 <div ref={sentinel} className="feed-sentinel" />
                 {items.length > 0 && shown >= items.length && (
-                    tab === 'foryou' ? (
-                        <div className="feed-end">
-                            <Icon name="check-circle" size={22} />
-                            <p>You're all caught up!</p>
-                            <button type="button" className="btn btn-secondary btn-sm" disabled={t.loading} onClick={() => api.fetchFeed(tab, { older: true })}>Show older stuff</button>
-                        </div>
-                    ) : !t.hasMore && <div className="feed-end"><p>That's everything.</p></div>
+                    <div className="feed-end">
+                        <Icon name="check-circle" size={22} />
+                        <p>You're all caught up!</p>
+                        <button type="button" className="btn btn-secondary btn-sm" disabled={t.loading} onClick={() => api.fetchFeed(tab, { older: true })}>Show older stuff</button>
+                    </div>
                 )}
                 {t.loading && items.length > 0 && <FeedSkeleton count={1} />}
             </div>
             {!oneColumn && (
                 <aside className="feed-rail" aria-label="More from the hub">
                     <LiveContests />
+                    <YourGroupsRail />
                     <SuggestedCreators items={creatorPool} />
-                    <FeaturedMini />
                 </aside>
             )}
         </div>
@@ -187,13 +179,11 @@ function RailCard({ inline, title, icon, action, className = '', children }: {
     );
 }
 
-function EmptyFeed({ tab }: { tab: FeedTab }) {
+function EmptyFeed() {
     return (
         <div className="feed-empty">
-            <Icon name={tab === 'following' ? 'users' : 'sparkles'} size={26} />
-            {tab === 'following'
-                ? <p>Nothing from people you follow yet. Find creators you like in <button type="button" className="link-btn" onClick={() => api.setFeedTab('foryou')}>For you</button> and hit Follow.</p>
-                : <p>It's quiet in here. Be the first: publish a Fakémon or write a post!</p>}
+            <Icon name="sparkles" size={26} />
+            <p>It's quiet in here. Be the first: publish a Fakémon or write a post!</p>
         </div>
     );
 }
@@ -265,31 +255,6 @@ function useUndiscoverable(ids: string[]): Set<string> | null {
     return hidden;
 }
 
-/** "Featured this week", now a small grid beside the feed. */
-function FeaturedMini({ inline }: { inline?: boolean }) {
-    const cs = api.communityState();
-    const rows: FeedRow[] = cs.mons || [];
-    if (!rows.length) return null;
-    const featured: FeedRow[] = api.featuredThisWeek(rows, inline ? 10 : 6);
-    const browse = (
-        <button type="button" className="link-btn" onClick={() => api.showCommunityPanel('browse')}>
-            {inline ? 'See all' : 'Browse every Fakémon'} <Icon name="arrow-right" size={12} />
-        </button>
-    );
-    return (
-        <RailCard inline={inline} title="Featured this week" icon="star" action={browse}>
-            <div className={inline ? 'feed-inline-strip' : 'feed-rail-grid'}>
-                {featured.map(row => (
-                    <button type="button" key={row.id} className="feed-rail-mon" onClick={() => api.openMonDetail(row.id)} title={row.fakemon_data?.name}>
-                        <LazyArt row={row} className="feed-rail-mon-art" />
-                        <span>{row.fakemon_data?.name || 'Unnamed'}</span>
-                    </button>
-                ))}
-            </div>
-        </RailCard>
-    );
-}
-
 // live events have a deadline, so they sit at the top of the rail
 function LiveContests({ inline }: { inline?: boolean }) {
     const live = getLiveEvents();
@@ -354,66 +319,6 @@ function Browse() {
             <div id="community-listing">
                 <CommunityFeed rows={cs.mons || []} loading={!!cs.loading} prefs={{ ...prefs, search: (cs.search || '').trim().toLowerCase() }}
                     viewerId={state.user?.id || null} viewerIsStaff={!!api.isStaff?.()} table={table} />
-            </div>
-        </div>
-    );
-}
-
-// ==================== my uploads ====================
-
-function Uploads() {
-    if (!state.user) {
-        return <div className="community-panel"><div className="community-uploads-list"><div className="community-empty">Sign in to manage your uploads.</div></div></div>;
-    }
-    const cs = api.communityState();
-    const mine: FeedRow[] = (cs.mons || []).filter((row: FeedRow) => row.user_id === state.user!.id)
-        .sort((a: FeedRow, b: FeedRow) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime());
-    const { max, cooldownSeconds } = api.publishLimits();
-    const cadence: string = api.describeCooldown(cooldownSeconds);
-    const hintStart = cadence ? `You can publish ${cadence}` : 'You can publish any time';
-    const used = mine.length;
-    const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : 100;
-    const tone = used >= max ? ' is-full' : pct >= 80 ? ' is-high' : '';
-    return (
-        <div className="community-panel">
-            <div className="cloud-meters community-uploads-meter">
-                {max === Infinity ? (
-                    <div className="cloud-meter is-unlimited">
-                        <div className="cloud-meter-head"><span>Community uploads</span><span>{used} / unlimited</span></div>
-                        <div className="cloud-meter-hint">{hintStart}, with no limit on how many listings you hold.</div>
-                    </div>
-                ) : (
-                    <div className={`cloud-meter${tone}`}>
-                        <div className="cloud-meter-head"><span>Community uploads</span><span>{used}/{max}</span></div>
-                        <div className="cloud-meter-track"><div className="cloud-meter-fill" style={{ width: `${pct}%` }} /></div>
-                        <div className="cloud-meter-hint">{hintStart}, and hold up to {max} listings at a time. Unpublishing one frees a slot.</div>
-                    </div>
-                )}
-            </div>
-            <div className="community-uploads-list">
-                {!mine.length ? (
-                    <div className="community-empty">You have not published anything yet. Use the publish button above to put a Fakemon on the hub.</div>
-                ) : mine.map(row => {
-                    const mon = row.fakemon_data || {};
-                    return (
-                        <div className="community-upload-row" key={row.id}>
-                            <LazyArt row={row} className="community-upload-art" />
-                            <div className="community-upload-info">
-                                <strong>{mon.name || 'Unnamed'}</strong>
-                                <span>Published {new Date(row.published_at).toLocaleDateString()}</span>
-                                <span className="community-upload-stats">
-                                    <span><Icon name="heart" size={12} /> {Number(row.like_count || 0)}</span>
-                                    <span><Icon name="message-circle" size={12} /> {Number(row.comment_count || 0)}</span>
-                                </span>
-                            </div>
-                            <div className="community-upload-actions">
-                                <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openMonDetail(row.id)}>View</button>
-                                <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openCommunityUpdateModalFor(row.id)}>Update</button>
-                                <button className="btn btn-danger btn-sm" type="button" onClick={() => api.unpublishMon(row.id)}>Unpublish</button>
-                            </div>
-                        </div>
-                    );
-                })}
             </div>
         </div>
     );

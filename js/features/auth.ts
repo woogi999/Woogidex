@@ -1297,6 +1297,8 @@ function updateAuthUI() {
     // who you follow, and your chats' keys and unread count, belong to whoever is signed in
     api.onSocialAuthChange?.();
     api.onMessagingAuthChange?.();
+    api.onGroupsAuthChange?.();
+    api.onBusinessAuthChange?.();
     // re-read whenever the signed-in user changes (including sign-out, which
     // must clear it), since the cloud-backup badge depends on it.
     api.refreshCloudManifest?.();

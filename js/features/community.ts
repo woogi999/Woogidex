@@ -84,7 +84,7 @@ function ensureCommunityState() {
             search: '',
             sortBy: 'activity',
             sortOrder: 'desc',
-            panel: 'feed'      // 'feed', 'browse', 'events' or 'uploads' -- see setCommunityPanel()
+            panel: 'feed'      // 'feed', 'browse', 'events' or 'groups' -- see setCommunityPanel()
         };
     }
     return state.community;
@@ -642,7 +642,7 @@ async function fetchCommunityFeed(options: Record<string, any> = {}) {
             // no thumbnail here any more: a thumbnail is an image, and an
             // image in this response is an image in the network panel. Cards
             // ask community_mon_artwork() for a masked one instead.
-            .select('id, user_id, published_at, activity_at, view_count, source_fakemon_id, author_name, author_avatar_url, author_role, author_badges, family_snapshots, evolution_stage, fakemon_data->>name, fakemon_data->>species, fakemon_data->>number, fakemon_data->>type1, fakemon_data->>type2, customTypes:fakemon_data->customTypes, stats:fakemon_data->stats')
+            .select('id, user_id, published_at, activity_at, view_count, source_fakemon_id, author_name, author_avatar_url, author_role, author_badges, family_snapshots, evolution_stage, fakemon_data->>name, fakemon_data->>species, fakemon_data->>number, fakemon_data->>type1, fakemon_data->>type2, fakemon_data->>artScaling, customTypes:fakemon_data->customTypes, stats:fakemon_data->stats')
             .order('activity_at', { ascending: false })
             .limit(100);
         if (error) throw error;
@@ -669,11 +669,11 @@ async function fetchCommunityFeed(options: Record<string, any> = {}) {
 // columns, but every renderer expects row.fakemon_data.name etc. - rebuild
 // that shape and drop the flat columns so a slim row isn't mistaken for a full one.
 function unflattenSlimMonRow(row) {
-    const { name, species, number, type1, type2, customTypes, stats, ...rest } = row;
+    const { name, species, number, type1, type2, artScaling, customTypes, stats, ...rest } = row;
     api.registerTypeLooks?.(customTypes);
     // every image is deliberately absent from the feed query -- a card asks
     // for a masked one on scroll, and artworkCache is where that lands.
-    return { ...rest, fakemon_data: { name, species, number, type1, type2, stats: stats && typeof stats === 'object' ? stats : undefined, customTypes: customTypes || [], artwork: artworkCache.get(row.id) || '' } };
+    return { ...rest, fakemon_data: { name, species, number, type1, type2, artScaling: artScaling === 'smooth' ? 'smooth' : undefined, stats: stats && typeof stats === 'object' ? stats : undefined, customTypes: customTypes || [], artwork: artworkCache.get(row.id) || '' } };
 }
 
 // ==================== community stats ====================
@@ -816,7 +816,7 @@ async function openCommunityHub({ panel = null }: { panel?: any } = {}) {
     // painted here rather than waiting on fetchCommunityFeed() below.
     if (cs.panel === 'events') api.showEventsPanel?.();
     // the social feed (mons and posts) has its own query and freshness
-    if (cs.panel === 'feed') api.fetchFeed?.(api.currentFeedTab?.() || 'foryou');
+    if (cs.panel === 'feed') api.fetchFeed?.('foryou');
     if (feedIsFresh()) { paintCommunityPanels(); return; }
 
     // Mark the feed loading BEFORE the first paint. paintCommunityPanels()
@@ -920,7 +920,7 @@ const COMMUNITY_PANELS = {
     feed:    { title: 'Community Hub' },
     browse:  { title: 'Browse Fakemon' },
     events:  { title: 'Events' },
-    uploads: { title: 'My uploads' }
+    groups:  { title: 'Groups' }
 };
 
 // The contest shelf on the landing panel needs events data the events panel
@@ -959,8 +959,8 @@ function showCommunityPanel(panel) {
     setCommunityPanel(panel);
     const cs = ensureCommunityState();
     if (cs.panel === 'events') api.showEventsPanel?.();
-    else if (cs.panel === 'uploads') renderCommunityUploads();
-    else if (cs.panel === 'feed') api.fetchFeed?.(api.currentFeedTab?.() || 'foryou');
+    else if (cs.panel === 'feed') api.fetchFeed?.('foryou');
+    else if (cs.panel === 'groups') api.onGroupsPanelShown?.();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -982,54 +982,6 @@ function renderCommunityUploads() {
         refreshCloudLimits().then(notify).catch(() => {});
     }
     notify();
-}
-
-// ==================== weekly rotation ====================
-// "Featured this week" must be the same set for everyone with no server
-// scheduler (no cron here). derived instead: a seeded shuffle keyed to the
-// ISO week, so it's deterministic per-week with nothing to run or sync.
-function isoWeekKey(date = new Date()) {
-    // ISO weeks start Monday, belong to their Thursday's year. done by hand
-    // (not locale) so the key is identical for every visitor -- which means
-    // reading the date in UTC too, not in whatever zone the visitor is in.
-    const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-    const dayNum = d.getUTCDay() || 7;               // Sunday counts as 7
-    d.setUTCDate(d.getUTCDate() + 4 - dayNum);       // move to this week's Thursday
-    const yearStart = Date.UTC(d.getUTCFullYear(), 0, 1);
-    const week = Math.ceil(((d.getTime() - yearStart) / 86400000 + 1) / 7);
-    return `${d.getUTCFullYear()}-W${week}`;
-}
-
-function seedFrom(text) {
-    // FNV-1a. Any cheap avalanche would do; the requirement is only that one
-    // week's key does not produce an ordering recognisably like the next.
-    let hash = 2166136261;
-    for (let i = 0; i < text.length; i++) {
-        hash ^= text.charCodeAt(i);
-        hash = Math.imul(hash, 16777619);
-    }
-    return hash >>> 0;
-}
-
-// Scores each row on its own, from its id and the week, and takes the best
-// `count`. The seed alone used to drive a Fisher-Yates shuffle of the whole
-// pool, which made the result depend on how many rows were in it: publishing
-// one new Fakemon shifted every index and dealt a completely different
-// "Featured this week", so on any day something was published the shelf reset.
-// A per-row score has no such coupling -- the same row scores the same all
-// week no matter what else is in the hub.
-function seededPick(rows, count, seedText) {
-    return [...rows]
-        .map(row => ({ row, score: seedFrom(`${seedText}:${row.id}`) }))
-        // id breaks ties so two rows that hash alike still order consistently
-        .sort((a, b) => a.score - b.score || String(a.row.id).localeCompare(String(b.row.id)))
-        .slice(0, count)
-        .map(entry => entry.row);
-}
-
-/** The same rotating pick for every visitor, all week (see seededPick). */
-function featuredThisWeek(rows, count) {
-    return seededPick(rows || [], count, isoWeekKey());
 }
 
 function renderCommunityLanding() {
@@ -1634,7 +1586,7 @@ export {
     renderCommunityGridSkeleton,
     switchCommunityPreviewMon, toggleCommunityLayout, setCommunityLayout, applyCommunityLayoutUI, communityLayoutMode, getCommunityPrefs,
     requestCardArtwork,
-    showCommunityLanding, browseCommunityFakemon, renderCommunityLanding, featuredThisWeek,
+    showCommunityLanding, browseCommunityFakemon, renderCommunityLanding,
     showCommunityPanel, renderCommunityUploads, openCommunityPublishModal, openCommunityUpdateModalFor,
     exportOpenCommunityMon, addOpenCommunityMonToCollection, setOpenCommunityMon, signInForTeaser, canTakeOpenCommunityMon, communityState, publishLimits, describeCooldown,
     attachLiveAuthorInfo, ensureCommunityState,

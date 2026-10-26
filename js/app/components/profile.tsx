@@ -50,7 +50,7 @@ export function TypeBadges({ type1, type2 }: { type1?: string; type2?: string })
     );
 }
 
-export function ProfileMons({ mons, loading = false }: { mons?: PublishedRow[]; loading?: boolean }) {
+export function ProfileMons({ mons, loading = false, owner = false }: { mons?: PublishedRow[]; loading?: boolean; owner?: boolean }) {
     if (loading) {
         return (
             <>
@@ -69,12 +69,23 @@ export function ProfileMons({ mons, loading = false }: { mons?: PublishedRow[]; 
         <>
             {mons.map(row => {
                 const mon = row.fakemon_data || {};
-                return (
+                const card = (
                     <button key={row.id} type="button" className="profile-mon-card" onClick={() => api.openPublishedMonById(row.id)}>
                         <MonArt row={row} />
                         <strong>{mon.name || 'Fakemon'}</strong>
                         <TypeBadges type1={mon.type1} type2={mon.type2} />
                     </button>
+                );
+                if (!owner) return card;
+                // your own: manage it here (the hub's "My uploads" used to do this)
+                return (
+                    <div key={row.id} className="profile-mon-owned">
+                        {card}
+                        <div className="profile-mon-actions">
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => api.openCommunityUpdateModalFor(row.id)}>Update</button>
+                            <button type="button" className="btn btn-danger btn-sm" onClick={() => api.unpublishMon(row.id)}>Unpublish</button>
+                        </div>
+                    </div>
                 );
             })}
         </>

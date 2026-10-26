@@ -87,6 +87,42 @@ function userRank(keys: string[]): number {
 
 type Drawer = null | { kind: 'comments' | 'history' | 'sessions'; loading: boolean; error: string; data: any[] };
 
+/**
+ * Personal or business. Business accounts get a category, a contact email,
+ * pinned posts and insights on the site. admin_set_account_type re-checks
+ * manage_badges and the rank order on the server.
+ */
+function AccountType({ userId }: { userId: string }) {
+    const [type, setType] = useState<'personal' | 'business' | null>(null);
+    const [category, setCategory] = useState('');
+    const [busy, setBusy] = useState(false);
+    useEffect(() => {
+        let live = true;
+        getClient().then(client => client.from('profiles').select('account_type, business_category').eq('id', userId).maybeSingle())
+            .then(({ data }: any) => { if (live && data) { setType(data.account_type || 'personal'); setCategory(data.business_category || ''); } });
+        return () => { live = false; };
+    }, [userId]);
+    if (!type) return null;
+    async function save(next: 'personal' | 'business') {
+        setBusy(true);
+        const client = await getClient();
+        const { error } = await client.rpc('admin_set_account_type', { p_user: userId, p_type: next, p_category: category.trim() });
+        setBusy(false);
+        if (error) { showToast('Could not change the account type: ' + error.message, 'error'); return; }
+        setType(next);
+        showToast(next === 'business' ? 'Now a business account' : 'Now a personal account', 'success');
+    }
+    return (
+        <div className="admin-account-type">
+            <span>Account type: <strong>{type === 'business' ? 'Business' : 'Personal'}</strong></span>
+            {type === 'personal' && <input type="text" maxLength={40} placeholder="Category (optional)" value={category} onChange={e => setCategory(e.target.value)} />}
+            <button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={() => save(type === 'business' ? 'personal' : 'business')}>
+                <Icon name="briefcase" size={14} /> {type === 'business' ? 'Make personal' : 'Make business'}
+            </button>
+        </div>
+    );
+}
+
 function UserRow({ user, onChanged }: { user: User; onChanged: () => void }) {
     const me = admin.me!;
     const isSelf = user.id === me.id;
@@ -206,6 +242,7 @@ function UserRow({ user, onChanged }: { user: User; onChanged: () => void }) {
                         <Icon name="check" size={14} /> Save badges
                     </button>
                 )}
+                {!rowLocked && <AccountType userId={user.id} />}
             </div>
             {(user.published_count ?? 0) > 0 && <PublishedMons user={user} />}
             <div className="admin-mod-bar">

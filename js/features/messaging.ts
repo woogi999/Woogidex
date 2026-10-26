@@ -55,6 +55,8 @@ interface MessagingState {
     conversations: Conversation[];
     conversationsLoaded: boolean;
     activeId: string | null;
+    /** the chat dock in the bottom-right corner (js/app/shell/MessagesDock.tsx) is open */
+    dockOpen: boolean;
     threads: Record<string, { items: ChatMessage[]; loading: boolean; hasMore: boolean; keyMissing: boolean; error: string }>;
     unreadTotal: number;
     live: boolean;
@@ -64,7 +66,7 @@ function ms(): MessagingState {
     if (!state.messaging) {
         state.messaging = {
             status: 'signed-out', statusFor: null, identity: null, conversations: [], conversationsLoaded: false,
-            activeId: null, threads: {}, unreadTotal: 0, live: false
+            activeId: null, dockOpen: false, threads: {}, unreadTotal: 0, live: false
         } as MessagingState;
     }
     return state.messaging;
@@ -91,6 +93,7 @@ export async function onMessagingAuthChange() {
     m.conversationsLoaded = false;
     m.threads = {};
     m.activeId = null;
+    m.dockOpen = false;
     m.unreadTotal = 0;
     publicKeys.clear();
     chatKeys.clear();
@@ -277,7 +280,56 @@ export async function openMessages(conversationId: string | null = null, { prese
     return true;
 }
 
-/** Message someone: finds or makes your DM with them and opens it. */
+// ==================== the dock ====================
+// On a wide screen, chats open in a small window in the bottom-right corner
+// (like Instagram on the web) and stay open while you move around the site.
+// It shares activeId with the full-screen page: one open chat at a time.
+
+/** The dock has room on this screen; a phone uses the full-screen page. */
+export function dockFits(): boolean {
+    return window.matchMedia('(min-width: 761px)').matches;
+}
+
+/** Opens the dock on its list of chats, or on one chat. */
+export async function openDock(conversationId: string | null = null): Promise<void> {
+    if (!api.requireAccount?.('Sign in to see your messages.', () => openDock(conversationId))) return;
+    if (!dockFits()) { await openMessages(conversationId); return; }
+    const m = ms();
+    m.dockOpen = true;
+    if (m.status === 'signed-out' || m.statusFor !== state.user?.id) await onMessagingAuthChange();
+    if (!conversationId) { m.activeId = null; notify(); }
+    if (m.status !== 'ready') { notify(); return; }
+    if (!m.conversationsLoaded || !conversationId) await loadConversations();
+    if (conversationId) await openConversation(conversationId, { keepTitle: true });
+}
+
+export function closeDock() {
+    const m = ms();
+    m.dockOpen = false;
+    notify();
+}
+
+/** Leaves the dock for the full-screen page, on the same chat. */
+export async function expandDock() {
+    const m = ms();
+    m.dockOpen = false;
+    await openMessages(m.activeId);
+}
+
+/** Opens a chat where you are: the dock, or the full-screen page on a phone or on /messages. */
+function showChat(conversationId: string | null) {
+    return dockFits() && document.body.dataset.page !== 'messages-view' ? openDock(conversationId) : openMessages(conversationId);
+}
+
+/** A chat is open where you can see it: on the page, or in the dock. */
+function chatOnScreen(): boolean {
+    const m = ms();
+    if (!m.activeId || document.visibilityState !== 'visible') return false;
+    if (document.getElementById('messages-view')?.style.display === 'block') return true;
+    return m.dockOpen && document.body.dataset.page !== 'messages-view';
+}
+
+/** Message someone: finds or makes your DM with them and opens it (in the dock, when it fits). */
 export async function messageUser(userId: string) {
     if (!api.requireAccount?.('Sign in to send messages.')) return;
     try {
@@ -285,7 +337,7 @@ export async function messageUser(userId: string) {
         const { data, error } = await client.rpc('start_direct_chat', { p_other: userId });
         if (error) throw error;
         await loadConversations();
-        await openMessages(data);
+        await showChat(data);
     } catch (e: any) {
         api.showToast?.(cleanError(e) || 'Could not start that chat.', 'error');
     }
@@ -297,7 +349,7 @@ export async function createGroupChat(title: string, memberIds: string[]): Promi
         const { data, error } = await client.rpc('create_group_chat', { p_title: title, p_members: memberIds });
         if (error) throw error;
         await loadConversations();
-        await openMessages(data);
+        await showChat(data);
         return data;
     } catch (e: any) {
         api.showToast?.(cleanError(e) || 'Could not make the group.', 'error');
@@ -330,7 +382,7 @@ export async function removeGroupMember(conversationId: string, userId: string, 
         const { error } = await client.rpc('remove_group_member', { p_conversation: conversationId, p_user: userId });
         if (error) throw error;
         await loadConversations();
-        if (leaving) { await openMessages(null); }
+        if (leaving) { await showChat(null); }
         else await refreshThread(conversationId);
         return true;
     } catch (e: any) {
@@ -496,7 +548,7 @@ function thread(cid: string) {
     return m.threads[cid];
 }
 
-export async function openConversation(conversationId: string) {
+export async function openConversation(conversationId: string, { keepTitle = false } = {}) {
     const m = ms();
     m.activeId = conversationId;
     const convo = m.conversations.find(c => c.id === conversationId);
@@ -505,7 +557,7 @@ export async function openConversation(conversationId: string) {
         notify();
         return;
     }
-    api.setPageTitle?.(`${conversationTitle(convo)} · Messages`);
+    if (!keepTitle) api.setPageTitle?.(`${conversationTitle(convo)} · Messages`);
     notify();
     if (m.status !== 'ready') return;
     await refreshThread(conversationId);
@@ -827,9 +879,7 @@ function stopLive() {
 function startPolling() {
     if (pollTimer) return;
     pollTimer = setInterval(() => {
-        const m = ms();
-        if (document.visibilityState === 'hidden' || !m.activeId) return;
-        if (document.getElementById('messages-view')?.style.display !== 'block') return;
+        if (!chatOnScreen()) return;
         pollActive();
     }, 15000);
 }
@@ -863,7 +913,7 @@ async function onLiveChange(payload: any) {
         return;
     }
     if (row.sender_id === state.user?.id && t?.items.some(x => x.id === row.id)) return;
-    const viewing = m.activeId === row.conversation_id && document.getElementById('messages-view')?.style.display === 'block' && document.visibilityState === 'visible';
+    const viewing = m.activeId === row.conversation_id && chatOnScreen();
     if (t) {
         const msg = await decryptRow(row);
         if (!t.items.some(x => x.id === msg.id)) t.items = [...t.items, msg];

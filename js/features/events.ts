@@ -10,7 +10,7 @@
 // 20261008000000_events_schedule_ballots.sql.
 
 import { state, api } from '../core/app.ts';
-import { routeUrl } from '../core/router.ts';
+import { replaceRoute, routeUrl } from '../core/router.ts';
 import { confirmDialog } from '../core/confirm-dialog.ts';
 import { myIdentities } from './oauth.ts';
 import { notify } from '../app/store.ts';
@@ -731,7 +731,7 @@ export async function openEvents(param = '') {
     await api.openCommunityHub?.({ panel: 'events' });
     // the hub just set its own address; put the event's back
     const [path, title] = routeFor(view);
-    api.replaceRoute?.(path);
+    replaceRoute(path);
     api.setPageTitle?.(title);
 }
 

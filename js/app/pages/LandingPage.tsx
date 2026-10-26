@@ -34,7 +34,7 @@ function openPost(row: FeedRow) {
 }
 
 // ---- the showcase: real Fakémon from the Hub ----
-// Signed in, it's the Hub's own "Featured this week", only the ones with
+// Signed in, it's the newest Fakémon on the Hub, only the ones with
 // artwork. Signed out the Hub is closed, so it asks landing_showcase() for a
 // few Fakémon their authors made open
 // (supabase/migrations/20261020000000_landing_showcase.sql); without that,
@@ -56,7 +56,9 @@ function useShowcase(): { status: ShowStatus; rows: FeedRow[] } {
                 await api.fetchCommunityFeed({ quiet: true });
                 const cs = api.communityState();
                 const mons = cs.mons || [];
-                const picks: FeedRow[] = api.featuredThisWeek(mons, SHOW_COUNT * 2);
+                const picks: FeedRow[] = [...mons]
+                    .sort((a: FeedRow, b: FeedRow) => new Date(b.published_at).getTime() - new Date(a.published_at).getTime())
+                    .slice(0, SHOW_COUNT * 2);
                 const art = await Promise.all(picks.map(r => api.requestCardArtwork?.(r.id).catch(() => '')));
                 const rows = picks.filter((_, i) => !!art[i]).slice(0, SHOW_COUNT);
                 if (live) setShow({ status: rows.length ? 'ready' : !cs.fetchedAt ? 'error' : 'empty', rows });
@@ -213,7 +215,7 @@ function Showcase({ show }: { show: { status: ShowStatus; rows: FeedRow[] } }) {
             <div className="lp-section-head">
                 <div>
                     <h2 id="lp-show-title" className="lp-section-title">Fresh from the Community Hub</h2>
-                    <p className="lp-section-sub">{signedIn ? 'Featured this week.' : 'Made by people on Woogidex.'}</p>
+                    <p className="lp-section-sub">{signedIn ? 'Fresh on the Hub.' : 'Made by people on Woogidex.'}</p>
                 </div>
                 <button type="button" className="link-btn lp-more" onClick={openHub}>Browse the Hub<Icon name="arrow-right" size={14} /></button>
             </div>
@@ -242,7 +244,7 @@ function Showcase({ show }: { show: { status: ShowStatus; rows: FeedRow[] } }) {
             {show.status === 'empty' && (
                 <div className="lp-empty">
                     <Icon name="sparkles" size={22} />
-                    <p>Nothing featured this week yet. Yours could be first.</p>
+                    <p>Nothing on the Hub yet. Yours could be first.</p>
                 </div>
             )}
             {show.status === 'error' && (
@@ -316,7 +318,7 @@ function GoodToKnow() {
 
 const FOOTER: Array<[string, Array<[string, () => void]>]> = [
     ['Make', [['My Collection', openCollection], ['New Fakémon', makeFakemon], ['Settings', () => api.openSettings()]]],
-    ['Community', [['Community Hub', openHub], ['Events', openEvents], ['Updates & credits', () => api.openUpdatesPage()]]],
+    ['Community', [['Community Hub', openHub], ['Events', openEvents], ['Updates', () => api.showUserProfile('woogidex')], ['Credits', () => api.openSettings('about')]]],
     ['Help', [['Feedback & bugs', () => api.openFeedbackModal()], ['Community rules', () => api.openCommunityRulesModal()], ['Terms', () => api.openTermsPage()], ['Privacy', () => api.openPrivacyPage()]]]
 ];
 

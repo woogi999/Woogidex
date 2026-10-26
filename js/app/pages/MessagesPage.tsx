@@ -1,10 +1,12 @@
 // Private messages (/messages, /messages/<chat id>), laid out like Facebook
 // Messenger: your chats down the left, the open chat on the right, and its
 // details (people, mute, leave, block) in a panel you can open beside it.
+// The chat dock (js/app/shell/MessagesDock.tsx) shows the same list and chat
+// in a small window; DockContext tells these parts which one they are in.
 // Everything in a chat is end-to-end encrypted (js/features/messaging.ts and
 // messaging-crypto.ts); this page only ever sees it decrypted, in your browser.
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type ChangeEvent, type ClipboardEvent, type DragEvent, type ReactNode } from 'react';
 import { api, state } from '../../core/app.ts';
 import { Avatar } from '../components/Avatar.tsx';
 import { Icon } from '../components/Icon.tsx';
@@ -18,6 +20,10 @@ import { NAME_MAX } from '../../core/data.ts';
 import { isEmojiOnly } from '../../core/emoji.ts';
 import { NetworkNotice } from '../components/NetworkNotice.tsx';
 import { SkeletonBlock, SkeletonRows } from '../components/Skeleton.tsx';
+
+/** True inside the chat dock: a chat opens in the dock, not on the page. */
+export const DockContext = createContext(false);
+const openChat = (inDock: boolean, id: string | null) => (inDock ? api.openDock(id) : api.openMessages(id));
 
 export function MessagesPage() {
     useStore();
@@ -36,7 +42,7 @@ export function MessagesPage() {
 
 // ==================== keys: set up, unlock ====================
 
-function KeyGate({ status }: { status: string }) {
+export function KeyGate({ status }: { status: string }) {
     const [pin, setPin] = useState('');
     const [pin2, setPin2] = useState('');
     const [error, setError] = useState('');
@@ -64,18 +70,18 @@ function KeyGate({ status }: { status: string }) {
     }
     return (
         <div className="messenger-gate">
-            <div className="messenger-gate-card panel">
+            <div className="messenger-gate-card">
                 <div className="messenger-gate-icon"><Icon name="lock-closed" size={26} /></div>
                 {setup ? (
                     <>
-                        <h2>{resetting ? 'Pick a new chat PIN' : 'Private messages, for real'}</h2>
-                        <p>Everything you send here is <strong>end-to-end encrypted</strong>: it's locked on your device before it leaves, and only the people in the chat can unlock it. Not even Woogidex's owners can read it.</p>
-                        <p>Pick a <strong>chat PIN</strong> (6+ characters). It unlocks your messages when you sign in on another device. <strong>We can't reset it for you</strong>, so keep it somewhere safe.</p>
+                        <h2>{resetting ? 'Pick a new chat PIN' : 'Set up messages'}</h2>
+                        <p>Only you and the people in your chats can read your messages.</p>
+                        <p>Pick a PIN with 6 or more characters. You need it to read your messages on a new device. <strong>We cannot reset it</strong>, so keep it safe.</p>
                     </>
                 ) : (
                     <>
                         <h2>Unlock your messages</h2>
-                        <p>This device hasn't opened your messages before. Enter your chat PIN to unlock them.</p>
+                        <p>Enter your chat PIN to read your messages on this device.</p>
                     </>
                 )}
                 <form onSubmit={e => { e.preventDefault(); go(); }}>
@@ -93,7 +99,7 @@ function KeyGate({ status }: { status: string }) {
 
 // ==================== the list of chats ====================
 
-function ChatAvatar({ convo, size = 'md' }: { convo: Conversation; size?: 'sm' | 'md' | 'lg' }) {
+export function ChatAvatar({ convo, size = 'md' }: { convo: Conversation; size?: 'sm' | 'md' | 'lg' }) {
     const others = convo.members.filter(x => x.id !== state.user?.id);
     if (convo.kind === 'group' && others.length > 1) {
         return (
@@ -106,16 +112,19 @@ function ChatAvatar({ convo, size = 'md' }: { convo: Conversation; size?: 'sm' |
     return <span className={`chat-avatar chat-avatar-${size}`}><Avatar userId={o?.id} url={o?.avatar_url} name={o?.display_name || o?.username || '?'} className="chat-avatar-img" /></span>;
 }
 
-function ChatList({ conversations, loaded, activeId }: { conversations: Conversation[]; loaded: boolean; activeId: string | null }) {
+export function ChatList({ conversations, loaded, activeId, title = 'Chats', actions }:
+    { conversations: Conversation[]; loaded: boolean; activeId: string | null; title?: string; actions?: ReactNode }) {
+    const inDock = useContext(DockContext);
     const [query, setQuery] = useState('');
     const list = conversations.filter(c => !query || api.conversationTitle(c).toLowerCase().includes(query.toLowerCase()));
     return (
         <aside className="chat-list" aria-label="Your chats">
             <div className="chat-list-head">
-                <h2>Chats</h2>
+                <h2>{title}</h2>
                 <div className="chat-list-actions">
                     <button type="button" className="chat-icon-btn" title="New group" aria-label="New group chat" onClick={() => openDialog('new-group-chat')}><Icon name="user-group" size={18} /></button>
                     <button type="button" className="chat-icon-btn" title="New message" aria-label="New message" onClick={() => openDialog('new-chat')}><Icon name="pencil-square" size={18} /></button>
+                    {actions}
                 </div>
             </div>
             <input className="chat-search" type="search" placeholder="Search chats" value={query} onChange={e => setQuery(e.target.value)} />
@@ -127,7 +136,7 @@ function ChatList({ conversations, loaded, activeId }: { conversations: Conversa
                             {!query && <button type="button" className="btn btn-primary btn-sm" onClick={() => openDialog('new-chat')}>Start one</button>}
                         </div>
                     ) : list.map(c => (
-                        <button type="button" key={c.id} className={`chat-row${c.id === activeId ? ' active' : ''}${c.unread ? ' is-unread' : ''}`} onClick={() => api.openMessages(c.id)}>
+                        <button type="button" key={c.id} className={`chat-row${c.id === activeId ? ' active' : ''}${c.unread ? ' is-unread' : ''}`} onClick={() => openChat(inDock, c.id)}>
                             <ChatAvatar convo={c} />
                             <span className="chat-row-text">
                                 <span className="chat-row-title">{api.conversationTitle(c)}{c.muted && <Icon name="bell-slash" size={12} className="chat-muted" />}</span>
@@ -166,7 +175,8 @@ function dayLabel(iso: string) {
     return d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric' });
 }
 
-function Thread({ conversationId, convo }: { conversationId: string; convo: Conversation | null }) {
+export function Thread({ conversationId, convo, actions }: { conversationId: string; convo: Conversation | null; actions?: ReactNode }) {
+    const inDock = useContext(DockContext);
     const m = api.messagingState();
     const t = m.threads[conversationId] || { items: [], loading: true, hasMore: false, keyMissing: false, error: '' };
     const [info, setInfo] = useState(false);
@@ -193,7 +203,7 @@ function Thread({ conversationId, convo }: { conversationId: string; convo: Conv
     }
 
     if (!convo) {
-        return <section className="chat-thread chat-thread-empty"><Icon name="exclamation-triangle" size={28} /><p>{t.error || 'This chat isn’t available.'}</p><button type="button" className="btn btn-secondary btn-sm" onClick={() => api.openMessages(null)}>Back to chats</button></section>;
+        return <section className="chat-thread chat-thread-empty"><Icon name="exclamation-triangle" size={28} /><p>{t.error || 'This chat isn’t available.'}</p><button type="button" className="btn btn-secondary btn-sm" onClick={() => openChat(inDock, null)}>Back to chats</button></section>;
     }
     const other = api.otherMember(convo);
     const waitingOn = convo.members.filter(x => x.id !== me && x.has_key === false);
@@ -202,8 +212,8 @@ function Thread({ conversationId, convo }: { conversationId: string; convo: Conv
         <div className={`chat-thread-wrap${info ? ' info-open' : ''}`}>
             <section className="chat-thread" aria-label={`Chat with ${api.conversationTitle(convo)}`}>
                 <header className="chat-head">
-                    <button type="button" className="chat-icon-btn chat-back" aria-label="Back to chats" onClick={() => api.openMessages(null)}><Icon name="arrow-left" size={18} /></button>
-                    <button type="button" className="chat-head-who" onClick={() => (convo.kind === 'dm' && other ? api.showUserProfile(other.id) : setInfo(true))}>
+                    <button type="button" className="chat-icon-btn chat-back" aria-label="Back to chats" onClick={() => openChat(inDock, null)}><Icon name="arrow-left" size={18} /></button>
+                    <button type="button" className="chat-head-who" onClick={() => (convo.kind === 'dm' && other ? api.showUserProfile(other.id) : inDock ? api.expandDock() : setInfo(true))}>
                         <ChatAvatar convo={convo} size="sm" />
                         <span>
                             <strong>{api.conversationTitle(convo)}</strong>
@@ -211,7 +221,9 @@ function Thread({ conversationId, convo }: { conversationId: string; convo: Conv
                         </span>
                     </button>
                     <span className="chat-lock" title="End-to-end encrypted"><Icon name="lock-closed" size={14} /></span>
-                    <button type="button" className={`chat-icon-btn${info ? ' active' : ''}`} aria-label="Chat details" aria-pressed={info} onClick={() => setInfo(v => !v)}><Icon name="information-circle" size={20} /></button>
+                    {/* the dock has no room for the details panel: they open on the full-screen page */}
+                    {!inDock && <button type="button" className={`chat-icon-btn${info ? ' active' : ''}`} aria-label="Chat details" aria-pressed={info} onClick={() => setInfo(v => !v)}><Icon name="information-circle" size={20} /></button>}
+                    {actions}
                 </header>
 
                 <div className="chat-messages" ref={scroller} onScroll={onScroll}>

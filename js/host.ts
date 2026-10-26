@@ -13,7 +13,6 @@ import { mountIsland } from './app/island.tsx';
 import { TOURS } from './features/onboarding.ts';
 import { showConsoleWarning } from './core/console-warning.ts';
 
-import * as updates from './features/updates.ts';
 import * as auth from './features/auth.ts';
 import * as community from './features/community.ts';
 import * as notifications from './core/notifications.ts';
@@ -26,6 +25,8 @@ import * as oauth from './features/oauth.ts';
 import * as globalSearch from './features/global-search.ts';
 import * as feedback from './features/feedback.ts';
 import * as social from './features/social.ts';
+import * as groups from './features/groups.ts';
+import * as business from './features/business.ts';
 import * as messaging from './features/messaging.ts';
 import * as safety from './features/safety.ts';
 
@@ -35,7 +36,6 @@ import './app/dialogs/auth.tsx';
 import './app/dialogs/feedback.tsx';
 import './app/dialogs/safety.tsx';
 import { LegalPage } from './app/pages/LegalPage.tsx';
-import { UpdatesPage } from './app/pages/UpdatesPage.tsx';
 import { SearchPage } from './app/pages/SearchPage.tsx';
 import { ProfilePage } from './app/pages/ProfilePage.tsx';
 import { CommunityPage } from './app/pages/CommunityPage.tsx';
@@ -44,15 +44,17 @@ import { PostPage } from './app/pages/PostPage.tsx';
 import { MessagesPage } from './app/pages/MessagesPage.tsx';
 import { LandingPage } from './app/pages/LandingPage.tsx';
 import { registerAccountSettings } from './app/pages/SettingsAccount.tsx';
+import { registerAboutSettings } from './app/pages/SettingsAbout.tsx';
 import { CookieNotice } from './app/shell/CookieNotice.tsx';
 import { GlobalSearch } from './app/shell/GlobalSearch.tsx';
 import { QuickSearch } from './app/shell/QuickSearch.tsx';
 import {
     AccountButton, AccountMenuBottom, AccountMenuTop, FeedbackMenuItem, MessagesButton, Notifications, SignInButton
 } from './app/shell/HeaderAccount.tsx';
+import { MessagesDock } from './app/shell/MessagesDock.tsx';
 
 export function installHost(): void {
-    Object.assign(api, auth, community, notifications, moderation, events, cloudSave, legal, accountDeletion, oauth, globalSearch, feedback, social, messaging, safety, updates);
+    Object.assign(api, auth, community, notifications, moderation, events, cloudSave, legal, accountDeletion, oauth, globalSearch, feedback, social, messaging, safety, groups, business);
     // avatars come from the same masked pipe artwork does; this hands Core's
     // module a client getter rather than letting it import the account layer
     initAvatars(() => api.getClient());
@@ -61,7 +63,6 @@ export function installHost(): void {
     // not out yet: only mounted when the build switches it on (js/core/flags.ts)
     if (LANDING_PAGE) registerPage({ view: 'landing-view', Page: LandingPage });
     registerPage({ view: 'legal-view', Page: LegalPage, lazy: true });
-    registerPage({ view: 'updates-view', Page: UpdatesPage, lazy: true });
     registerPage({ view: 'search-view', Page: SearchPage, lazy: true });
     registerPage({ view: 'profile-view', Page: ProfilePage, lazy: true });
     registerPage({ view: 'community-view', Page: CommunityPage, lazy: true });
@@ -84,6 +85,7 @@ export function installHost(): void {
         open: async param => { await api.openEvents?.(param); return true; }
     });
     registerRoute('post', { needsAccount: true, open: async param => !!param && await api.openPost?.(param, { preserveRoute: true }) === true });
+    registerRoute('groups', { needsAccount: true, open: async param => { await api.openGroups?.(param); return true; } });
     registerRoute('messages', { needsAccount: true, open: async param => await api.handleMessagesRoute?.(param) === true });
     registerRoute('profile', {
         needsAccount: true, skeleton: () => api.renderProfileLoading?.(),
@@ -96,11 +98,18 @@ export function installHost(): void {
     registerRoute('privacy', { open: () => legal.openLegalPage('privacy') });
     registerRoute('terms', { open: () => legal.openLegalPage('terms') });
     registerRoute('search', { needsAccount: true, open: async () => { await api.openSearchPage?.(new URLSearchParams(window.location.search).get('q') || ''); return true; } });
-    registerRoute('updates', { needsAccount: true, open: async param => { await api.openUpdatesPage?.(param === 'credits' ? 'credits' : 'updates'); return true; } });
+    // the old Updates & Credits page: news is now the Woogidex account's posts, credits are in Settings > About
+    registerRoute('updates', {
+        needsAccount: true,
+        open: async param => {
+            if (param === 'credits') { api.openSettings?.('about'); return true; }
+            api.activateTopLevelView?.('profile-view');
+            return await api.handleProfileRoute?.('woogidex') === true;
+        }
+    });
 
     // ---- the header ----
     registerNav({ page: 'community-view', label: 'Community', title: 'Community', icon: 'users', order: 20, open: () => api.openCommunityHub(), alsoFor: ['community-detail-view', 'post-view'] });
-    registerNav({ page: 'updates-view', label: 'Updates', title: 'Updates & Credits', icon: 'newspaper', order: 40, open: () => api.openUpdatesPage(), badge: () => updates.updatesUnreadCount() });
     ext.headerLeft.push(GlobalSearch);
     ext.headerActions.push(MessagesButton, Notifications, SignInButton);
     ext.accountButton = AccountButton;
@@ -110,6 +119,7 @@ export function installHost(): void {
 
     // ---- settings ----
     registerAccountSettings();
+    registerAboutSettings();
 
     // ---- first-visit tips ----
     TOURS.editor.push({
@@ -121,7 +131,7 @@ export function installHost(): void {
         {
             targets: ['.hub-nav-list'],
             title: 'Welcome to the Hub',
-            body: 'The feed, every published Fakémon, events, and your own uploads, all from here.'
+            body: 'The feed, every published Fakémon, groups and events, all from here. Your own uploads are on your profile.'
         },
         {
             targets: ['.hub-publish'],
@@ -129,9 +139,9 @@ export function installHost(): void {
             body: 'Publish a Fakémon from your collection, or its whole evolution family at once.'
         },
         {
-            targets: ['.feed-rail', '.feed-tabs'],
-            title: 'Something new every week',
-            body: 'A fresh batch gets featured every week. Follow people you like and their stuff shows up under Following.'
+            targets: ['.feed-rail'],
+            title: 'Find your people',
+            body: 'Follow creators you like, and join groups for the stuff you are into.'
         }
     ];
     TOURS.events = [
@@ -160,10 +170,10 @@ export function installHost(): void {
         // the "STOP, don't paste anything here" warning (production only)
         showConsoleWarning();
         mountIsland('cookie-notice-root', CookieNotice);
+        // the chat dock, bottom right (js/app/shell/MessagesDock.tsx)
+        mountIsland(document.body.appendChild(Object.assign(document.createElement('div'), { id: 'messages-dock-root' })), MessagesDock);
         // Ctrl+K: a layer of its own, above the page and the dialogs
         mountIsland(document.body.appendChild(Object.assign(document.createElement('div'), { id: 'quick-search-root' })), QuickSearch);
         return api.initAuth();
     });
-    // the unread count on the header's Updates tab
-    ext.ready.push(() => { updates.refreshUpdatesBadge(); });
 }

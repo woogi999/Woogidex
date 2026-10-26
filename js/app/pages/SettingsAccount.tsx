@@ -18,6 +18,7 @@ import { ConnectedAccounts } from '../components/ConnectedAccounts.tsx';
 import { NOTIFICATION_KINDS, notificationPrefs, setNotificationPref } from '../../core/notifications.ts';
 import { myPrivacy, setMyPrivacy } from '../../features/social.ts';
 import { GroupHead, Switch } from './SettingsPage.tsx';
+import { BusinessSettingsGroup } from '../components/business.tsx';
 import { HiddenCommentsGroup, HiddenWordsGroup, MyReportsGroup, StandingGroup } from './SettingsSafety.tsx';
 
 const signedIn = () => !!state.user;
@@ -70,6 +71,7 @@ export function registerAccountSettings(): void {
             { id: 'reports', title: 'Your reports', keywords: 'report reports flag status', render: () => <SafetyGroup title="Your reports" desc="What happened to the things you reported."><MyReportsGroup /></SafetyGroup> }
         ]
     });
+    registerSettingsGroup('account', { id: 'business', title: 'Business', when: () => !!api.isBusiness?.(), keywords: 'business brand category contact email insights pinned', render: () => <BusinessSettingsGroup /> }, 'privacy');
     registerSettingsGroup('data', { id: 'cloud', title: 'Cloud backup', when: signedIn, keywords: 'cloud backup restore upload server', render: () => <CloudBackupGroup /> });
 }
 

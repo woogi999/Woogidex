@@ -9,6 +9,7 @@
 import { useEffect, useState, type ChangeEvent } from 'react';
 import { cropThen } from '../dialogs/cropImage.tsx';
 import { api, state } from '../../core/app.ts';
+import { BusinessActions, BusinessLine, PinnedPosts } from '../components/business.tsx';
 import { Avatar } from '../components/Avatar.tsx';
 import { BadgeRow } from '../components/Badge.tsx';
 import { ConnectedAccounts } from '../components/ConnectedAccounts.tsx';
@@ -169,6 +170,7 @@ function PublicProfile({ profile, isOwn }: { profile: any; isOwn: boolean }) {
                         {profile.username && <span>@{profile.username}</span>}
                         {profile.pronouns && see('details') && <span className="profile2-pronouns">{profile.pronouns}</span>}
                         {stats.follows_me && !isOwn && <span className="profile2-follows-you">Follows you</span>}
+                        <BusinessLine userId={profile.id} />
                     </div>
                     <div className="profile2-numbers">
                         <button type="button" onClick={() => setTab('posts')}><strong>{Number(stats.posts || 0)}</strong> posts</button>
@@ -193,6 +195,7 @@ function PublicProfile({ profile, isOwn }: { profile: any; isOwn: boolean }) {
                             )}
                         </>
                     ) : null}
+                    <BusinessActions userId={profile.id} isOwn={isOwn} />
                     <ModButton target={{ userId: profile.id, userName: profile.display_name || profile.username }} className="mod-btn-box" />
                     <ProfileMenu profile={profile} isOwn={isOwn} blocked={blocked} />
                 </div>
@@ -217,13 +220,63 @@ function PublicProfile({ profile, isOwn }: { profile: any; isOwn: boolean }) {
                             ))}
                         </div>
                         <div ref={pane}>
-                            {tab === 'posts' && (see('posts') ? <Timeline profile={profile} isOwn={isOwn} /> : <PrivatePart />)}
-                            {tab === 'fakemon' && (see('fakemon') ? <div className="profile-mons-grid"><ProfileMons mons={profile.mons || []} /></div> : <PrivatePart />)}
+                            {tab === 'posts' && (see('posts') ? <><PinnedPosts userId={profile.id} isOwn={isOwn} /><Timeline profile={profile} isOwn={isOwn} /></> : <PrivatePart />)}
+                            {tab === 'fakemon' && (see('fakemon') ? <FakemonTab profile={profile} isOwn={isOwn} /> : <PrivatePart />)}
                         </div>
                     </div>
                 </div>
             )}
         </div>
+    );
+}
+
+type MonSort = 'newest' | 'oldest' | 'name' | 'liked';
+const MON_SORTS: Array<[MonSort, string]> = [['newest', 'Newest'], ['oldest', 'Oldest'], ['name', 'Name'], ['liked', 'Most liked']];
+
+/**
+ * A profile's published Fakémon, sorted. On your own profile it is also
+ * where you manage them (it replaced the hub's "My uploads"): the upload
+ * meter, and Update and Unpublish on each one.
+ */
+function FakemonTab({ profile, isOwn }: { profile: any; isOwn: boolean }) {
+    const [sort, setSort] = useState<MonSort>('newest');
+    // like counts come with the hub's listing, when it is loaded
+    const counts = new Map<string, number>((api.communityState?.().mons || []).map((r: any) => [r.id, Number(r.like_count || 0)]));
+    const mons = [...(profile.mons || [])].sort((a: any, b: any) => {
+        if (sort === 'name') return String(a.fakemon_data?.name || '').localeCompare(String(b.fakemon_data?.name || ''));
+        if (sort === 'liked') return (counts.get(b.id) || 0) - (counts.get(a.id) || 0);
+        const t = new Date(b.published_at).getTime() - new Date(a.published_at).getTime();
+        return sort === 'oldest' ? -t : t;
+    });
+    return (
+        <div className="profile-mons">
+            <div className="profile-mons-bar">
+                {isOwn && <UploadsMeter used={mons.length} />}
+                <label className="profile-mons-sort">
+                    <span>Sort</span>
+                    <select value={sort} onChange={e => setSort(e.target.value as MonSort)} aria-label="Sort Fakémon">
+                        {MON_SORTS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+                    </select>
+                </label>
+            </div>
+            <div className="profile-mons-grid"><ProfileMons mons={mons} owner={isOwn} /></div>
+        </div>
+    );
+}
+
+function UploadsMeter({ used }: { used: number }) {
+    // the real limits for this account load once (renderCommunityUploads in community.ts)
+    useEffect(() => { api.renderCommunityUploads?.(); }, []);
+    const { max, cooldownSeconds } = api.publishLimits();
+    const cadence: string = api.describeCooldown(cooldownSeconds);
+    const hint = `${cadence ? `You can publish ${cadence}. ` : ''}Unpublishing one frees a slot.`;
+    if (max === Infinity) return <span className="profile-uploads" title={hint}>{used} published · no limit</span>;
+    const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : 100;
+    return (
+        <span className={`profile-uploads${used >= max ? ' is-full' : pct >= 80 ? ' is-high' : ''}`} title={hint}>
+            <span className="profile-uploads-track"><span style={{ width: `${pct}%` }} /></span>
+            {used} of {max} uploads
+        </span>
     );
 }
 
