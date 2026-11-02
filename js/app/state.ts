@@ -28,6 +28,8 @@ export interface AppState {
     customAbilities: CustomAbility[];
     customItems: CustomItem[];
     battleTeams: any[];
+    /** flags made up for custom moves: { id, key, label, desc, color } (js/features/move-flags.ts) */
+    customMoveFlags: any[];
     currentFolderId: Id | null;
 
     // the editor's working copy
@@ -98,6 +100,7 @@ export const state: AppState = {
     customAbilities: [],
     customItems: [],
     battleTeams: [],
+    customMoveFlags: [],
     currentFolderId: null,
     editingId: null,
     editorLoadedId: null,

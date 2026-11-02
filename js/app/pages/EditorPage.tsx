@@ -12,7 +12,6 @@ import { memo, useLayoutEffect, useRef, useState } from 'react';
 import { directionIn, sheetResize, slideIn } from '../../core/motion.ts';
 import { api } from '../../core/app.ts';
 import { editForm, form } from '../../editor/draft.ts';
-import { STATUSES } from '../../features/notebook.ts';
 import { Icon } from '../components/Icon.tsx';
 import { RegionAssign } from '../components/RegionAssign.tsx';
 import { useClickAway } from '../components/editor/fields.tsx';
@@ -82,18 +81,6 @@ function Panel({ tab, current, className = '', live = false, children }: { tab: 
     );
 }
 
-/** The status, beside the title: a click flips it between Draft and Done. */
-function StatusButton() {
-    const s = STATUSES.find(([k]) => k === form.status) || STATUSES[0];
-    const done = s[0] === 'done';
-    return (
-        <button type="button" className={`btn btn-secondary btn-sm editor-status status-${s[0]}`} title={done ? 'Done. Click to mark as draft.' : 'Draft. Click to mark as done.'}
-            onClick={() => editForm({ status: done ? 'draft' : 'done' })}>
-            <Icon name={done ? 'check-circle' : 'document-text'} size={14} /><span>{s[1]}</span>
-        </button>
-    );
-}
-
 export function EditorPage() {
     useStore();
     const tab: Tab = api.getEditorTab();
@@ -112,7 +99,6 @@ export function EditorPage() {
                 <div className="editor-sheet-heading">
                     <h2 className="editor-sheet-title" id="editor-sheet-title">{form.name.trim() || 'New Fakémon'}</h2>
                     <RegionAssign value={form.regionIds} onChange={regionIds => { editForm({ regionIds }); api.renderRegionSidebar(); }} />
-                    <StatusButton />
                 </div>
                 <div className="editor-actionbar-group">
                     <button className="btn btn-secondary btn-icon btn-sm editor-fullscreen-toggle" type="button" onClick={() => sheetResize(document.getElementById('editor-view'), () => api.toggleEditorFullscreen())}

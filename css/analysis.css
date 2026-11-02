@@ -149,7 +149,6 @@
 .move-browser-card:hover { background:var(--bg-panel); }
 .move-browser-card.added { opacity:.55; }
 .move-browser-card-top { display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap; }
-.move-browser-card-top .cat-pill { display:inline-flex; align-items:center; gap:4px; font-size:10px; padding:2px 8px; border-radius:3px; font-weight:700; }
 .move-browser-card-name { font-weight:600; font-size:13px; margin-bottom:2px; }
 /* unlearnable moves are shown (not hidden) so search still finds them, but visibly out of reach and unresponsive */
 .move-browser-card.is-locked { opacity:.42; cursor:not-allowed; filter:grayscale(.85); }
@@ -364,7 +363,8 @@
 /* ==================== Analysis tab: one spacing rhythm ====================
    (last in this file, so it settles the earlier passes above). The editor
    sheet already pads its body: the tab adds no outer padding of its own. */
-.analysis-shell { max-width: 1200px; margin: 0 auto; padding: 0 0 var(--sp-5); gap: var(--sp-3); }
+/* the same width as every other tab: the tab panel sets it, not the shell */
+.analysis-shell { width: 100%; max-width: none; margin: 0; padding: 0 0 var(--sp-5); gap: var(--sp-3); }
 .analysis-controls { padding: var(--sp-3) var(--sp-4); gap: var(--sp-3) var(--sp-4); margin-bottom: 0; }
 .analysis-status { margin-bottom: 0; }
 .analysis-two-col, .analysis-strength-row { gap: var(--sp-3); margin-bottom: var(--sp-3); }

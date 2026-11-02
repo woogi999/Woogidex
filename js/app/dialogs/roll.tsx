@@ -4,6 +4,7 @@
 // a fixed-position box doesn't follow its anchor. What each dice button
 // suggests: js/tools/name-roll.ts and js/tools/field-roll.ts.
 
+import { effectiveZoom } from '../../core/ui-scale.ts';
 import { useLayoutEffect, useRef, useState } from 'react';
 import { registerDialog, type DialogProps } from '../dialogs.tsx';
 import { Icon } from '../components/Icon.tsx';
@@ -15,17 +16,6 @@ export interface RollProps<T = any> {
     generate: () => T[];
     label: (option: T) => string;
     apply: (option: T) => void;
-}
-
-// The site scales with CSS `zoom`, which rescales position:fixed offsets too,
-// so the box's own pixels and the viewport's differ by every zoom up the tree.
-function effectiveZoom(el: Element | null): number {
-    let zoom = 1;
-    for (let node = el; node && node !== document.documentElement; node = node.parentElement) {
-        const z = parseFloat(getComputedStyle(node).zoom);
-        if (!Number.isNaN(z) && z > 0) zoom *= z;
-    }
-    return zoom;
 }
 
 function RollPopover({ close, point, title, generate, label, apply }: DialogProps<RollProps>) {

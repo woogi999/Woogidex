@@ -5,6 +5,7 @@
 // attribute, which <ChartFrame> turns into one shared tooltip. Entrances run
 // through js/core/motion.ts and stay still for reduced motion.
 
+import { effectiveZoom } from '../../core/ui-scale.ts';
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { chartEntrance } from '../../core/motion.ts';
 
@@ -26,8 +27,9 @@ export function ChartFrame({ label, className = '', children }: { label: string;
         const box = ref.current.getBoundingClientRect();
         const r = el.getBoundingClientRect();
         t.textContent = el.getAttribute('data-tip') || '';
-        t.style.left = `${r.left + r.width / 2 - box.left}px`;
-        t.style.top = `${r.top - box.top}px`;
+        const z = effectiveZoom(ref.current);
+        t.style.left = `${(r.left + r.width / 2 - box.left) / z}px`;
+        t.style.top = `${(r.top - box.top) / z}px`;
         // restart the fade for each new mark
         t.hidden = true; void t.offsetWidth; t.hidden = false;
     };

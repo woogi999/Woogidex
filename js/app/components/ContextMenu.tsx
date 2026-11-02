@@ -11,6 +11,7 @@ import { useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode
 import { gsap } from 'gsap';
 import { Icon } from './Icon.tsx';
 import { reducedMotion } from '../../core/motion.ts';
+import { effectiveZoom } from '../../core/ui-scale.ts';
 
 export type MenuAction = { label: string; icon?: string; hint?: string; run: () => void; danger?: boolean; disabled?: boolean };
 export type MenuGroup = { label: string; icon?: string; items: MenuAction[] };
@@ -84,13 +85,16 @@ function Menu({ spec }: { spec: Open }) {
     useLayoutEffect(() => {
         const el = box.current;
         if (!el) return;
-        const pad = 8, w = el.offsetWidth, h = el.offsetHeight;
+        // the pointer is in the window's pixels; the box's own (and left/top) are
+        // scaled by the interface size (js/core/ui-scale.ts)
+        const z = effectiveZoom(el);
+        const pad = 8, w = el.offsetWidth * z, h = el.offsetHeight * z;
         const vw = window.innerWidth, vh = window.innerHeight;
         const flipX = spec.x + w + pad > vw, flipY = spec.y + h + pad > vh;
         const left = Math.max(pad, Math.min(flipX ? spec.x - w : spec.x, vw - w - pad));
         const top = Math.max(pad, Math.min(flipY ? spec.y - h : spec.y, vh - h - pad));
-        el.style.left = `${left}px`;
-        el.style.top = `${top}px`;
+        el.style.left = `${left / z}px`;
+        el.style.top = `${top / z}px`;
         el.style.transformOrigin = `${flipX ? 'right' : 'left'} ${flipY ? 'bottom' : 'top'}`;
         (el.querySelector('[role="menuitem"]:not(:disabled)') as HTMLElement | null)?.focus({ preventScroll: true });
         if (reducedMotion()) gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.12 });
@@ -238,11 +242,84 @@ function menuFor(target: Element): MenuSpec | null {
     };
 }
 
+// ==================== long-press on a touch screen ====================
+// A finger held still for a moment opens the same menu a right-click does,
+// like holding a post on Instagram. Android fires its own contextmenu for a
+// long-press and iOS Safari fires none, so the timer below makes one either
+// way (and steps aside if the browser's arrives first). The tap that ends a
+// long-press doesn't count as a click.
+
+const LONG_PRESS_MS = 480;
+const MOVE_SLOP = 10;
+let press: { timer: any; x: number; y: number; target: Element; fired: boolean } | null = null;
+let swallowClickUntil = 0;
+
+function cancelPress() {
+    if (press) clearTimeout(press.timer);
+    press = null;
+}
+
+/** Whether a long-press here should open our menu rather than do the browser's thing (text fields, selecting text). */
+function pressable(target: Element): boolean {
+    if (target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"], .ctx-menu, [data-no-long-press]')) return false;
+    return true;
+}
+
+function initLongPress() {
+    document.addEventListener('touchstart', e => {
+        if (e.touches.length !== 1) { cancelPress(); return; }
+        const t = e.touches[0];
+        const target = e.target as Element | null;
+        if (!target?.closest || !pressable(target)) return;
+        cancelPress();
+        const p = { timer: 0 as any, x: t.clientX, y: t.clientY, target, fired: false };
+        p.timer = setTimeout(() => {
+            if (press !== p) return;
+            p.fired = true;
+            swallowClickUntil = Date.now() + 700;
+            try { navigator.vibrate?.(12); } catch { /* not on this device */ }
+            // a real contextmenu, so a card's own onContextMenu (React) answers it
+            // just as it would a right-click; nothing handled it, the page menu does
+            const ev = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: p.x, clientY: p.y, view: window });
+            (ev as any).fromLongPress = true;
+            p.target.dispatchEvent(ev);
+        }, LONG_PRESS_MS);
+        press = p;
+    }, { passive: true });
+    document.addEventListener('touchmove', e => {
+        if (!press) return;
+        const t = e.touches[0];
+        if (!t || Math.abs(t.clientX - press.x) > MOVE_SLOP || Math.abs(t.clientY - press.y) > MOVE_SLOP) cancelPress();
+    }, { passive: true });
+    document.addEventListener('touchend', e => {
+        if (press?.fired) e.preventDefault();
+        cancelPress();
+    }, { passive: false });
+    document.addEventListener('touchcancel', cancelPress, { passive: true });
+    document.addEventListener('scroll', cancelPress, { passive: true, capture: true });
+    // the click a finger lifting makes, after the menu opened
+    document.addEventListener('click', e => {
+        if (Date.now() < swallowClickUntil && !(e.target as Element)?.closest?.('.ctx-menu')) {
+            e.preventDefault();
+            e.stopPropagation();
+            swallowClickUntil = 0;
+        }
+    }, true);
+    // the browser's own long-press menu came first (Android): ours stands down
+    document.addEventListener('contextmenu', e => {
+        if (!(e as any).fromLongPress && press && !press.fired) {
+            cancelPress();
+            swallowClickUntil = Date.now() + 700;
+        }
+    }, true);
+}
+
 let wired = false;
-/** Turns on the site menu for right-clicks no card or row handled. */
+/** Turns on the site menu for right-clicks no card or row handled, and long-presses on touch screens. */
 export function initContextMenu() {
     if (wired) return;
     wired = true;
+    initLongPress();
     // on window, so it runs after every document and React handler
     window.addEventListener('contextmenu', e => {
         if (e.defaultPrevented || e.shiftKey) return;

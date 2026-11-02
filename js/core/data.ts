@@ -1,6 +1,7 @@
 import { esc } from './html.ts';
 import { emojifyHtml, isEmojiOnly } from './emoji.ts';
 import { routeUrl } from './router.ts';
+import { categoryIconHtml } from '../app/components/MoveCategory.tsx';
 const POKEMON_TYPES = [
             'Normal','Fire','Water','Electric','Grass','Ice',
             'Fighting','Poison','Ground','Flying','Psychic','Bug',
@@ -52,14 +53,7 @@ const NAME_MAX = 30;
         };
         const NATURES = Object.keys(NATURE_DATA);
 function getCategoryIcon(category, size) {
-    size = size || 16;
-    const urls = {
-        'Physical': 'https://img.pokemondb.net/images/icons/move-physical.png',
-        'Special': 'https://img.pokemondb.net/images/icons/move-special.png',
-        'Status': 'https://img.pokemondb.net/images/icons/move-status.png'
-    };
-    const url = urls[category] || urls['Status'];
-    return `<img src="${url}" alt="${category}" style="width:${size}px;height:${size}px;vertical-align:middle;image-rendering:auto;">`;
+    return categoryIconHtml(category, size || 16);
 }
 
 
@@ -120,6 +114,12 @@ function renderCommentMarkdown(value) {
         // @mentions are set aside too: the _ in @mega_fan isn't italics
         const mentions: string[] = [];
         out = out.replace(/(^|[^A-Za-z0-9_@/])@([A-Za-z0-9_]{3,20})(?![A-Za-z0-9_])/g, (_, pre, name) => `${pre}\u0000M${mentions.push(name) - 1}\u0000`);
+        // #hashtags too (the _ in #fan_art isn't italics). Escaped text has
+        // entities like &#39; in it, so a # right after & or a letter is not a tag;
+        // a tag needs a letter or _ somewhere, so "#1" stays plain text
+        const hashtags: string[] = [];
+        out = out.replace(/(^|[^A-Za-z0-9_&#/])#([A-Za-z0-9_]*[A-Za-z_][A-Za-z0-9_]*)(?![A-Za-z0-9_;])/g, (whole, pre, tag) =>
+            tag.length > 24 ? whole : `${pre}\u0000H${hashtags.push(tag) - 1}\u0000`);
         // emojis are set aside before emphasis runs, or the _ in :geto_happy:
         // would be read as italics
         const emojis: string[] = [];
@@ -137,6 +137,12 @@ function renderCommentMarkdown(value) {
         out = out.replace(/\u0000M(\d+)\u0000/g, (_, i) => {
             const name = mentions[Number(i)];
             return `<a class="rt-mention" href="${escape(routeUrl(`profile/${name}`))}" data-mention="${name}">@${name}</a>`;
+        });
+        // a hashtag opens the search for it (RichText); tags are [A-Za-z0-9_] only
+        out = out.replace(/\u0000H(\d+)\u0000/g, (_, i) => {
+            const tag = hashtags[Number(i)];
+            const key = tag.toLowerCase();
+            return `<a class="rt-hashtag" href="${escape(routeUrl(`search?q=${encodeURIComponent('#' + key)}`))}" data-hashtag="${key}">#${tag}</a>`;
         });
         out = out.replace(/\u0000L(\d+)\u0000/g, (_, i) => {
             const l = links[Number(i)];

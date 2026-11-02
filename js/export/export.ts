@@ -116,8 +116,13 @@ import { cleanArtSets } from '../editor/art-sets.ts';
                 let parsed;
                 if (file.name.toLowerCase().endsWith('.json') || file.type.includes('json')) {
                     parsed = JSON.parse(text);
+                } else if (/^\s*[[{]/.test(text)) {
+                    // a .txt that holds JSON (often a paste)
+                    try { parsed = JSON.parse(text); } catch { parsed = parsePlainTextFakemon(text); }
                 } else {
-                    parsed = parsePlainTextFakemon(text);
+                    // several plain text exports pasted one after another: one Fakemon per "Name:" line
+                    const chunks = splitPlainTextFakemon(text);
+                    parsed = chunks.length > 1 ? chunks.map(parsePlainTextFakemon) : parsePlainTextFakemon(text);
                 }
 
                 if (parsed && typeof parsed === 'object' && (parsed.format === 'woogidex-custom-move' || parsed.format === 'woogidex-custom-ability' || parsed.format === 'woogidex-custom-item')) {
@@ -615,6 +620,17 @@ import { cleanArtSets } from '../editor/art-sets.ts';
         function openFakemonImport() {
             const input = document.getElementById('fakemon-import-file');
             if (input) input.click();
+        }
+
+        /** Splits text holding several plain text exports into one chunk per Fakemon (each starts at a "Name:" line). */
+        function splitPlainTextFakemon(text: string): string[] {
+            const lines = String(text || '').replace(/\r/g, '').split('\n');
+            const chunks: string[][] = [];
+            for (const line of lines) {
+                if (/^\s*Name:\s*/i.test(line) || !chunks.length) chunks.push([]);
+                chunks[chunks.length - 1].push(line);
+            }
+            return chunks.map(c => c.join('\n')).filter(c => /^\s*Name:/im.test(c));
         }
 
         function parsePlainTextFakemon(text) {

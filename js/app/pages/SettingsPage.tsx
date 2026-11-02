@@ -14,6 +14,7 @@ import { slideIn } from '../../core/motion.ts';
 import { ext, type SettingsGroup as Group, type SettingsItem as Item, type SettingsSection as Section } from '../../core/extend.ts';
 import { resetTours } from '../../features/onboarding.ts';
 import { LANDING_PAGE } from '../../core/flags.ts';
+import { UI_SCALE_DEFAULT, UI_SCALE_MAX, UI_SCALE_MIN, UI_SCALE_STEP, getUiScale, setUiScale } from '../../core/ui-scale.ts';
 
 // A row: `setting` names a boolean in app.ts's BOOLEAN_SETTINGS (it gets a
 // switch); otherwise `control` draws whatever sits on the right. A group is
@@ -26,6 +27,7 @@ const CORE_SECTIONS: Section[] = [
         blurb: 'Theme, motion, and how your collection looks.',
         groups: [
             { id: 'theme', title: 'Theme', render: () => <ThemePicker />, keywords: 'theme dark mode light mode colors night' },
+            { id: 'size', title: 'Interface size', render: () => <UiScaleGroup />, keywords: 'interface size zoom scale bigger smaller text font ui accessibility' },
             {
                 id: 'effects', title: 'Motion & effects',
                 desc: () => isLowEndDevice()
@@ -366,6 +368,45 @@ function ThemePicker() {
                         </button>
                     );
                 })}
+            </div>
+        </section>
+    );
+}
+
+// ---- appearance: interface size ----
+
+/** A slider for the whole site's size (js/core/ui-scale.ts). It applies when you let go, so the slider doesn't move under your finger. */
+function UiScaleGroup() {
+    const [value, setValue] = useState(getUiScale);
+    const commit = (n: number) => { setValue(n); if (n !== getUiScale()) setUiScale(n); };
+    const labelId = useId();
+    const marks = [UI_SCALE_MIN, 90, UI_SCALE_DEFAULT, 110, 120, UI_SCALE_MAX];
+    return (
+        <section className="st-group">
+            <GroupHead title="Interface size" desc="Make everything on the site bigger or smaller. Your browser's own zoom still works on top of it." />
+            <div className="st-card">
+                <div className="st-row st-row-static st-scale-row">
+                    <span className="st-row-text">
+                        <span className="st-label" id={labelId}>Size</span>
+                        <span className="st-desc">Text, buttons, cards and menus all scale together.</span>
+                    </span>
+                    <span className="st-row-control st-scale-value">
+                        <output aria-live="polite">{value}%</output>
+                        <button type="button" className="btn btn-secondary btn-sm" disabled={value === UI_SCALE_DEFAULT} onClick={() => commit(UI_SCALE_DEFAULT)}>Reset</button>
+                    </span>
+                </div>
+                <div className="st-scale">
+                    <span className="st-scale-a is-small" aria-hidden="true">A</span>
+                    <input type="range" min={UI_SCALE_MIN} max={UI_SCALE_MAX} step={UI_SCALE_STEP} value={value} aria-labelledby={labelId}
+                        aria-valuetext={`${value}%`} list="st-scale-marks"
+                        style={{ '--fill': `${((value - UI_SCALE_MIN) / (UI_SCALE_MAX - UI_SCALE_MIN)) * 100}%` } as React.CSSProperties}
+                        onChange={e => setValue(Number(e.target.value))}
+                        onPointerUp={e => commit(Number((e.target as HTMLInputElement).value))}
+                        onKeyUp={e => commit(Number((e.target as HTMLInputElement).value))}
+                        onBlur={e => commit(Number(e.target.value))} />
+                    <span className="st-scale-a is-big" aria-hidden="true">A</span>
+                    <datalist id="st-scale-marks">{marks.map(m => <option key={m} value={m} />)}</datalist>
+                </div>
             </div>
         </section>
     );

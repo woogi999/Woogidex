@@ -10,27 +10,54 @@ const selectStyle: React.CSSProperties = { padding: '8px 10px', border: '1px sol
 
 function CollectionImportDialog({ close }: DialogProps) {
     const [file, setFile] = useState<File | null>(null);
+    const [mode, setMode] = useState<'file' | 'paste'>('file');
+    const [text, setText] = useState('');
     const [busy, setBusy] = useState(false);
-    const run = async (mode: 'add' | 'replace') => {
+    // a paste goes through the same path as a file: JSON if it looks like JSON, else plain text
+    const source = (): File | null => {
+        if (mode === 'file') return file;
+        const t = text.trim();
+        if (!t) return null;
+        const json = /^[[{]/.test(t);
+        return new File([t], json ? 'pasted.json' : 'pasted.txt', { type: json ? 'application/json' : 'text/plain' });
+    };
+    const ready = mode === 'file' ? !!file : !!text.trim();
+    const run = async (how: 'add' | 'replace') => {
         setBusy(true);
-        const ok = await api.importCollection(file, mode);
+        const ok = await api.importCollection(source(), how);
         setBusy(false);
         if (ok) close();
-        else setFile(null);
+        else if (mode === 'file') setFile(null);
     };
     return (
         <Modal onClose={close} title="Import Collection" className="collection-import-dialog" labelledBy="collection-import-title">
-            <p className="collection-import-lead">Import a collection or a Fakemon export. You can choose to add the imported Fakemon to your collection, or replace the current collection.</p>
-            <label className="file-upload-btn collection-import-pick">
-                <input type="file" accept=".json,.txt,application/json,text/plain" onChange={e => setFile(e.target.files?.[0] || null)} />
-                Choose JSON / TXT File
-            </label>
-            <div className="collection-import-status">
-                {file ? `Selected: ${file.name}` : 'Choose a collection, Fakemon, custom move, custom ability, or custom item JSON/TXT file.'}
+            <p className="collection-import-lead">Import a collection or a Fakémon export, from a file or pasted text. Add it to your collection, or replace the current one.</p>
+            <div className="segmented collection-import-mode" role="tablist" aria-label="Import from">
+                <button type="button" role="tab" aria-selected={mode === 'file'} className={mode === 'file' ? 'active' : ''} onClick={() => setMode('file')}>File</button>
+                <button type="button" role="tab" aria-selected={mode === 'paste'} className={mode === 'paste' ? 'active' : ''} onClick={() => setMode('paste')}>Paste text</button>
             </div>
+            {mode === 'file' ? (
+                <>
+                    <label className="file-upload-btn collection-import-pick">
+                        <input type="file" accept=".json,.txt,application/json,text/plain" onChange={e => setFile(e.target.files?.[0] || null)} />
+                        Choose JSON / TXT File
+                    </label>
+                    <div className="collection-import-status">
+                        {file ? `Selected: ${file.name}` : 'Choose a collection, Fakémon, custom move, custom ability, or custom item JSON/TXT file.'}
+                    </div>
+                </>
+            ) : (
+                <>
+                    <textarea className="collection-import-text" spellCheck={false} autoFocus value={text} onChange={e => setText(e.target.value)}
+                        placeholder={'Paste a plain text export (Name: …, Types: …, Stats: …)\nor JSON. Several Fakémon at once work too.'} />
+                    <div className="collection-import-status">
+                        {text.trim() ? (/^[[{]/.test(text.trim()) ? 'Looks like JSON.' : `Plain text, ${Math.max(1, (text.match(/^\s*Name:/gim) || []).length)} Fakémon.`) : 'Plain text exports and JSON both work.'}
+                    </div>
+                </>
+            )}
             <div className="collection-import-actions">
-                <button className="btn btn-secondary" type="button" disabled={!file || busy} onClick={() => run('add')}>Add to Collection</button>
-                <button className="btn btn-danger" type="button" disabled={!file || busy} onClick={() => run('replace')}>Replace Collection</button>
+                <button className="btn btn-secondary" type="button" disabled={!ready || busy} onClick={() => run('add')}>Add to Collection</button>
+                <button className="btn btn-danger" type="button" disabled={!ready || busy} onClick={() => run('replace')}>Replace Collection</button>
             </div>
         </Modal>
     );

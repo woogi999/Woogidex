@@ -10,6 +10,7 @@
 // Reduced motion (the setting or the system preference) keeps fades and
 // drops movement. .low-end drops the staggers.
 
+import { effectiveZoom } from './ui-scale.ts';
 import { gsap } from 'gsap';
 
 const EASE = 'expo.out';
@@ -325,11 +326,12 @@ export function cardDropInto(target: Element) {
     const from = art.getBoundingClientRect(), to = target.getBoundingClientRect();
     const ghost = art.cloneNode(true) as HTMLElement;
     ghost.classList.add('drop-ghost');
-    Object.assign(ghost.style, { left: `${from.left}px`, top: `${from.top}px`, width: `${from.width}px`, height: `${from.height}px` });
+    const z = effectiveZoom();
+    Object.assign(ghost.style, { left: `${from.left / z}px`, top: `${from.top / z}px`, width: `${from.width / z}px`, height: `${from.height / z}px` });
     document.body.appendChild(ghost);
     gsap.to(ghost, {
-        x: to.left + to.width / 2 - (from.left + from.width / 2),
-        y: to.top + to.height / 2 - (from.top + from.height / 2),
+        x: (to.left + to.width / 2 - (from.left + from.width / 2)) / z,
+        y: (to.top + to.height / 2 - (from.top + from.height / 2)) / z,
         scale: 0.15, opacity: 0, rotation: -8, duration: 0.5, ease: 'power3.in',
         onComplete: () => ghost.remove()
     });

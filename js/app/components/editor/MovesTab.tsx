@@ -4,46 +4,26 @@
 
 import { useState } from 'react';
 import { api, state } from '../../../core/app.ts';
-import { AddMoveRow, LearnsetChart, LearnsetFilters, LearnsetList } from './lists.tsx';
+import { LearnsetChart, LearnsetEditor } from './lists.tsx';
 import { SampleSets } from './SampleSets.tsx';
 import { Icon } from '../Icon.tsx';
 import '../../dialogs/sampleSets.tsx';
 
-const COMPACT_KEY = 'woogidex.learnset.compact';
-
-// the table (the compact rows) is the default; the cards are the other choice
-const LAYOUTS = [[false, 'layout-grid', 'Cards'], [true, 'table-cells', 'Table']] as const;
-
 export function MovesTab() {
-    const [compact, setCompact] = useState(() => { try { return localStorage.getItem(COMPACT_KEY) !== '0'; } catch { return true; } });
-    const choose = (next: boolean) => {
-        setCompact(next);
-        try { localStorage.setItem(COMPACT_KEY, next ? '1' : '0'); } catch { /* just this visit then */ }
-    };
     return (
         <>
-            <div className={`form-group${compact ? ' learnset-compact' : ''}`}>
+            <div className="form-group">
                 <div className="learnset-head">
-                    <label>Learnset</label>
-                    <div className="segmented" role="group" aria-label="Learnset layout">
-                        {LAYOUTS.map(([key, icon, label]) => (
-                            <button key={label} type="button" className={compact === key ? 'active' : ''} aria-pressed={compact === key} aria-label={label} title={label}
-                                onClick={() => choose(key)}>
-                                <Icon name={icon} />
-                            </button>
-                        ))}
-                    </div>
+                    <label htmlFor="learnset-search">Learnset</label>
+                    <span className="learnset-count">{state.learnset.length} move{state.learnset.length === 1 ? '' : 's'}</span>
                 </div>
-                <p className="field-hint">Add your moves here!</p>
-                <LearnsetFilters />
-                <LearnsetList />
-                <AddMoveRow />
-                <div className="learnset-actions" style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openCustomMoveChooser()}>+ Add Custom Move</button>
-                    <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.addUniversalMoves()}>+ Add Universal Moves</button>
-                    <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openMoveImportExportModal()}>Import / Export Moves</button>
-                    <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openRecommendMovesModal()}>Recommend Moves</button>
-                    <button className="btn btn-danger btn-sm" type="button" onClick={() => api.clearMoveset()} style={{ marginLeft: 'auto' }}>Clear Moveset</button>
+                <LearnsetEditor />
+                <div className="learnset-actions">
+                    <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openCustomMoveChooser()}><Icon name="plus" size={14} /> Custom Move</button>
+                    <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.addUniversalMoves()}><Icon name="plus" size={14} /> Universal Moves</button>
+                    <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openMoveImportExportModal()}>Import / Export</button>
+                    <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openRecommendMovesModal()}><Icon name="sparkles" size={14} /> Recommend Moves</button>
+                    <button className="btn btn-danger btn-sm learnset-clear" type="button" onClick={() => api.clearMoveset()}>Clear Moveset</button>
                 </div>
                 <InheritedMoves />
                 <LearnsetChart />

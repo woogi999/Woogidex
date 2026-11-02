@@ -82,16 +82,16 @@
     --shell-max: 1480px;
 }
 [data-theme="dark"] {
-    --bg-dark: #1b1b1e;
-    --bg-card: #1b1b1e;
-    --bg-panel: #242428;
-    --bg-input: #19191c;
-    --border: #2e2e33;
-    --border-light: #26262a;
-    --border-strong: #3d3d43;
-    --text-primary: #eeeef0;
-    --text-secondary: #adadb4;
-    --text-muted: #75757c;
+    --bg-dark: #161616;
+    --bg-card: #161616;
+    --bg-panel: #212121;
+    --bg-input: #131313;
+    --border: #333333;
+    --border-light: #2b2b2b;
+    --border-strong: #444444;
+    --text-primary: #ededed;
+    --text-secondary: #ababab;
+    --text-muted: #787878;
     --accent-glow: rgba(124,92,255,0.22);
     --success: #3dbb52;
     --danger: #e74c3c;

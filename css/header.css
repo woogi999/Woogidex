@@ -368,3 +368,25 @@ button.header-profile-popover-identity:hover { background: var(--bg-panel); }
 @media (max-width: 640px) {
     .search-page-form .btn { display: none; }
 }
+
+/* ---- #hashtag search (js/app/pages/SearchPage.tsx) ---- */
+.search-hashtag-jump {
+    display: flex; align-items: center; gap: 8px; width: 100%; margin: 0 0 14px; padding: 10px 14px;
+    border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card); color: var(--text-secondary);
+    font: 500 13.5px var(--font-sans); cursor: pointer; text-align: left; transition: var(--t-ui);
+}
+.search-hashtag-jump:hover { border-color: var(--accent); color: var(--text-primary); }
+.search-hashtag-jump strong { color: var(--accent); }
+.search-hashtag-jump svg:last-child { margin-left: auto; color: var(--text-muted); }
+.search-hashtag { max-width: 640px; margin: 0 auto; }
+.search-hashtag-head { display: flex; align-items: center; gap: 14px; margin: 4px 0 14px; }
+.search-hashtag-icon { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); flex: 0 0 auto; }
+.search-hashtag-head h2 { font-size: 22px; font-weight: 800; letter-spacing: -.01em; }
+.search-hashtag-head p { color: var(--text-muted); font-size: 13px; margin-top: 2px; }
+.search-hashtag-related { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.search-hashtag-related .chip {
+    padding: 5px 11px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-card);
+    color: var(--text-secondary); font: 600 12.5px var(--font-sans); cursor: pointer; transition: var(--t-ui);
+}
+.search-hashtag-related .chip:hover { border-color: var(--accent); color: var(--accent); }
+.search-hashtag-list { display: flex; flex-direction: column; gap: 12px; }

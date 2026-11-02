@@ -1,4 +1,5 @@
 import { log } from '../core/log.ts';
+import { effectiveZoom } from '../core/ui-scale.ts';
 import { state, api } from '../core/app.ts';
 import { SELECTABLE_TYPES } from '../core/data.ts';
 // the same parser the battle engine uses, so exporters and pasted code can
@@ -2209,9 +2210,10 @@ function startAbilityBlockMove(event, id, containerId) {
     // While dragging, fixed positioning makes the visual block independent
     // of whichever nested .ab-container it came from.
     el.style.position = 'fixed';
-    el.style.left = `${rect.left}px`;
-    el.style.top = `${rect.top}px`;
-    el.style.width = `${rect.width}px`;
+    const z = effectiveZoom();
+    el.style.left = `${rect.left / z}px`;
+    el.style.top = `${rect.top / z}px`;
+    el.style.width = `${rect.width / z}px`;
     el.style.zIndex = '10000';
     el.style.pointerEvents = 'none';
     el.classList.add('ab-dragging');
@@ -2241,8 +2243,9 @@ function moveAbilityBlockPointer(event) {
     const left = event.clientX - drag.grabX;
     const top = event.clientY - drag.grabY;
 
-    el.style.left = `${left}px`;
-    el.style.top = `${top}px`;
+    const z = effectiveZoom();
+    el.style.left = `${left / z}px`;
+    el.style.top = `${top / z}px`;
 
     // Keep board coordinates synchronized for loose blocks / detach.
     const workspace = document.getElementById('ab-workspace');

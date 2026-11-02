@@ -12,6 +12,7 @@ import { getFlagLabels, updateBulkComparison, updatePreview } from './editor-cor
 import { notify, notifySync } from '../app/store.ts';
 import { closeDialog, openDialog } from '../app/dialogs.tsx';
 import { abilityRole, prepareLearnset } from './learnset-model.ts';
+import { isFilterQuery, moveMatches, parseMoveQuery } from '../features/move-query.ts';
 
 // ==================== SHOWDOWN DATA ====================
         // Showdown's move dex has no numeric usefulness rating, so we derive one
@@ -396,8 +397,13 @@ import { abilityRole, prepareLearnset } from './learnset-model.ts';
             return moves.map(m => ({ ...m, added: added.has(m.name.toLowerCase()) }));
         }
 
+        // the editor's move browser is the learnset's own search now: this
+        // takes you there (the battle teambuilder still opens its picker)
         function openMoveBrowserModal() {
-            openDialog('move-browser', { mode: 'editor' });
+            const box = document.getElementById('learnset-search') as HTMLInputElement | null;
+            if (box) { box.focus(); box.select(); return; }
+            api.switchTab?.('moves');
+            setTimeout(() => (document.getElementById('learnset-search') as HTMLInputElement | null)?.focus(), 60);
         }
 
         function addMoveFromBrowser(key) {
@@ -1136,7 +1142,7 @@ import { form } from './draft.ts';
             notify();
         }
 
-        const LEARNSET_FILTERS = { query: '', type: '', category: '', sort: 'default', order: 'desc' };
+        const LEARNSET_FILTERS = { query: '', type: '', category: '', sort: 'default', order: 'asc' };
         let learnsetFilters = { ...LEARNSET_FILTERS };
         let learnsetChartGroup = 'type';
 
@@ -1145,6 +1151,74 @@ import { form } from './draft.ts';
             learnsetFilters = { ...learnsetFilters, ...patch };
             // the search box is a controlled input (see notifySync)
             notifySync();
+        }
+
+        // ---- the one search box (js/features/move-query.ts) ----
+        const SORT_VALUE: Record<string, (m: any) => any> = {
+            name: m => String(m.name || '').toLowerCase(),
+            type: m => String(m.type || ''),
+            category: m => ({ Physical: 0, Special: 1, Status: 2 } as Record<string, number>)[m.category] ?? 3,
+            power: m => Number(m.basePower) || 0,
+            accuracy: m => (m.accuracy === true || m.accuracy == null ? 101 : Number(m.accuracy) || 0),
+            pp: m => Number(m.pp) || 0,
+            priority: m => Number(m.priority) || 0,
+            method: m => ({ level: 0, egg: 1, tm: 2, none: 3 } as Record<string, number>)[m.learnMethod || 'none'] * 1000 + (Number(m.level) || 0)
+        };
+        function sortMoves<T>(list: T[], get: (x: T) => any, sort: string, order: string) {
+            const value = SORT_VALUE[sort];
+            if (!value) return list;
+            const dir = order === 'desc' ? -1 : 1;
+            return [...list].sort((a, b) => {
+                const x = value(get(a)), y = value(get(b));
+                const c = typeof x === 'string' ? x.localeCompare(y) : x - y;
+                return c * dir || String(get(a)?.['name'] || '').localeCompare(String(get(b)?.['name'] || ''));
+            });
+        }
+
+        /**
+         * The learnset tab's list for its one search box: the moves it knows that
+         * match (each with its real index, since edits go by it), and every other
+         * move that matches, to add with a click. With an empty box, only the
+         * moves it knows.
+         */
+        function learnsetSearch(limit = 80) {
+            const query = String(learnsetFilters.query || '');
+            const clauses = parseMoveQuery(query);
+            const known = new Map(state.learnset.filter(m => m?.name).map((m, i) => [m.name.toLowerCase(), m]));
+            const ctx = {
+                learned: (m: any) => known.has(String(m.name || '').toLowerCase()),
+                learnInfo: (m: any) => { const k = known.get(String(m.name || '').toLowerCase()); return k ? { method: k.learnMethod || 'none', level: k.level } : null; },
+                flags: (m: any) => getMoveEditorFlags(m),
+                isCustom: (m: any) => isCustomMove(m)
+            };
+            let learned = state.learnset.map((m, i) => ({ m, i })).filter(({ m }) => m && (!clauses.length || moveMatches(m, clauses, ctx)));
+            learned = learnsetFilters.sort === 'default'
+                ? prepareLearnset(learned.map(e => e.m), { isCustomMove }).map(e => learned[e.i])
+                : sortMoves(learned, e => e.m, learnsetFilters.sort, learnsetFilters.order);
+            if (!clauses.length) return { learned, others: [], more: 0, clauses };
+            const onlyLearned = clauses.some(c => !c.not && c.any.every(a => (a.kind === 'trait' && a.trait === 'learned') || a.kind === 'method' || (a.kind === 'num' && a.field === 'level')));
+            let others = onlyLearned ? [] : getAllBrowsableMoves().filter(m => !known.has(m.name.toLowerCase()) && !m.isZ && !m.isMax && moveMatches(m, clauses, ctx));
+            // a name search puts the closest names first; anything else follows the columns
+            const nameOnly = !isFilterQuery(clauses);
+            if (learnsetFilters.sort !== 'default') others = sortMoves(others, m => m, learnsetFilters.sort, learnsetFilters.order);
+            else if (nameOnly) {
+                const q = clauses[0]?.any[0] && (clauses[0].any[0] as any).text || '';
+                others.sort((a, b) => Number(!a.name.toLowerCase().startsWith(q)) - Number(!b.name.toLowerCase().startsWith(q)) || a.name.localeCompare(b.name));
+            } else others.sort((a, b) => a.name.localeCompare(b.name));
+            return { learned, others: others.slice(0, limit), more: Math.max(0, others.length - limit), clauses };
+        }
+
+        /** A column header's click: sort by it, then the other way, then back to the default order. */
+        function cycleLearnsetSort(key: string) {
+            const f = learnsetFilters;
+            if (f.sort !== key) setLearnsetFilters({ sort: key, order: key === 'name' || key === 'type' || key === 'method' ? 'asc' : 'desc' });
+            else if (f.order === (key === 'name' || key === 'type' || key === 'method' ? 'asc' : 'desc')) setLearnsetFilters({ order: f.order === 'asc' ? 'desc' : 'asc' });
+            else setLearnsetFilters({ sort: 'default', order: 'asc' });
+        }
+
+        /** Adds a move the search found (a game move's key, or a custom move's "custom:" key). */
+        function addMoveFromSearch(key: string) {
+            addMoveFromBrowser(key);
         }
 
         /**
@@ -2129,4 +2203,4 @@ function editCustomItemLibrary(id) { openCustomItemModal(id); }
         }
 
 
-export { ensureLearnsets, openAbilityBrowserModal, getExportableMovesText, moveRecommendations, dismissRecommendedMoves, restoreRecommendedMoves, rollRecommendedSection, moveDetail, MOVE_BROWSER_FLAGS, moveMatchesFilters, moveBrowserResults, abilityBrowserResults, addAbilityFromBrowser, openCustomAbilityLibraryModal, saveCustomAbility, saveCustomItem, saveCustomMoveEntry, customMoveDraft, customEntityChoices, rawCodeReport, rawCodeHooks, repairRawCode, getNewMoveMethod, setNewMoveMethod, abilitySuggestions, moveSuggestions, addAbilityByName, addMoveByName, getEditingAbilityIndex, getLearnsetFilters, setLearnsetFilters, learnsetEntries, getLearnsetChartGroup, setLearnsetChartGroup, learnsetChartSegments, describeAbility, getAllBrowsableMoves, sortLearnsetEntries, resetEditingCustomAbilityIndex, getAbilityRole, fetchShowdownData, openMoveBrowserModal, addMoveFromBrowser, findClosestAbility, findClosestMove, findClosestMoveForImport, parseMoveImportText, stripCustomMoveMarker, normalizeMoveCategoryInput, normalizeMoveTypeInput, openMoveImportExportModal, importMovesFromText, addAbility, openCustomAbilityChooser, addExistingCustomAbility, editCustomAbilityLibrary, updateAbility, toggleCustomAbilityEdit, finishCustomAbilityEdit, removeAbility, moveAbility, renderAbilities, showAbilityDetail, getSdMoveByName, hydrateLearnsetEntry, rehydrateCurrentLearnsetFromShowdown, addLearnsetMove, removeLearnsetMove, updateMoveMethod, updateMoveLevel, sortLearnset, renderLearnset, clearLearnsetFilters, addUniversalMoves, getFakemonStats, getFakemonProfile, findSimilarPokemon, classifyLearnsetSource, buildSimilarMovePools, classifyMoveRole, generateMoveRecommendations, openRecommendMovesModal, renderRecommendMovesModal, selectRecommendedMove, generateLearnset, formatLearnMethodLabel, clearMoveset, showMoveDetail, updateCustomAbility, removeCustomAbility, renderCustomAbilities, openCustomMoveChooser, addExistingCustomMove, editCustomMoveLibrary, openCustomMoveModal, removeCustomMove, renderCustomMoves, getCustomItemLibrary, openCustomItemModal, editCustomItemLibrary, loadCompetitiveMoveUsefulness, escapeHtml, isCustomMove, openCustomMoveLibraryModal };
+export { learnsetSearch, cycleLearnsetSort, addMoveFromSearch, ensureLearnsets, openAbilityBrowserModal, getExportableMovesText, moveRecommendations, dismissRecommendedMoves, restoreRecommendedMoves, rollRecommendedSection, moveDetail, MOVE_BROWSER_FLAGS, moveMatchesFilters, moveBrowserResults, abilityBrowserResults, addAbilityFromBrowser, openCustomAbilityLibraryModal, saveCustomAbility, saveCustomItem, saveCustomMoveEntry, customMoveDraft, customEntityChoices, rawCodeReport, rawCodeHooks, repairRawCode, getNewMoveMethod, setNewMoveMethod, abilitySuggestions, moveSuggestions, addAbilityByName, addMoveByName, getEditingAbilityIndex, getLearnsetFilters, setLearnsetFilters, learnsetEntries, getLearnsetChartGroup, setLearnsetChartGroup, learnsetChartSegments, describeAbility, getAllBrowsableMoves, sortLearnsetEntries, resetEditingCustomAbilityIndex, getAbilityRole, fetchShowdownData, openMoveBrowserModal, addMoveFromBrowser, findClosestAbility, findClosestMove, findClosestMoveForImport, parseMoveImportText, stripCustomMoveMarker, normalizeMoveCategoryInput, normalizeMoveTypeInput, openMoveImportExportModal, importMovesFromText, addAbility, openCustomAbilityChooser, addExistingCustomAbility, editCustomAbilityLibrary, updateAbility, toggleCustomAbilityEdit, finishCustomAbilityEdit, removeAbility, moveAbility, renderAbilities, showAbilityDetail, getSdMoveByName, hydrateLearnsetEntry, rehydrateCurrentLearnsetFromShowdown, addLearnsetMove, removeLearnsetMove, updateMoveMethod, updateMoveLevel, sortLearnset, renderLearnset, clearLearnsetFilters, addUniversalMoves, getFakemonStats, getFakemonProfile, findSimilarPokemon, classifyLearnsetSource, buildSimilarMovePools, classifyMoveRole, generateMoveRecommendations, openRecommendMovesModal, renderRecommendMovesModal, selectRecommendedMove, generateLearnset, formatLearnMethodLabel, clearMoveset, showMoveDetail, updateCustomAbility, removeCustomAbility, renderCustomAbilities, openCustomMoveChooser, addExistingCustomMove, editCustomMoveLibrary, openCustomMoveModal, removeCustomMove, renderCustomMoves, getCustomItemLibrary, openCustomItemModal, editCustomItemLibrary, loadCompetitiveMoveUsefulness, escapeHtml, isCustomMove, openCustomMoveLibraryModal };

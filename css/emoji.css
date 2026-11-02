@@ -125,6 +125,8 @@ img.emoji.emoji-jumbo { width: 3em; height: 3em; vertical-align: middle; }
 /* ---- @mentions: a link to the profile, opened in place (RichText) ---- */
 .rich-text a.rt-mention { color: var(--accent); font-weight: 700; text-decoration: none; }
 .rich-text a.rt-mention:hover { text-decoration: underline; text-underline-offset: 3px; }
+.rich-text a.rt-hashtag { color: var(--accent); font-weight: 600; text-decoration: none; }
+.rich-text a.rt-hashtag:hover { text-decoration: underline; text-underline-offset: 3px; }
 .mention-autocomplete .mention-autocomplete-name { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .mention-autocomplete .mention-autocomplete-user { margin-left: auto; font-size: 12px; color: var(--text-muted); white-space: nowrap; }
 .mention-autocomplete button.active .mention-autocomplete-user { color: inherit; opacity: .75; }

@@ -2,6 +2,7 @@
 // so it can explain an empty shell instead of leaving it unexplained
 window.__woogidexBooted = true;
 import { log } from './log.ts';
+import './ui-scale.ts';
 import { LANDING_PAGE } from './flags.ts';
 import { isLowEndDevice, prefersSavingData, whenIdle } from './device.ts';
 import { registerOfflineSupport } from './offline.ts';

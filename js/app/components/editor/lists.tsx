@@ -7,22 +7,15 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { api, state } from '../../../core/app.ts';
 import { abilityRole, accuracyText } from '../../../editor/learnset-model.ts';
 import { Icon } from '../Icon.tsx';
-import { TypeDropdown, useClickAway } from './fields.tsx';
 import { NAME_MAX } from '../../../core/data.ts';
+import { CategoryBadge, CategoryIcon } from '../MoveCategory.tsx';
+import { SortTh } from '../SortHeader.tsx';
+import { MOVE_QUERY_EXAMPLES, describeClause } from '../../../features/move-query.ts';
+
+// the icon used to be drawn here; it lives with the badge now
+export { CategoryIcon };
 
 const stop = (e: React.SyntheticEvent) => e.stopPropagation();
-const CATEGORY_ICON: Record<string, string> = {
-    Physical: 'https://img.pokemondb.net/images/icons/move-physical.png',
-    Special: 'https://img.pokemondb.net/images/icons/move-special.png',
-    Status: 'https://img.pokemondb.net/images/icons/move-status.png'
-};
-
-/** A move's Physical, Special or Status icon. `size` is pixels, or a share of the box it sits in ("55%"). */
-export function CategoryIcon({ category, size = 16 }: { category: string; size?: number | string }) {
-    return <img src={CATEGORY_ICON[category] || CATEGORY_ICON.Status} alt={category} style={{ width: size, height: size, verticalAlign: 'middle', imageRendering: 'auto' }} />;
-}
-
-const catClass = (category?: string) => (category === 'Physical' ? 'cat-physical' : category === 'Special' ? 'cat-special' : 'cat-status');
 
 // ---- search-as-you-type ----
 
@@ -56,7 +49,7 @@ export function Autocomplete({ id, placeholder, text, setText, suggest, onPick, 
                 {open && text.trim() && (items.length ? items.map(item => (
                     <div key={item.key || item.name} className="autocomplete-item" onMouseDown={e => { e.preventDefault(); onPick(item); done(); }}>
                         {item.name}
-                        {showCategory && item.category && <span className={`cat-badge ${catClass(item.category)}`}><CategoryIcon category={item.category} size={12} /></span>}
+                        {showCategory && item.category && <CategoryBadge category={item.category} iconOnly />}
                     </div>
                 )) : <div className="autocomplete-item">No matches</div>)}
                 {open && text.trim() && footer?.(() => setOpen(false))}
@@ -180,144 +173,175 @@ export function AbilityList() {
 }
 
 // ---- learnset ----
+// One search box, the way Showdown's teambuilder works: it filters the moves
+// this Fakémon knows, and every other move that matches shows under them,
+// greyed out, to add with a click. It reads Showdown's /movesearch language
+// too (js/features/move-query.ts): "fire, physical, bp > 80". The columns
+// sort the list.
 
-function LearnsetRow({ move, index }: { move: any; index: number }) {
-    const custom = api.isCustomMove(move);
+const METHODS: Array<[string, string]> = [['none', '—'], ['level', 'Lv'], ['tm', 'TM'], ['egg', 'Egg']];
+
+/** How a move is learned: the method, and the level for a level-up move. */
+function MethodCell({ move, index }: { move: any; index: number }) {
     const method = move.learnMethod || 'none';
     return (
-        <div className={`learnset-item${custom ? ' custom-move-editor-item' : ''}`}
-            onClick={() => (custom ? api.openCustomMoveModal(index) : api.showMoveDetail(move.name))}>
-            <div className="learnset-main">
-                <span className="move-name">{move.name}</span>
-                <div className="move-meta">
-                    <span className={`type-pill type-${String(move.type || 'normal').toLowerCase()}`}>{move.type || 'Normal'}</span>
-                    <span className={`cat-pill ${catClass(move.category)}`}><CategoryIcon category={move.category || 'Status'} size={14} /></span>
-                    <span className="power-text">{move.basePower || '-'} BP / {accuracyText(move.accuracy)}</span>
-                    {/* the compact list has room for these; the cards don't (css/learnset.css) */}
-                    <span className="power-text move-extra" title={Number(move.priority) ? `Priority ${Number(move.priority) > 0 ? '+' : ''}${move.priority}` : undefined}>{move.pp || '-'} PP{Number(move.priority) ? ` / ${Number(move.priority) > 0 ? '+' : ''}${move.priority} prio` : ''}</span>
-                </div>
-                <span className="move-desc">{move.shortDesc || move.desc || ''}</span>
-                {/* the level box's place is always kept, so picking Level doesn't resize anything */}
-                <div className="move-method-row">
-                    <select className="method-select-inline" value={method} aria-label="How it's learned" onClick={stop}
-                        onChange={e => { e.stopPropagation(); api.updateMoveMethod(index, e.target.value); }}>
-                        <option value="none">-</option>
-                        <option value="level">Level</option>
-                        <option value="tm">TM</option>
-                        <option value="egg">Egg</option>
-                    </select>
-                    {method === 'level' && (
-                        <input type="number" className="level-input-inline" placeholder="Lv" min={1} max={100} aria-label="Level" defaultValue={move.level || ''}
-                            onClick={stop} onChange={e => { e.stopPropagation(); api.updateMoveLevel(index, e.target.value); }} />
-                    )}
-                </div>
-            </div>
-            <button className="remove-btn" type="button" aria-label="Remove" onClick={e => { stop(e); api.removeLearnsetMove(index); }}><Icon name="x" size={14} /></button>
+        <span className="ls-method" onClick={stop}>
+            <select className="ls-method-select" value={method} aria-label="How it's learned"
+                onChange={e => api.updateMoveMethod(index, e.target.value)}>
+                {METHODS.map(([k, l]) => <option key={k} value={k}>{k === 'none' ? '—' : k === 'level' ? 'Level' : l}</option>)}
+            </select>
+            {method === 'level' && (
+                <input type="number" className="ls-level" placeholder="Lv" min={1} max={100} aria-label="Level" defaultValue={move.level || ''}
+                    onChange={e => api.updateMoveLevel(index, e.target.value)} />
+            )}
+        </span>
+    );
+}
+
+const prioText = (p: any) => (Number(p) ? `${Number(p) > 0 ? '+' : ''}${Number(p)}` : '0');
+
+/** A row of the list. A move it knows has its learn method and a remove; one it doesn't is greyed and adds on a click. */
+function MoveRow({ move, index, ghost, onAdd }: { move: any; index?: number; ghost?: boolean; onAdd?: () => void }) {
+    const custom = api.isCustomMove(move);
+    const open = () => {
+        if (ghost) { onAdd?.(); return; }
+        if (custom) api.openCustomMoveModal(index); else api.showMoveDetail(move.name);
+    };
+    const type = String(move.type || 'Normal');
+    return (
+        <div className={`ls-row${ghost ? ' is-ghost' : ''}${custom ? ' is-custom' : ''}`} role="row" tabIndex={0}
+            onClick={open} onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }}
+            title={ghost ? `Add ${move.name} to the learnset` : custom ? 'Edit this custom move' : 'See what it does'}>
+            <span className="ls-c ls-name" role="cell">
+                <span className="ls-name-text">{move.name}</span>
+                {custom && <span className="ls-custom-tag">Custom</span>}
+                <span className="ls-desc">{move.shortDesc || move.desc || ''}</span>
+            </span>
+            <span className="ls-c ls-type" role="cell"><span className={`type-pill type-${type.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>{type}</span></span>
+            <span className="ls-c ls-cat" role="cell"><CategoryBadge category={move.category} iconOnly /></span>
+            <span className="ls-c ls-num ls-bp" role="cell" data-label="BP">{Number(move.basePower) || '—'}</span>
+            <span className="ls-c ls-num ls-acc" role="cell" data-label="Acc">{accuracyText(move.accuracy)}</span>
+            <span className="ls-c ls-num ls-pp" role="cell" data-label="PP">{move.pp || '—'}</span>
+            <span className="ls-c ls-num ls-prio" role="cell" data-label="Prio">{prioText(move.priority)}</span>
+            <span className="ls-c ls-learn" role="cell">
+                {ghost
+                    ? <span className="ls-add-hint"><Icon name="plus" size={13} />Add</span>
+                    : <MethodCell move={move} index={index!} />}
+            </span>
+            <span className="ls-c ls-x" role="cell">
+                {!ghost && <button className="ls-remove" type="button" aria-label={`Remove ${move.name}`} title="Remove" onClick={e => { stop(e); api.removeLearnsetMove(index); }}><Icon name="x" size={14} /></button>}
+            </span>
         </div>
     );
 }
 
-const CATEGORIES = ['Physical', 'Special', 'Status'];
+const COLUMNS: Array<[string, string, string?]> = [
+    ['name', 'Name'], ['type', 'Type'], ['category', 'Cat'], ['power', 'BP'], ['accuracy', 'Acc'], ['pp', 'PP'], ['priority', 'Prio'], ['method', 'Learned']
+];
+const COL_CLASS: Record<string, string> = { name: 'ls-name', type: 'ls-type', category: 'ls-cat', power: 'ls-num ls-bp', accuracy: 'ls-num ls-acc', pp: 'ls-num ls-pp', priority: 'ls-num ls-prio', method: 'ls-learn' };
 
-/** "All Categories", or one of the three. */
-function CategoryDropdown({ value, onPick }: { value: string; onPick: (c: string) => void }) {
-    const [open, setOpen] = useState(false);
-    const ref = useClickAway(open, () => setOpen(false));
-    const pick = (c: string) => { setOpen(false); onPick(c); };
+function HeaderRow() {
+    const f = api.getLearnsetFilters();
+    const sort = f.sort === 'default' ? null : { key: f.sort, order: f.order };
     return (
-        <div className={`cat-dropdown${open ? ' open' : ''}`} ref={ref} style={{ width: 150 }}>
-            <button className="cat-dropdown-trigger" type="button" onClick={() => setOpen(v => !v)} aria-expanded={open}>
-                <span className="cat-dropdown-value">{value ? <span className={`cat-pill ${catClass(value)}`}><CategoryIcon category={value} size={14} /> {value}</span> : 'All Categories'}</span>
-                <span className="type-dropdown-arrow"><Icon name="chevron-down" size={12} /></span>
-            </button>
-            <div className="cat-dropdown-menu">
-                <div className="cat-dropdown-option" onClick={() => pick('')}><span>All Categories</span></div>
-                {CATEGORIES.map(c => (
-                    <div key={c} className="cat-dropdown-option" onClick={() => pick(c)}>
-                        <span className={`cat-pill ${catClass(c)}`}><CategoryIcon category={c} size={14} /> {c}</span>
-                    </div>
+        <div className="ls-row ls-head" role="row">
+            {COLUMNS.map(([key, label]) => (
+                <SortTh key={key} as="div" className={`ls-c ${COL_CLASS[key]}`} label={label} sortKey={key} sort={sort} onSort={k => api.cycleLearnsetSort(k)} />
+            ))}
+            <span className="ls-c ls-x" />
+        </div>
+    );
+}
+
+/** The search box's help: what you can type. */
+function QueryHelp({ onPick }: { onPick: (q: string) => void }) {
+    return (
+        <div className="ls-help" role="dialog" aria-label="Search tips">
+            <p>Search names, or filter like Showdown's <code>/ms</code>: separate filters with commas, use <code>|</code> for "or" and <code>!</code> for "not".</p>
+            <div className="ls-help-grid">
+                {MOVE_QUERY_EXAMPLES.map(([q, what]) => (
+                    <button key={q} type="button" className="ls-help-ex" onClick={() => onPick(q)}><code>{q}</code><span>{what}</span></button>
                 ))}
+            </div>
+            <p className="ls-help-foot">Types, Physical / Special / Status, flags (contact, sound, your own), <code>bp</code> <code>acc</code> <code>pp</code> <code>prio</code> with &gt; &lt; =, statuses (burn, sleep), <code>raises atk</code>, <code>lowers spe</code>, recovery, recoil, pivot, hazard, and for its own moves: learned, level, tm, egg, <code>lv &lt;= 20</code>.</p>
+        </div>
+    );
+}
+
+/** The search, the "add as" choice, the column headers and the list. */
+export function LearnsetEditor() {
+    const f = api.getLearnsetFilters();
+    const [limit, setLimit] = useState(60);
+    const [help, setHelp] = useState(false);
+    const input = useRef<HTMLInputElement>(null);
+    const { method, level } = api.getNewMoveMethod();
+    const res = api.learnsetSearch(limit);
+    const learned: Array<{ m: any; i: number }> = res.learned;
+    const others: any[] = res.others;
+    const query: string = f.query || '';
+    useEffect(() => { setLimit(60); }, [query]);
+    const setQuery = (q: string) => api.setLearnsetFilters({ query: q });
+    const addFirst = () => { if (others[0]) api.addMoveFromSearch(others[0].key); };
+    const total = state.learnset.length;
+    return (
+        <div className="ls">
+            <div className="ls-bar">
+                <label className="ls-search">
+                    <Icon name="search" size={16} />
+                    <input ref={input} id="learnset-search" type="text" autoComplete="off" spellCheck={false} value={query}
+                        placeholder="Search learnset or add moves · try fire, physical, bp > 80"
+                        aria-label="Search the learnset, or find moves to add"
+                        onChange={e => setQuery(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter') { e.preventDefault(); addFirst(); }
+                            else if (e.key === 'Escape' && query) { e.preventDefault(); e.stopPropagation(); setQuery(''); }
+                        }} />
+                    {query && <button type="button" className="ls-clear" aria-label="Clear the search" onClick={() => { setQuery(''); input.current?.focus(); }}><Icon name="x" size={14} /></button>}
+                    <button type="button" className={`ls-help-btn${help ? ' is-on' : ''}`} aria-expanded={help} aria-label="Search tips" title="Search tips" onClick={() => setHelp(v => !v)}><Icon name="question-mark-circle" size={16} /></button>
+                </label>
+                <div className="ls-addas" role="group" aria-label="New moves are learned by">
+                    <span className="ls-addas-label">Add as</span>
+                    <div className="segmented">
+                        {METHODS.map(([k, l]) => (
+                            <button key={k} type="button" className={method === k ? 'active' : ''} aria-pressed={method === k}
+                                onClick={() => api.setNewMoveMethod({ method: k, ...(k !== 'level' ? { level: '' } : {}) })}>{l}</button>
+                        ))}
+                    </div>
+                    {method === 'level' && (
+                        <input className="ls-addas-level" type="number" min={1} max={100} placeholder="Lv" aria-label="Level for new moves" value={level}
+                            onChange={e => api.setNewMoveMethod({ level: e.target.value })} />
+                    )}
+                </div>
+            </div>
+            {help && <QueryHelp onPick={q => { setQuery(q); setHelp(false); input.current?.focus(); }} />}
+            {res.clauses.length > 0 && (res.clauses.length > 1 || res.clauses[0].not || res.clauses[0].any.some((a: any) => a.kind !== 'name')) && (
+                <div className="ls-chips" aria-label="Filters">
+                    {res.clauses.map((c: any, i: number) => <span key={i} className="ls-chip">{describeClause(c)}</span>)}
+                </div>
+            )}
+            <div className="ls-table" role="table" aria-label="Learnset">
+                <HeaderRow />
+                {learned.map(({ m, i }) => <MoveRow key={`k:${m.name}-${i}`} move={m} index={i} />)}
+                {!learned.length && (
+                    total
+                        ? <p className="ls-empty">{query ? 'It doesn’t know any moves like that.' : 'No moves.'}</p>
+                        : !query && <p className="ls-empty">No moves yet. Search above to add some, or try Recommend Moves.</p>
+                )}
+                {others.length > 0 && (
+                    <div className="ls-divider" role="presentation">
+                        <span>Not in the learnset</span>
+                        <small>Click one to add it{method !== 'none' ? ` as ${method === 'level' ? `Lv ${level || '?'}` : method === 'tm' ? 'TM' : 'Egg'}` : ''} · Enter adds the first</small>
+                    </div>
+                )}
+                {others.map(m => <MoveRow key={`o:${m.key}`} move={m} ghost onAdd={() => api.addMoveFromSearch(m.key)} />)}
+                {res.more > 0 && <button type="button" className="ls-more" onClick={() => setLimit(n => n + 100)}>Show {Math.min(100, res.more)} more of {res.more}</button>}
+                {query && !others.length && !learned.length && <p className="ls-empty">No moves match “{query}”.</p>}
             </div>
         </div>
     );
 }
 
 const selectStyle: React.CSSProperties = { padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, fontFamily: 'var(--font-sans)', fontSize: 13 };
-
-export function LearnsetFilters() {
-    const f = api.getLearnsetFilters();
-    const set = (patch: object) => api.setLearnsetFilters(patch);
-    return (
-        <div className="learnset-toolbar" style={{ display: 'flex', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
-            <input type="text" placeholder="Search learnset..." aria-label="Search learnset" style={{ flex: 1, minWidth: 140 }} value={f.query} onChange={e => set({ query: e.target.value })} />
-            <div style={{ width: 130 }}>
-                <TypeDropdown id="learnset-filter-type" value={f.type} placeholder="All Types" onPick={type => set({ type })} />
-            </div>
-            <CategoryDropdown value={f.category} onPick={category => set({ category })} />
-            <select aria-label="Sort learnset" style={{ ...selectStyle, width: 130 }} value={f.sort} onChange={e => set({ sort: e.target.value })}>
-                <option value="default">Sort: Default</option>
-                <option value="name">Sort: Name</option>
-                <option value="type">Sort: Type</option>
-                <option value="power">Sort: Power</option>
-                <option value="category">Sort: Category</option>
-            </select>
-            <select aria-label="Sort direction" style={{ ...selectStyle, width: 100 }} value={f.order} onChange={e => set({ order: e.target.value })}>
-                <option value="desc">Desc</option>
-                <option value="asc">Asc</option>
-            </select>
-            <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.clearLearnsetFilters()} title="Clear all filters">Clear</button>
-        </div>
-    );
-}
-
-export function LearnsetList() {
-    const entries: Array<{ m: any; i: number }> = api.learnsetEntries();
-    if (!entries.length) {
-        // an empty *filtered* learnset has to say so, or it looks like the moves were lost
-        return (
-            <div id="learnset-list">
-                {state.learnset.length > 0
-                    ? <p className="field-hint" style={{ padding: '8px 0' }}>No moves match your filters.</p>
-                    : <p className="learnset-empty">No moves yet. Search for one below, or try Recommend Moves.</p>}
-            </div>
-        );
-    }
-    return <div id="learnset-list">{entries.map(({ m, i }) => <LearnsetRow key={`${m.name}-${i}`} move={m} index={i} />)}</div>;
-}
-
-/** Search, how it's learned, and Add; plus the full browser. */
-export function AddMoveRow() {
-    // kept in editor.ts: the move browser adds with the same learn method
-    const { method, level } = api.getNewMoveMethod();
-    const setMethod = (m: string) => api.setNewMoveMethod({ method: m });
-    const setLevel = (l: string) => api.setNewMoveMethod({ level: l });
-    const levelInput = useRef<HTMLInputElement>(null);
-    const [text, setText] = useState('');
-    const add = (typed: string) => api.addMoveByName(typed, method, level);
-    return (
-        <div className="learnset-add-row" style={{ display: 'flex', gap: 8, marginTop: 8, alignItems: 'center' }}>
-            <div className="autocomplete-container" style={{ flex: 1 }}>
-                <Autocomplete id="move-input" placeholder="Search moves..." showCategory text={text} setText={setText} suggest={api.moveSuggestions}
-                    onPick={item => api.addLearnsetMove(item, method, method === 'level' ? level : null)} onEnter={add} />
-            </div>
-            <select aria-label="How it's learned" style={{ ...selectStyle, width: 90 }} value={method}
-                onChange={e => { setMethod(e.target.value); if (e.target.value === 'level') setTimeout(() => levelInput.current?.focus(), 0); else setLevel(''); }}>
-                <option value="none">-</option>
-                <option value="level">Level</option>
-                <option value="tm">TM</option>
-                <option value="egg">Egg</option>
-            </select>
-            {method === 'level' && (
-                <input ref={levelInput} type="number" placeholder="Lv" min={1} max={100} aria-label="Level" value={level} onChange={e => setLevel(e.target.value)}
-                    style={{ ...selectStyle, width: 64, fontFamily: 'var(--font-sans)' }} />
-            )}
-            <button className="btn btn-secondary btn-sm" type="button" onClick={() => {
-                if (add(text)) { setText(''); setMethod('none'); setLevel(''); }
-            }}>Add</button>
-            <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openMoveBrowserModal()} title="Browse all moves with filters">Browse Moves</button>
-        </div>
-    );
-}
 
 /** A donut of the whole learnset by type, category or learn method. */
 export function LearnsetChart() {

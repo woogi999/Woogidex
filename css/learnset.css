@@ -77,13 +77,6 @@
         }
         .learnset-item .level-input-inline:hover { border-color: var(--text-secondary); }
         .learnset-item .level-input-inline:focus { border-color: var(--text-primary); box-shadow: 0 0 0 3px var(--accent-glow); }
-        .learnset-item .cat-pill {
-            font-size: 11px;
-            padding: 3px 10px;
-            border-radius: 4px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-        }
         .learnset-item .power-text { 
             font-size: 12px; 
             color: var(--text-muted); 
@@ -145,12 +138,6 @@
             flex-wrap: nowrap;
         }
         /* type-pill sizing lives in css/controls.css */
-        #learnset-list .learnset-item .cat-pill {
-            font-size: 9px;
-            padding: 2px 5px;
-            display: inline-flex;
-            align-items: center;
-        }
         #learnset-list .learnset-item .power-text {
             font-size: 10px;
             white-space: nowrap;
@@ -260,4 +247,101 @@
     .learnset-compact #learnset-list .learnset-item .move-method-row { grid-column: 2; grid-row: 1; }
     .learnset-compact #learnset-list .learnset-item .move-meta { grid-column: 1 / -1; grid-row: 2; flex-wrap: wrap; }
     .learnset-compact #learnset-list .learnset-item .power-text:not(.move-extra) { min-width: 0; }
+}
+
+/* ==================== the learnset editor ====================
+   js/app/components/editor/lists.tsx (LearnsetEditor): one search box, the
+   "add as" choice, then a real table with sortable headers. Moves it knows
+   come first; moves it doesn't are greyed below them and add on a click. */
+.learnset-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.learnset-count { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.ls { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+.ls-bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.ls-search {
+    position: relative; flex: 1 1 320px; min-width: 0; display: flex; align-items: center; gap: 8px;
+    height: var(--ctl-h); padding: 0 6px 0 12px; border: 1px solid var(--border-strong); border-radius: 999px;
+    background: var(--bg-input); color: var(--text-muted); transition: var(--t-ui);
+}
+.ls-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); color: var(--accent); }
+.ls-search input { flex: 1; min-width: 0; border: 0 !important; outline: 0; background: transparent !important; box-shadow: none !important; padding: 0 !important; color: var(--text-primary); font: 500 13.5px var(--font-sans); }
+.ls-clear, .ls-help-btn { flex: 0 0 auto; width: 26px; height: 26px; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--text-muted); cursor: pointer; }
+.ls-clear:hover, .ls-help-btn:hover, .ls-help-btn.is-on { background: var(--bg-panel); color: var(--text-primary); }
+.ls-addas { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+.ls-addas-label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+.ls-addas .segmented button { min-width: 38px; padding: 0 8px; font: 600 12px var(--font-sans); height: 28px; }
+.ls-addas-level { width: 58px; height: 30px; padding: 0 8px; border: 1px solid var(--border-strong); border-radius: var(--ctl-r); background: var(--bg-input); color: var(--text-primary); font: 700 12.5px var(--font-sans); text-align: center; }
+.ls-help { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-card); font-size: 12.5px; color: var(--text-secondary); line-height: 1.5; }
+.ls-help code { font: 600 12px var(--font-mono); color: var(--text-primary); background: var(--bg-panel); padding: 1px 5px; border-radius: 4px; }
+.ls-help-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 4px; margin: 10px 0; }
+.ls-help-ex { display: flex; flex-direction: column; gap: 2px; padding: 7px 9px; border: 0; border-radius: 7px; background: transparent; text-align: left; cursor: pointer; color: var(--text-muted); font: 12px var(--font-sans); }
+.ls-help-ex:hover { background: var(--bg-panel); }
+.ls-help-foot { color: var(--text-muted); font-size: 12px; }
+.ls-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.ls-chip { padding: 2px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font: 600 11.5px var(--font-sans); }
+
+.ls-table { display: flex; flex-direction: column; border-top: 1px solid var(--border-light); }
+.ls-row {
+    display: grid; align-items: center; gap: 10px;
+    grid-template-columns: minmax(150px, 1.6fr) 64px 34px 40px 46px 34px 40px 132px 28px;
+    min-height: 40px; padding: 4px 8px; border-bottom: 1px solid var(--border-light);
+    cursor: pointer; transition: background-color var(--dur-fast) ease;
+}
+.ls-row:hover { background: var(--bg-panel); }
+.ls-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.ls-head { position: sticky; top: 0; z-index: 2; min-height: 32px; background: var(--bg-card); cursor: default; }
+.ls-head:hover { background: var(--bg-card); }
+.ls-c { min-width: 0; }
+.ls-num { text-align: right; font: 600 12.5px var(--font-sans); font-variant-numeric: tabular-nums; color: var(--text-secondary); }
+.ls-head .ls-num { text-align: right; }
+.ls-head .ls-num .sort-th-btn { flex-direction: row-reverse; }
+.ls-name { display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap; min-width: 0; }
+.ls-name-text { font: 700 13.5px var(--font-sans); color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ls-custom-tag { font: 700 9.5px var(--font-sans); letter-spacing: .05em; text-transform: uppercase; color: var(--accent); }
+.ls-desc { flex-basis: 100%; font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ls-head .ls-name { display: block; }
+.ls-type .type-pill { min-width: 58px; }
+.ls-method { display: flex; gap: 4px; align-items: center; }
+.ls-method-select, .ls-level {
+    height: 26px; min-width: 0; padding: 0 6px; border: 1px solid var(--border); border-radius: 6px;
+    background: var(--bg-input); color: var(--text-primary); font: 600 12px var(--font-sans);
+}
+.ls-method-select { width: 72px; }
+.ls-level { width: 52px; text-align: center; }
+.ls-remove { width: 26px; height: 26px; display: grid; place-items: center; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; }
+.ls-remove:hover { background: var(--danger); color: #fff; }
+.ls-add-hint { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; font: 700 11.5px var(--font-sans); color: var(--accent); opacity: 0; transition: opacity var(--dur-fast) ease; }
+/* moves it doesn't know: greyed, like Showdown's, and one click away */
+.ls-row.is-ghost { opacity: .5; filter: saturate(.35); }
+.ls-row.is-ghost:hover, .ls-row.is-ghost:focus-visible { opacity: 1; filter: none; background: var(--accent-soft); }
+.ls-row.is-ghost:hover .ls-add-hint, .ls-row.is-ghost:focus-visible .ls-add-hint { opacity: 1; }
+.ls-divider { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 14px 8px 6px; border-bottom: 1px solid var(--border-light); }
+.ls-divider span { font: 700 11px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.ls-divider small { font-size: 11.5px; color: var(--text-muted); }
+.ls-empty { padding: 18px 8px; text-align: center; color: var(--text-muted); font-size: 13px; }
+.ls-more { margin: 8px auto; padding: 6px 14px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-card); color: var(--text-secondary); font: 600 12px var(--font-sans); cursor: pointer; }
+.ls-more:hover { border-color: var(--accent); color: var(--accent); }
+.learnset-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+.learnset-actions .btn { gap: 5px; }
+.learnset-clear { margin-left: auto; }
+
+@media (max-width: 900px) {
+    .ls-row { grid-template-columns: minmax(120px, 1fr) 60px 30px 36px 42px 30px 34px 118px 26px; gap: 6px; }
+    .ls-desc { display: none; }
+}
+@media (max-width: 640px) {
+    /* two lines a move: name, type, category and how it's learned; then the numbers */
+    .ls-row { grid-template-columns: minmax(0, 1fr) auto auto auto; grid-template-areas: "name type cat x" "nums nums learn learn"; row-gap: 4px; padding: 7px 4px; }
+    .ls-head { display: flex; flex-wrap: wrap; gap: 4px 12px; padding: 6px 4px; }
+    .ls-head .ls-c { text-align: left; }
+    .ls-head .ls-x { display: none; }
+    .ls-row:not(.ls-head) .ls-name { grid-area: name; }
+    .ls-row:not(.ls-head) .ls-type { grid-area: type; }
+    .ls-row:not(.ls-head) .ls-cat { grid-area: cat; }
+    .ls-row:not(.ls-head) .ls-x { grid-area: x; }
+    .ls-row:not(.ls-head) .ls-learn { grid-area: learn; justify-self: end; }
+    .ls-row:not(.ls-head) .ls-bp { grid-area: nums; }
+    .ls-row:not(.ls-head) .ls-acc, .ls-row:not(.ls-head) .ls-pp, .ls-row:not(.ls-head) .ls-prio { display: none; }
+    .ls-row:not(.ls-head) .ls-bp::before { content: "BP "; color: var(--text-muted); font-weight: 500; }
+    .ls-add-hint { opacity: 1; }
+    .ls-addas { width: 100%; }
 }

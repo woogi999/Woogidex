@@ -96,6 +96,8 @@ const COLLECTION_LISTS = [
     ['customAbilities', 'woogidexCustomAbilities_v1'],
     ['customItems', 'woogidexCustomItems_v1'],
     ['battleTeams', 'woogidexBattleTeams_v1'],
+    // flags people made up for their custom moves (js/features/move-flags.ts)
+    ['customMoveFlags', 'woogidexCustomMoveFlags_v1'],
 ] as const;
 type ListName = typeof COLLECTION_LISTS[number][0];
 
@@ -848,7 +850,7 @@ function normalizeCollections() {
                         const lists = {} as Record<ListName, any[]>;
                         for (const [name] of COLLECTION_LISTS) {
                             const list = (state as any)[name] || [];
-                            lists[name] = name === 'folders' || name === 'battleTeams' ? list : list.filter(x => !x?.pendingVanilla);
+                            lists[name] = name === 'folders' || name === 'battleTeams' || name === 'customMoveFlags' ? list : list.filter(x => !x?.pendingVanilla);
                         }
                         const signatures = {} as Record<ListName, Map<string, string>>;
                         for (const [name] of COLLECTION_LISTS) signatures[name] = signaturesOf(lists[name]);
@@ -971,6 +973,7 @@ function normalizeCollections() {
             state.customAbilities = await loadArray('woogidexCustomAbilities_v1', 'customAbilities');
             state.customItems = await loadArray('woogidexCustomItems_v1', 'customItems');
             state.battleTeams = await loadArray('woogidexBattleTeams_v1', 'battleTeams');
+            state.customMoveFlags = await loadArray('woogidexCustomMoveFlags_v1', 'customMoveFlags');
             // what storage holds right now is what later merges compare against
             for (const [name] of COLLECTION_LISTS) syncedBase[name] = signaturesOf((state as any)[name]);
 

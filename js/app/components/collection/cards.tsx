@@ -11,7 +11,7 @@ import type { CollectionTab, Fakemon, Folder, LibraryKind } from '../../types.ts
 import { ThumbImg } from '../ThumbImg.tsx';
 import { artImage } from '../../../editor/art-sets.ts';
 import { cardDragEnd, cardDragStart, cardDropInto } from '../../../core/motion.ts';
-import { menuEvent, openContextMenu, type MenuAction, type MenuItem, type MenuSpec } from '../ContextMenu.tsx';
+import { closeContextMenu, menuEvent, openContextMenu, type MenuAction, type MenuItem, type MenuSpec } from '../ContextMenu.tsx';
 import { setFakemonStatus, statusOf } from '../../../features/notebook.ts';
 import { canPaste, copyEntry, cutEntry, isCut, pasteInto } from '../../../features/clipboard.ts';
 import { StatusBadge } from '../notes/NotesField.tsx';
@@ -32,6 +32,8 @@ export function cardMenu(spec: (card: Element) => MenuSpec, onDouble?: (card: El
     const show = (e: MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        // the second click of a double-click is the double-click's, not a new menu
+        if (e.type === 'click' && e.detail > 1 && onDouble) return;
         openContextMenu(e, spec(e.currentTarget));
     };
     return {
@@ -40,7 +42,8 @@ export function cardMenu(spec: (card: Element) => MenuSpec, onDouble?: (card: El
         onClick: show,
         onContextMenu: show,
         // a double-click skips the menu and does the first thing on it
-        onDoubleClick: onDouble ? (e: MouseEvent) => onDouble(e.currentTarget) : undefined,
+        // (the menu the first click opened goes away)
+        onDoubleClick: onDouble ? (e: MouseEvent) => { closeContextMenu(); onDouble(e.currentTarget); } : undefined,
         onKeyDown: (e: KeyboardEvent) => {
             if (e.target !== e.currentTarget) return;
             if (e.key === 'Enter' || e.key === ' ' || e.key === 'ContextMenu' || (e.shiftKey && e.key === 'F10')) {
@@ -60,7 +63,7 @@ export function cardMenu(spec: (card: Element) => MenuSpec, onDouble?: (card: El
 export function cardActions(card: Element, a: {
     open?: MenuAction; edit?: () => void; editLabel?: string; pinned?: boolean; pin?: (e: any) => void; outOfFolder?: (e: any) => void;
     cut?: () => void; copy?: () => void; paste?: () => void;
-    duplicate?: (e: any) => void; backup?: (e: any) => void; exports?: Array<[string, (e: any) => void]>;
+    duplicate?: (e: any) => void; backup?: (e: any) => void; publish?: () => void; exports?: Array<[string, (e: any) => void]>;
     remove?: (e: any) => void; removeLabel?: string;
 }): MenuItem[] {
     const ev = () => menuEvent(card);
@@ -73,6 +76,7 @@ export function cardActions(card: Element, a: {
     if (a.duplicate) groups[1].push({ label: 'Duplicate', icon: 'copy', run: () => a.duplicate!(ev()) });
     if (a.pin) groups[2].push({ label: a.pinned ? 'Unpin' : 'Pin to the top', icon: 'pin', run: () => a.pin!(ev()) });
     if (a.outOfFolder) groups[2].push({ label: 'Remove from folder', icon: 'folder-output', run: () => a.outOfFolder!(ev()) });
+    if (a.publish) groups[2].push({ label: 'Publish to Community Hub', icon: 'upload', run: a.publish });
     if (a.backup) groups[2].push({ label: 'Back up to cloud', icon: 'cloud-upload', run: () => a.backup!(ev()) });
     if (a.exports?.length === 1) groups[2].push({ label: 'Export', icon: 'download', run: () => a.exports![0][1](ev()) });
     else if (a.exports?.length) groups[2].push({ label: 'Export', icon: 'download', items: a.exports.map(([label, run]) => ({ label: label.replace(/^Export as /, ''), run: () => run(ev()) })) });
@@ -127,6 +131,11 @@ export function fakemonMenu(f: Fakemon, inFolder: boolean, card: Element): MenuS
             outOfFolder: inFolder ? e => api.moveFakemonOutOfFolder(f.id, e) : undefined,
             // cloud backup comes with a host that has accounts
             backup: api.backupFakemonToCloud ? e => api.backupFakemonToCloud(f.id, e) : undefined,
+            // publishing comes with a host that has the Community Hub
+            publish: api.publishFakemon ? () => {
+                if (api.requireAccount && !api.requireAccount('Sign in to publish to the Community Hub.', () => api.publishFakemon(f.id))) return;
+                api.publishFakemon(f.id);
+            } : undefined,
             exports: FAKEMON_EXPORTS.map(([label, fn]) => [label, e => api[fn](f.id, e)]),
             remove: e => api.deleteFakemon(f.id, e)
         }).flatMap(item => typeof item === 'object' && item.label === 'Edit' ? [item, statusGroup(f)] : [item])

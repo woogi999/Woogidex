@@ -290,7 +290,6 @@ body.card-dragging .region-row { transition: background-color var(--dur-fast) ea
 .status-badge .status-icon { flex: 0 0 auto; }
 .status-picker button { width: auto; padding: 0 12px; gap: 6px; font: 600 13px var(--font-sans); }
 .status-picker button.active { background: color-mix(in srgb, var(--status) 12%, var(--bg-card)); color: var(--status); }
-.editor-status { gap: 6px; }
 
 /* tags */
 .tag-chip {

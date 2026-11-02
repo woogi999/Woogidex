@@ -8,9 +8,8 @@ import { api, state } from '../../core/app.ts';
 import { registerDialog, type DialogProps } from '../dialogs.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { Icon } from '../components/Icon.tsx';
-import { CategoryIcon } from '../components/editor/lists.tsx';
+import { CategoryBadge } from '../components/MoveCategory.tsx';
 
-const catClass = (c?: string) => (c === 'Physical' ? 'cat-physical' : c === 'Special' ? 'cat-special' : 'cat-status');
 const selectStyle: React.CSSProperties = { padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, fontFamily: 'var(--font-sans)', fontSize: 13 };
 
 // ---- Import / Export Moves ----
@@ -90,7 +89,7 @@ function RecommendMovesDialog({ close }: DialogProps) {
                                     </div>
                                     <div className="meta-right">
                                         <span className={`type-pill type-${String(move.type || 'normal').toLowerCase()}`}>{move.type}</span>
-                                        <span className={`cat-pill ${catClass(move.category)}`}><CategoryIcon category={move.category} size={14} /></span>
+                                        <CategoryBadge category={move.category} />
                                         <span className="power-text">{move.basePower || '-'}</span>
                                         <button type="button" className="recommend-dismiss" title={`Don't suggest ${move.name}`} aria-label={`Don't suggest ${move.name}`}
                                             onClick={e => { e.stopPropagation(); dismiss([move.name]); }}>
@@ -127,7 +126,7 @@ function GeneratedLearnsetDialog({ added, woven, similar, close }: DialogProps<{
                     <span className={`type-pill type-${String(move.type || 'normal').toLowerCase()}`}>{move.type}</span>
                     <span className="move-name">{move.name}</span>
                     <div className="move-meta">
-                        <span className={`cat-pill ${catClass(move.category)}`}><CategoryIcon category={move.category} size={12} /></span>
+                        <CategoryBadge category={move.category} />
                         <span className="method-text">{methodLabel(learnMethod, level)}</span>
                     </div>
                 </div>
@@ -181,7 +180,7 @@ function MoveDetailDialog({ name, close }: DialogProps<{ name: string }>) {
     return (
         <DetailPopup title={d.name} close={close}>
             {row('Type', <span className={`type-pill type-${d.type.toLowerCase()}`}>{d.type}</span>)}
-            {row('Category', <><CategoryIcon category={d.category} size={16} /> {d.category}</>)}
+            {row('Category', <CategoryBadge category={d.category} />)}
             {row('Base Power', d.basePower)}
             {row('Accuracy', d.accuracy)}
             {row('PP', d.pp)}

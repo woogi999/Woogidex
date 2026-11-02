@@ -8,14 +8,13 @@ import { api } from '../../core/app.ts';
 import { registerDialog, type DialogProps } from '../dialogs.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { TypeDropdown, useClickAway } from '../components/editor/fields.tsx';
-import { CategoryIcon } from '../components/editor/lists.tsx';
+import { CategoryBadge } from '../components/MoveCategory.tsx';
 import { Icon } from '../components/Icon.tsx';
 
 type Filters = { name: string; type: string; category: string; priority: string; bpMin: string; accMin: string; ppMin: string; flags: string[] };
 const NO_FILTERS: Filters = { name: '', type: '', category: '', priority: '', bpMin: '', accMin: '', ppMin: '', flags: [] };
 type BattleTarget = { teamId: string; index: number; slot: number };
 
-const catClass = (c?: string) => (c === 'Physical' ? 'cat-physical' : c === 'Special' ? 'cat-special' : 'cat-status');
 
 function AnyCategory({ value, onPick }: { value: string; onPick: (c: string) => void }) {
     const [open, setOpen] = useState(false);
@@ -24,12 +23,12 @@ function AnyCategory({ value, onPick }: { value: string; onPick: (c: string) => 
     return (
         <div className={`cat-dropdown${open ? ' open' : ''}`} ref={ref} style={{ width: 150 }}>
             <button className="cat-dropdown-trigger" type="button" onClick={() => setOpen(v => !v)} aria-expanded={open}>
-                <span className="cat-dropdown-value">{value ? <span className={`cat-pill ${catClass(value)}`}>{value}</span> : 'Any Category'}</span>
+                <span className="cat-dropdown-value">{value ? <CategoryBadge category={value} /> : 'Any Category'}</span>
                 <span className="type-dropdown-arrow"><Icon name="chevron-down" size={12} /></span>
             </button>
             <div className="cat-dropdown-menu">
                 <div className="cat-dropdown-option" onClick={() => pick('')}><span>Any Category</span></div>
-                {['Physical', 'Special', 'Status'].map(c => <div key={c} className="cat-dropdown-option" onClick={() => pick(c)}><span className={`cat-pill ${catClass(c)}`}>{c}</span></div>)}
+                {['Physical', 'Special', 'Status'].map(c => <div key={c} className="cat-dropdown-option" onClick={() => pick(c)}><CategoryBadge category={c} /></div>)}
             </div>
         </div>
     );
@@ -42,7 +41,7 @@ function MoveCard({ m, locked, onPick, addedLabel }: { m: any; locked?: boolean;
         <div className={`move-browser-card${m.added ? ' added' : ''}${locked ? ' is-locked' : ''}`} title={title} onClick={locked ? undefined : onPick}>
             <div className="move-browser-card-top">
                 <span className={`type-pill type-${String(m.type || 'normal').toLowerCase()}`}>{m.type || '?'}</span>
-                <span className={`cat-pill ${catClass(m.category)}`}><CategoryIcon category={m.category || 'Status'} size={12} /> {m.category || 'Status'}</span>
+                <CategoryBadge category={m.category} />
                 {m.added && <span className="move-browser-added-badge">{addedLabel}</span>}
                 {locked && <span className="move-browser-locked-badge">Not learnable</span>}
             </div>

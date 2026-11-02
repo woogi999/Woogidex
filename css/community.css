@@ -484,3 +484,87 @@ button.community-detail-stat:focus-visible {
 .community-table-loading { display: grid; gap: 10px; padding: 14px; }
 @media (max-width: 900px) { .dex-table-community .col-author { display: none; } }
 @media (max-width: 640px) { .dex-table-community .col-stat:not(.col-bst) { display: none; } }
+
+/* ==================== publish / update a listing ====================
+   js/app/dialogs/community.tsx: the picker (which of your Fakémon), then the
+   publish confirm (the rules dialog). The modal is a flex column: the search
+   row and the footer stay put, the grid between them scrolls. */
+.modal.community-update-modal {
+    max-width: 760px; width: 100%;
+    display: flex; flex-direction: column;
+    max-height: min(88vh, 860px);
+    overflow: hidden;
+    padding: 0;
+}
+.community-update-modal .modal-header { flex: 0 0 auto; margin: 0; padding: 18px 20px 6px; }
+.community-update-modal-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 0 20px; }
+.community-update-help { flex: 0 0 auto; margin: 0 0 14px; color: var(--text-secondary); font-size: 13.5px; line-height: 1.5; }
+.community-update-help strong { color: var(--text-primary); }
+.community-update-controls { flex: 0 0 auto; display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+.community-update-search {
+    flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 8px;
+    height: var(--ctl-h); padding: 0 12px; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--bg-input);
+    color: var(--text-muted); transition: var(--t-ui);
+}
+.community-update-search:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); color: var(--accent); }
+.community-update-search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--text-primary); font: 500 13.5px var(--font-sans); }
+.community-update-sort { display: flex; gap: 6px; align-items: center; flex: 0 0 auto; }
+.community-update-sort select { height: var(--ctl-h); padding: 0 10px; border: 1px solid var(--border-strong); border-radius: var(--ctl-r); background: var(--bg-card); color: var(--text-primary); font: 600 12.5px var(--font-sans); }
+.community-update-sort .btn-icon { width: var(--ctl-h); height: var(--ctl-h); }
+.community-update-collection-grid {
+    flex: 1 1 auto; min-height: 160px; overflow-y: auto; overscroll-behavior: contain;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 10px; align-content: start;
+    padding: 6px 2px 14px; margin: 0 -2px;
+    scrollbar-width: thin; scrollbar-color: var(--border) transparent;
+}
+.community-update-mon-card {
+    position: relative; display: flex; flex-direction: column; gap: 0; text-align: left; overflow: hidden;
+    border: 1px solid var(--border); border-radius: 12px; background: var(--bg-card); color: var(--text-primary);
+    cursor: pointer; padding: 0; transition: var(--t-ui);
+}
+.community-update-mon-card:hover { border-color: var(--border-strong); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+.community-update-mon-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.community-update-mon-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); background: var(--accent-soft); }
+.community-update-check {
+    position: absolute; top: 7px; right: 7px; z-index: 2; width: 22px; height: 22px; border-radius: 50%;
+    display: grid; place-items: center; background: var(--accent); color: #fff; box-shadow: 0 2px 6px rgba(0,0,0,.2);
+}
+.community-update-mon-art { aspect-ratio: 1; display: grid; place-items: center; background: var(--bg-panel); padding: 10px; }
+.community-update-mon-art img { width: 100%; height: 100%; object-fit: contain; }
+.community-update-mon-info { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px 10px; min-width: 0; }
+.community-update-mon-info strong { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.community-update-mon-types { display: flex; gap: 3px; flex-wrap: wrap; min-height: 16px; }
+.community-update-mon-types .type-pill { min-width: 0; padding: 1px 6px; font-size: 9.5px; }
+.community-update-mon-info small { color: var(--text-muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.community-update-empty { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 40px 12px; color: var(--text-muted); text-align: center; font-size: 13px; }
+.community-update-actions {
+    flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    margin: 0 -20px; padding: 12px 20px 16px; border-top: 1px solid var(--border-light); background: var(--bg-card);
+}
+.community-update-selected { min-width: 0; display: flex; flex-direction: column; gap: 1px; font-size: 13px; color: var(--text-muted); }
+.community-update-selected strong { color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.community-update-selected-label { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.community-update-action-buttons { display: flex; gap: 8px; flex: 0 0 auto; }
+.community-update-action-buttons .btn { gap: 6px; }
+
+/* the publish confirm: the rules fold behind a link once agreed to */
+.community-publish-lead { color: var(--text-secondary); }
+.community-rules-peek {
+    display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 12px; margin: 0 0 4px;
+    border: 0; border-radius: 8px; background: var(--bg-panel); color: var(--text-secondary); font: 500 13px var(--font-sans); cursor: pointer; text-align: left;
+}
+.community-rules-peek svg { color: var(--success); flex: 0 0 auto; }
+.community-rules-peek u { margin-left: auto; color: var(--accent); text-decoration: none; font-weight: 600; white-space: nowrap; }
+.community-rules-peek:hover u { text-decoration: underline; }
+.community-rules-modal .policy-actions .btn { gap: 6px; }
+
+@media (max-width: 640px) {
+    .modal.community-update-modal { max-height: 92vh; }
+    .community-update-modal .modal-header { padding: 14px 16px 4px; }
+    .community-update-modal-body { padding: 0 16px; }
+    .community-update-collection-grid { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+    .community-update-actions { margin: 0 -16px; padding: 10px 16px 14px; flex-wrap: wrap; }
+    .community-update-action-buttons { width: 100%; }
+    .community-update-action-buttons .btn { flex: 1; justify-content: center; }
+    .community-update-sort select { max-width: 110px; }
+}

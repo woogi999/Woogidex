@@ -12,7 +12,7 @@ import { Icon } from '../components/Icon.tsx';
 import { RegionAssign } from '../components/RegionAssign.tsx';
 import { ArtField } from '../components/ArtField.tsx';
 import { TypeDropdown, useClickAway } from '../components/editor/fields.tsx';
-import { CategoryIcon } from '../components/editor/lists.tsx';
+import { CategoryBadge } from '../components/MoveCategory.tsx';
 import { NAME_MAX } from '../../core/data.ts';
 
 type Kind = 'move' | 'ability' | 'item';
@@ -180,7 +180,7 @@ const CATEGORIES = ['Physical', 'Special', 'Status'];
 function CategoryPicker({ value, onPick }: { value: string; onPick: (c: string) => void }) {
     const [open, setOpen] = useState(false);
     const ref = useClickAway(open, () => setOpen(false));
-    const pill = (c: string) => <span className={`cat-pill cat-${c.toLowerCase()}`}><CategoryIcon category={c} size={14} /> {c}</span>;
+    const pill = (c: string) => <CategoryBadge category={c} />;
     return (
         <div className={`cat-dropdown${open ? ' open' : ''}`} ref={ref}>
             <button className="cat-dropdown-trigger" type="button" onClick={() => setOpen(v => !v)} aria-expanded={open}>

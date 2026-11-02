@@ -139,17 +139,8 @@
         .recommend-move-item .move-why { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
         .recommend-move-item .meta-right { display:flex; align-items:center; gap:8px; }
         .recommend-move-item .power-text { font-size: 12px; color: var(--text-muted); font-family: var(--font-sans); }
-        .recommend-move-item .cat-pill {
-            font-size: 10px; padding: 2px 8px; border-radius: 3px; font-weight: 700;
-        }
         .recommend-section-label { font-size: 11px; font-weight: 700; color: var(--text-muted); margin: 14px 0 8px; }
         .recommend-section-label:first-child { margin-top: 0; }
-        .autocomplete-item .cat-badge {
-            font-size: 10px; padding: 2px 8px; border-radius: 3px; font-weight: 700;
-        }
-        .cat-physical { background: rgba(204,136,68,0.15); color: #995511; }
-        .cat-special { background: rgba(68,102,204,0.15); color: #2244aa; }
-        .cat-status { background: rgba(107,114,128,0.15); color: #4b5563; }
         .custom-entity-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding: 10px; background: transparent; border: 0; border-bottom: 1px solid var(--border-light); border-radius: 0; }
 
         .custom-entity-row input { background: transparent; border: none; color: var(--text-primary); font-family: var(--font-sans); font-size: 14px; padding: 4px; }
@@ -161,9 +152,6 @@
         .learnset-item .move-meta { display: flex; gap: 8px; align-items: center; }
         .learnset-item .move-flag-badges { display: inline-flex; flex-wrap: wrap; gap: 4px; align-items: center; }
         .learnset-item .move-flag-badges .flag-tidbit { font-size: 9px; padding: 2px 6px; }
-        .learnset-item .cat-pill {
-            font-size: 10px; padding: 2px 8px; border-radius: 3px; font-weight: 700;
-        }
         .learnset-item .power-text { font-size: 12px; color: var(--text-muted); font-family: var(--font-sans); }
         .learnset-item .remove-btn {
             width: 24px; height: 24px; border-radius: 4px; border: none;
@@ -346,13 +334,6 @@
         }
         .learnset-item .level-input-inline:hover { border-color: var(--text-secondary); }
         .learnset-item .level-input-inline:focus { border-color: var(--text-primary); box-shadow: 0 0 0 3px var(--accent-glow); }
-        .learnset-item .cat-pill {
-            font-size: 11px;
-            padding: 3px 10px;
-            border-radius: 4px;
-            font-weight: 700;
-            letter-spacing: 0.5px;
-        }
         .learnset-item .power-text { 
             font-size: 12px; 
             color: var(--text-muted); 
