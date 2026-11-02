@@ -11,13 +11,20 @@ import { openSearchPage, takeSearchFilter } from '../../features/global-search.t
 import { SearchRow } from '../components/SearchRow.tsx';
 import { useQueryParam, useSlide } from '../hooks.ts';
 import { useStore } from '../store.ts';
+import { FeedCard, FeedSkeleton } from '../components/feed.tsx';
+import { fetchTagFeed, popularTags } from '../../features/social.ts';
+import type { FeedItem } from '../../features/feed-algorithm.ts';
 
 type Filter = 'all' | GroupKey;
 type CommunityStatus = '' | 'loading' | 'signed-out' | 'error';
 
+/** A #tag on its own searches the posts carrying it. */
+const HASHTAG = /^#([A-Za-z0-9_]{1,24})$/;
+
 export function SearchPage() {
     const version = useStore();
     const query = useQueryParam('q').trim();
+    const hashtag = query.match(HASHTAG)?.[1]?.toLowerCase() || '';
     const [filter, setFilter] = useState<Filter>('all');
     const [draft, setDraft] = useState(query);
     const [community, setCommunity] = useState<{ query: string; list: SearchResult[]; people: SearchResult[]; status: CommunityStatus }>({ query: '', list: [], people: [], status: '' });
@@ -127,7 +134,14 @@ export function SearchPage() {
                 ))}
             </div>
 
+            {hashtag ? <HashtagResults tag={hashtag} /> : (
+            <>
             <div className="search-page-results" ref={results}>
+                {query && /^[A-Za-z0-9_]{2,24}$/.test(query) && (
+                    <button type="button" className="search-hashtag-jump" onClick={() => openSearchPage(`#${query.toLowerCase()}`)}>
+                        <Icon name="hashtag" size={16} /><span>See posts tagged <strong>#{query.toLowerCase()}</strong></span><Icon name="chevron-right" size={14} />
+                    </button>
+                )}
                 {!query ? (
                     <div className="search-page-empty"><Icon name="search" /><p>Type something to search for.</p></div>
                 ) : sections.length ? sections : (
@@ -138,6 +152,65 @@ export function SearchPage() {
                     </div>
                 )}
             </div>
+            </>
+            )}
         </>
+    );
+}
+
+/** The posts tagged #tag, as feed cards, newest first; related tags above them. */
+function HashtagResults({ tag }: { tag: string }) {
+    const [items, setItems] = useState<FeedItem[] | null>(null);
+    const [error, setError] = useState('');
+    const [more, setMore] = useState(true);
+    const [busy, setBusy] = useState(false);
+    const [related, setRelated] = useState<Array<{ tag: string; uses: number }>>([]);
+    useEffect(() => {
+        let live = true;
+        setItems(null); setError(''); setMore(true);
+        fetchTagFeed(tag).then(rows => { if (live) { setItems(rows); setMore(rows.length >= 40); } })
+            .catch(e => { log.warn('SEARCH', 'Tag search failed', { error: String(e?.message || e) }); if (live) { setItems([]); setError('Couldn’t search posts right now.'); } });
+        popularTags(tag.slice(0, 3), 10).then(list => { if (live) setRelated(list.filter(t => t.tag !== tag).slice(0, 8)); });
+        return () => { live = false; };
+    }, [tag, state.user?.id]);
+    async function older() {
+        if (!items?.length || busy) return;
+        setBusy(true);
+        try {
+            const last = items.reduce((a, b) => (a.created_at < b.created_at ? a : b));
+            const rows = await fetchTagFeed(tag, { before: last.created_at });
+            const known = new Set(items.map(i => i.id));
+            const fresh = rows.filter(r => !known.has(r.id));
+            setItems([...items, ...fresh]);
+            setMore(fresh.length > 0);
+        } catch { setMore(false); }
+        setBusy(false);
+    }
+    return (
+        <div className="search-hashtag">
+            <header className="search-hashtag-head">
+                <span className="search-hashtag-icon"><Icon name="hashtag" size={22} /></span>
+                <div>
+                    <h2>#{tag}</h2>
+                    <p>{items == null ? 'Looking…' : `${items.length}${more && items.length ? '+' : ''} ${items.length === 1 ? 'post' : 'posts'}`}{!state.user ? ' from Woogidex · sign in to see everyone’s' : ''}</p>
+                </div>
+            </header>
+            {related.length > 0 && (
+                <div className="search-hashtag-related">
+                    {related.map(t => <button key={t.tag} type="button" className="chip" onClick={() => openSearchPage(`#${t.tag}`)}>#{t.tag}</button>)}
+                </div>
+            )}
+            <div className="feed-list search-hashtag-list">
+                {items == null && <FeedSkeleton count={2} />}
+                {error && <p className="search-section-status">{error}</p>}
+                {items?.length === 0 && !error && (
+                    <div className="search-page-empty"><Icon name="hashtag" /><p>No posts tagged #{tag} yet.</p><span>Write one! Put #{tag} anywhere in a post.</span></div>
+                )}
+                {items?.map(item => <FeedCard key={`${item.kind}:${item.id}`} item={item} />)}
+            </div>
+            {items && items.length > 0 && more && (
+                <div className="feed-end"><button type="button" className="btn btn-secondary btn-sm" disabled={busy} onClick={older}>{busy ? 'Loading…' : 'Show older posts'}</button></div>
+            )}
+        </div>
     );
 }

@@ -296,10 +296,10 @@ async function publishSnapshot(mon, rulesChecked = false, open = false) {
         api.showToast?.(`Names can be up to ${NAME_MAX} characters. Shorten "${String(mon.name).trim()}" in the editor first.`, 'warning');
         return;
     }
-    // show rules on every upload, even if previously accepted.
+    // a confirm before every upload: the rules (with an "I agree" until they've
+    // been agreed to once), and whether to make it open (no art shield, anyone can export it)
     if (!rulesChecked) {
-        // the rules dialog also asks whether to make it open (no art shield, anyone can export it)
-        openCommunityRulesModal({ requireAgreement: true, offerOpen: true, onAccept: (choice?: { open?: boolean }) => publishSnapshot(mon, true, !!choice?.open) });
+        openCommunityRulesModal({ requireAgreement: true, offerOpen: true, monName: String(mon?.name || '').trim(), onAccept: (choice?: { open?: boolean }) => publishSnapshot(mon, true, !!choice?.open) });
         return;
     }
     const client = await api.getClient();
@@ -763,8 +763,8 @@ function hasAcceptedCommunityRules() {
 }
 
 /** The rules dialog (js/app/dialogs/community.tsx); onAccept runs once they're agreed to. */
-function openCommunityRulesModal({ requireAgreement = false, onAccept = null, offerOpen = false }: { requireAgreement?: any; onAccept?: any; offerOpen?: boolean } = {}) {
-    openDialog('community-rules', { requireAgreement, offerOpen, onAccept: typeof onAccept === 'function' ? onAccept : null });
+function openCommunityRulesModal({ requireAgreement = false, onAccept = null, offerOpen = false, monName = '' }: { requireAgreement?: any; onAccept?: any; offerOpen?: boolean; monName?: string } = {}) {
+    openDialog('community-rules', { requireAgreement, offerOpen, monName, onAccept: typeof onAccept === 'function' ? onAccept : null });
 }
 
 function closeCommunityRulesModal() {
@@ -776,9 +776,10 @@ function markCommunityRulesAccepted() {
 }
 
 async function openCommunityHub({ panel = null }: { panel?: any } = {}) {
-    // RLS refuses published_mons to anonymous callers - without this the hub
-    // would render an empty grid instead of looking closed.
-    if (!api.requireAccount?.('Sign in to browse the Community Hub.', openCommunityHub)) return;
+    // Signed out, the hub opens too, on its Home feed: open Fakemon and
+    // Woogidex's own posts (guest_feed), with a way to sign up. RLS refuses
+    // published_mons to anonymous callers, so nothing else is fetched.
+    const guest = !state.user;
     exitCommunityRoute();
     // leaving a preview is navigation, not a save - mirrors showCollection()'s
     // handling of shared-link previews. without this guard, force-saving here
@@ -804,7 +805,7 @@ async function openCommunityHub({ panel = null }: { panel?: any } = {}) {
     api.activateTopLevelView?.('community-view');
     api.setRoute?.('community', 'Community Hub');
 
-    if (!hasAcceptedCommunityRules()) {
+    if (!guest && !hasAcceptedCommunityRules()) {
         openCommunityRulesModal({ requireAgreement: false });
     }
 
@@ -812,6 +813,11 @@ async function openCommunityHub({ panel = null }: { panel?: any } = {}) {
     // at someone for a grid that is about to look exactly as they left it.
     const cs = ensureCommunityState();
     setCommunityPanel(panel || cs.panel || 'feed');
+    if (guest) {
+        api.fetchFeed?.('foryou');
+        paintCommunityPanels();
+        return;
+    }
     // The events panel loads from its own tables, not the feed, so it is
     // painted here rather than waiting on fetchCommunityFeed() below.
     if (cs.panel === 'events') api.showEventsPanel?.();
@@ -918,7 +924,7 @@ function renderCommunityGrid() {
 // returning from a detail page doesn't reset to landing.
 const COMMUNITY_PANELS = {
     feed:    { title: 'Community Hub' },
-    browse:  { title: 'Browse Fakemon' },
+    browse:  { title: 'Browse' },
     events:  { title: 'Events' },
     groups:  { title: 'Groups' }
 };

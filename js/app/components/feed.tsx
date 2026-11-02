@@ -152,7 +152,8 @@ function FeedActions({ item, comments, onComments }: { item: FeedItem; comments:
     return (
         <div className="feed-actions">
             <Reactions post={item} />
-            <button type="button" className={`feed-action${comments ? ' is-open' : ''}`} onClick={onComments} aria-expanded={comments} title="Comments">
+            <button type="button" className={`feed-action${comments ? ' is-open' : ''}`} aria-expanded={comments} title="Comments"
+                onClick={() => { if (state.user || api.requireAccount?.('Sign in to read and write comments.')) onComments(); }}>
                 <Icon name="message-circle" size={18} /><span>{Number(item.comment_count || 0)}</span>
             </button>
             <RepostButton item={item} />
@@ -275,6 +276,42 @@ function EventEmbed({ item }: { item: any }) {
     );
 }
 
+/**
+ * A post's words. In the feed they're clamped to a few lines; "Keep reading"
+ * shows when they're cut, either by the clamp (measured, since it depends on
+ * the width) or by the server (a very long post), and opens the rest in place.
+ * Only a post the server cut short goes to its own page for the rest.
+ */
+function PostBody({ item, full, onOpen }: { item: FeedItem; full: boolean; onOpen: () => void }) {
+    const box = useRef<HTMLDivElement>(null);
+    const [expanded, setExpanded] = useState(false);
+    const [clamped, setClamped] = useState(false);
+    const clamp = !full && !expanded;
+    useEffect(() => {
+        const el = box.current?.querySelector('.rich-text') as HTMLElement | null;
+        if (!el || !clamp) { setClamped(false); return; }
+        const measure = () => setClamped(el.scrollHeight - el.clientHeight > 2);
+        measure();
+        if (typeof ResizeObserver === 'undefined') return;
+        const ro = new ResizeObserver(measure);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [item.body, clamp]);
+    const more = !full && (clamped || !!item.truncated);
+    const readMore = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (item.truncated && (expanded || !clamped)) { onOpen(); return; }
+        setExpanded(true);
+    };
+    return (
+        <div ref={box} className={`post-body${clamp ? ' is-clamped' : ''}`}
+            onClick={e => { if (!full && !expanded && !(e.target as HTMLElement).closest('a, button, .rt-spoiler')) { if (clamped) setExpanded(true); else if (item.truncated || state.user) onOpen(); } }}>
+            <RichText text={item.body || ""} />
+            {more && <button type="button" className="post-more" onClick={readMore}>Keep reading</button>}
+        </div>
+    );
+}
+
 export function PostFeedCard({ item, full = false }: { item: FeedItem; full?: boolean }) {
     const ref = useImpression(`post:${item.id}`);
     const isMine = !!state.user && state.user.id === item.user_id;
@@ -318,17 +355,16 @@ export function PostFeedCard({ item, full = false }: { item: FeedItem; full?: bo
                     </div>
                 </div>
             ) : item.body ? (
-                <div className={`post-body${!full ? ' is-clamped' : ''}`} onClick={e => { if (!full && !(e.target as HTMLElement).closest('a')) open(); }}>
-                    <RichText text={item.body} />
-                    {item.truncated && !full && <span className="post-more">Keep reading</span>}
-                </div>
+                <PostBody item={item} full={full} onOpen={open} />
             ) : null}
             <PostMons mons={item.mons || []} />
             <PostEvents events={item.events} />
             <PollView kind="post" parentId={item.id} />
             {item.repost && <div className="repost-embed-wrap"><RepostEmbed item={item.repost} /></div>}
             {(item.tags || []).length > 0 && (
-                <div className="post-tags">{(item.tags || []).map((t: string) => <span key={t} className="post-tag">#{t}</span>)}</div>
+                <div className="post-tags">{(item.tags || []).map((t: string) => (
+                    <button key={t} type="button" className="post-tag" onClick={() => api.openSearchPage?.(`#${t}`)} title={`Posts tagged #${t}`}>#{t}</button>
+                ))}</div>
             )}
             <FeedActions item={item} comments={comments} onComments={() => setComments(v => !v)} />
             {comments && <InlineComments kind="post" item={item} />}

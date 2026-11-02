@@ -20,7 +20,7 @@ import type { FeedItem } from '../../features/feed-algorithm.ts';
 
 type Panel = 'feed' | 'browse' | 'events' | 'groups';
 
-const TABS: Array<[Panel, string]> = [['feed', 'Feed'], ['browse', 'Browse Fakémon'], ['groups', 'Groups'], ['events', 'Events']];
+const TABS: Array<[Panel, string]> = [['feed', 'Home'], ['browse', 'Browse'], ['groups', 'Groups'], ['events', 'Events']];
 const PANELS = TABS.map(([k]) => k);
 
 // One column: the rail's sections become cards inside the feed. Keep in step
@@ -47,11 +47,14 @@ export function CommunityPage() {
     // the sections list is a sidebar (sections go up and down) or, on a
     // phone, a row of chips (sections go left and right)
     const main = useSlide(panel, PANELS, useMedia('(max-width: 760px)') ? 'x' : 'y');
+    const guest = !state.user;
     return (
-        <div className="hub">
+        <div className={`hub${guest ? ' is-guest' : ''}`}>
             {/* the hub's sections, as a sidebar (a scrolling row of chips on a phone) */}
             <aside className="hub-nav" aria-label="Community Hub">
-                <button className="btn btn-primary hub-publish" type="button" onClick={() => api.openCommunityPublishModal()}><Icon name="upload" /><span>Publish a Fakémon</span></button>
+                {guest
+                    ? <button className="btn btn-primary hub-publish" type="button" onClick={() => api.openAuthModal?.('signup')}><Icon name="user-plus" /><span>Join Woogidex</span></button>
+                    : <button className="btn btn-primary hub-publish" type="button" onClick={() => api.openCommunityPublishModal()}><Icon name="upload" /><span>Publish a Fakémon</span></button>}
                 <nav className="hub-nav-list" id="community-tabs" role="tablist" aria-orientation="vertical">
                     {TABS.map(([key, label]) => (
                         <button key={key} className={`hub-nav-item${panel === key ? ' active' : ''}`} type="button" role="tab" aria-selected={panel === key}
@@ -66,9 +69,9 @@ export function CommunityPage() {
             <div className="hub-main" ref={main}>
                 <NetworkNotice />
                 {panel === 'feed' && <Feed />}
-                {panel === 'browse' && <Browse />}
-                {panel === 'events' && <div className="community-panel"><EventsPanel /></div>}
-                {panel === 'groups' && <div className="community-panel"><GroupsPanel /></div>}
+                {panel === 'browse' && (guest ? <GuestLocked what="browse" /> : <Browse />)}
+                {panel === 'events' && (guest ? <GuestLocked what="events" /> : <div className="community-panel"><EventsPanel /></div>)}
+                {panel === 'groups' && (guest ? <GuestLocked what="groups" /> : <div className="community-panel"><GroupsPanel /></div>)}
             </div>
         </div>
     );
@@ -95,7 +98,8 @@ function Feed() {
     useEffect(() => { setShown(CHUNK); }, [tab, t.fetchedAt]);
     // a fresh load: the cards arrive one after another
     useEffect(() => { if (t.fetchedAt && list.current) staggerIn(Array.from(list.current.children)); }, [t.fetchedAt]);
-    useEffect(() => { api.fetchFeed(tab); }, [tab]);
+    // signing in (or out) on this page swaps the guest feed for the full one
+    useEffect(() => { api.fetchFeed(tab); }, [tab, state.user?.id]);
 
     // more cards as you near the bottom; at the very end, older items
     useEffect(() => {
@@ -109,15 +113,20 @@ function Feed() {
         return () => io.disconnect();
     }, [shown, items.length, tab, t.hasMore, t.loading]);
 
+    const guest = !state.user;
     return (
         <div className="feed-layout">
             <div className="feed-main">
-                <PostComposer />
+                {guest ? <GuestHero /> : <PostComposer />}
                 <div className="feed-list" ref={list}>
                     {t.error && <div className="feed-empty"><Icon name="exclamation-triangle" size={20} /><p>{t.error}</p></div>}
                     {!items.length && t.loading && <FeedSkeleton />}
                     {!items.length && !t.loading && !t.error && <EmptyFeed />}
-                    {oneColumn
+                    {guest
+                        ? <WithInlineCards items={items.slice(0, shown)} done={shown >= items.length && !t.loading} cards={[
+                            [4, <GuestJoinCard key="join" />]
+                        ]} />
+                        : oneColumn
                         ? <WithInlineCards items={items.slice(0, shown)} done={shown >= items.length && !t.loading} cards={[
                             [3, <LiveContests key="live" inline />],
                             [6, <SuggestedCreators key="creators" items={creatorPool} inline />]
@@ -125,7 +134,18 @@ function Feed() {
                         : items.slice(0, shown).map(item => <FeedCard key={`${item.kind}:${item.id}`} item={item} />)}
                 </div>
                 <div ref={sentinel} className="feed-sentinel" />
-                {items.length > 0 && shown >= items.length && (
+                {guest && items.length > 0 && shown >= items.length && !t.loading && (
+                    <div className="feed-end guest-feed-end">
+                        <Icon name="sparkles" size={22} />
+                        <p>That's everything you can see without an account.</p>
+                        <span>Sign up to see every Fakémon, posts from everyone, groups and events.</span>
+                        <div className="guest-cta-buttons">
+                            <button type="button" className="btn btn-primary btn-sm" onClick={() => api.openAuthModal?.('signup')}>Create a free account</button>
+                            <button type="button" className="btn btn-secondary btn-sm" onClick={() => api.openAuthModal?.('signin')}>Sign in</button>
+                        </div>
+                    </div>
+                )}
+                {!guest && items.length > 0 && shown >= items.length && (
                     <div className="feed-end">
                         <Icon name="check-circle" size={22} />
                         <p>You're all caught up!</p>
@@ -134,7 +154,12 @@ function Feed() {
                 )}
                 {t.loading && items.length > 0 && <FeedSkeleton count={1} />}
             </div>
-            {!oneColumn && (
+            {!oneColumn && guest && (
+                <aside className="feed-rail" aria-label="Join Woogidex">
+                    <GuestRail />
+                </aside>
+            )}
+            {!oneColumn && !guest && (
                 <aside className="feed-rail" aria-label="More from the hub">
                     <LiveContests />
                     <YourGroupsRail />
@@ -176,6 +201,89 @@ function RailCard({ inline, title, icon, action, className = '', children }: {
             </header>
             {children}
         </section>
+    );
+}
+
+// ==================== signed out ====================
+// The hub opens for everyone, but signed out it shows only open Fakémon and
+// Woogidex's own posts (news and updates). Everything else asks you to join.
+
+const PERKS: Array<[string, string]> = [
+    ['sparkles', 'Publish your Fakémon and get likes and comments'],
+    ['users', 'Follow creators and join groups'],
+    ['trophy', 'Enter events and contests'],
+    ['chat-bubble-left-right', 'Message other makers'],
+    ['cloud', 'Back up your collection to the cloud']
+];
+
+function GuestButtons({ small = false }: { small?: boolean }) {
+    const size = small ? ' btn-sm' : '';
+    return (
+        <div className="guest-cta-buttons">
+            <button type="button" className={`btn btn-primary${size}`} onClick={() => api.openAuthModal?.('signup')}>Sign up, it's free</button>
+            <button type="button" className={`btn btn-secondary${size}`} onClick={() => api.openAuthModal?.('signin')}>Log in</button>
+        </div>
+    );
+}
+
+/** Top of the guest feed: what this is, and how to get the rest. */
+function GuestHero() {
+    return (
+        <section className="guest-hero">
+            <div className="guest-hero-text">
+                <span className="guest-hero-kicker"><Icon name="globe" size={14} /> Community Hub</span>
+                <h2>See what people are making</h2>
+                <p>You're looking at open Fakémon and news from Woogidex. Make an account to see everything, and to share your own.</p>
+            </div>
+            <GuestButtons />
+        </section>
+    );
+}
+
+/** The feed's side column, signed out. */
+function GuestRail() {
+    return (
+        <section className="feed-rail-card guest-rail">
+            <h3>Join the community</h3>
+            <ul className="guest-perks">{PERKS.map(([icon, text]) => <li key={text}><Icon name={icon} size={16} />{text}</li>)}</ul>
+            <GuestButtons small />
+            <p className="guest-rail-note">Making Fakémon never needs an account. Your collection stays on this device.</p>
+        </section>
+    );
+}
+
+/** In among the guest feed's cards, like a phone app's "Suggested for you". */
+function GuestJoinCard() {
+    return (
+        <section className="feed-card feed-inline guest-join-card" aria-label="Join Woogidex">
+            <header className="feed-inline-head">
+                <span className="feed-inline-icon"><Icon name="user-plus" size={16} /></span>
+                <h3>There's a lot more in here</h3>
+            </header>
+            <p>Sign up to see every Fakémon, posts from everyone, and your own feed.</p>
+            <GuestButtons small />
+        </section>
+    );
+}
+
+const LOCKED: Record<string, [string, string, string]> = {
+    browse: ['layout-grid', 'Browse every Fakémon', 'Search and sort everything the community has published, by type, stats, likes and more.'],
+    groups: ['users', 'Groups', 'Art clubs, region projects and battle teams. Join one, or start your own.'],
+    events: ['trophy', 'Events and contests', 'Enter your Fakémon in community events, vote, and see the winners.']
+};
+
+/** A section of the hub that needs an account. */
+function GuestLocked({ what }: { what: 'browse' | 'groups' | 'events' }) {
+    const [icon, title, body] = LOCKED[what];
+    return (
+        <div className="community-panel guest-locked">
+            <span className="guest-locked-icon"><Icon name={icon} size={28} /></span>
+            <h2>{title}</h2>
+            <p>{body}</p>
+            <p className="guest-locked-sub">This part of the hub needs a free account.</p>
+            <GuestButtons />
+            <button type="button" className="link-btn guest-locked-back" onClick={() => api.showCommunityPanel('feed')}>Back to Home</button>
+        </div>
     );
 }
 

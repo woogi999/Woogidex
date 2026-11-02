@@ -214,7 +214,7 @@ function shapeItem(raw: any): FeedItem {
         api.registerTypeLooks?.(raw.customTypes);
         return {
             ...raw, ...shared,
-            fakemon_data: { name: raw.name, species: raw.species, number: raw.number, type1: raw.type1, type2: raw.type2, customTypes: raw.customTypes || [], artScaling: raw.artScaling },
+            fakemon_data: { name: raw.name, species: raw.species, number: raw.number, type1: raw.type1, type2: raw.type2, customTypes: raw.customTypes || [], artScaling: raw.artScaling, ...(raw.thumbnail ? { thumbnail: raw.thumbnail } : {}) },
             published_at: raw.created_at
         };
     }
@@ -265,8 +265,10 @@ async function attachPostEvents(rows: any[]) {
 }
 
 export async function fetchFeed(tab: FeedTab = 'foryou', { force = false, older = false }: { force?: boolean; older?: boolean } = {}) {
-    if (!state.user) return;
     const t = ss().feed[tab];
+    // signed out: open Fakemon and Woogidex's own posts only (guest_feed in the database)
+    if (!state.user) return fetchGuestFeed(t, { force, older });
+    if (guestFeedFor === 'guest') { t.items = []; t.fetchedAt = 0; t.loading = false; guestFeedFor = null; }
     if (t.loading) return;
     if (!force && !older && t.items.length && Date.now() - t.fetchedAt < FEED_MAX_AGE_MS) return;
     t.loading = true;
@@ -297,6 +299,64 @@ export async function fetchFeed(tab: FeedTab = 'foryou', { force = false, older 
         t.loading = false;
         notify();
     }
+}
+
+/** Who the guest feed was loaded for: a sign-in or sign-out starts it over. */
+let guestFeedFor: string | null = null;
+
+async function fetchGuestFeed(t: any, { force = false, older = false }: { force?: boolean; older?: boolean }) {
+    if (guestFeedFor !== 'guest') { t.items = []; t.fetchedAt = 0; guestFeedFor = 'guest'; }
+    if (t.loading) return;
+    if (!force && !older && t.items.length && Date.now() - t.fetchedAt < FEED_MAX_AGE_MS) return;
+    t.loading = true;
+    t.error = '';
+    notify();
+    try {
+        const client = await api.getClient();
+        const before = older && t.items.length ? chronological(t.items).at(-1)!.created_at : null;
+        const { data, error } = await client.rpc('guest_feed', { p_before: before, p_limit: older ? 30 : 60 });
+        if (error) throw error;
+        const rows = (data || []).map(shapeItem);
+        if (older) {
+            const known = new Set(t.items.map((i: FeedItem) => `${i.kind}:${i.id}`));
+            const fresh = rows.filter((r: FeedItem) => !known.has(`${r.kind}:${r.id}`));
+            t.items = [...t.items, ...fresh];
+            t.hasMore = fresh.length > 0;
+        } else {
+            t.items = rows;
+            t.hasMore = rows.length > 0;
+            t.fetchedAt = Date.now();
+        }
+    } catch (e: any) {
+        log.error('SOCIAL', 'Guest feed load failed', e);
+        t.error = 'Couldn’t load the hub right now.';
+    } finally {
+        t.loading = false;
+        notify();
+    }
+}
+
+/** Posts with one #tag, newest first. Signed out, only Woogidex's own. */
+export async function fetchTagFeed(tag: string, { before = null as string | null } = {}): Promise<FeedItem[]> {
+    const clean = String(tag || '').replace(/^#/, '').toLowerCase().replace(/[^a-z0-9_]/g, '').slice(0, 24);
+    if (!clean) return [];
+    const client = await api.getClient();
+    const { data, error } = state.user
+        ? await client.rpc('tag_feed', { p_tag: clean, p_before: before, p_limit: 40 })
+        : await client.rpc('guest_feed', { p_before: before, p_limit: 40, p_tag: clean });
+    if (error) throw error;
+    return state.user ? prepareFeedRows(data) : (data || []).map(shapeItem);
+}
+
+/** Tags people used lately that start with this, for search suggestions. */
+export async function popularTags(prefix = '', limit = 8): Promise<Array<{ tag: string; uses: number }>> {
+    if (!state.user) return [];
+    try {
+        const client = await api.getClient();
+        const { data, error } = await client.rpc('popular_tags', { p_prefix: String(prefix || '').replace(/^#/, ''), p_limit: limit });
+        if (error) throw error;
+        return (data || []).map((r: any) => ({ tag: r.tag, uses: Number(r.uses) || 0 }));
+    } catch { return []; }
 }
 
 // the order is computed once per load (and kept while you scroll), so cards

@@ -2,7 +2,7 @@
 // artwork, and a post's comment thread.
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { api } from '../../core/app.ts';
+import { api, state } from '../../core/app.ts';
 import { STAT_KEYS, communityBst, emptyFeedMessage, evoBadgeLabel, prepareCommunityFeed } from '../../features/community-feed-model.ts';
 import { Avatar } from './Avatar.tsx';
 import { BadgeRow } from './Badge.tsx';
@@ -43,7 +43,9 @@ export function LazyArt({ row, className = 'card-art', children, full = false }:
     full?: boolean;
 }) {
     const mon = row.fakemon_data || {};
-    const [art, setArt] = useState<string>(full ? '' : mon.thumbnail || mon.artwork || '');
+    // signed out, an open Fakémon's thumbnail is all there is (its full art needs an account to fetch)
+    const guestArt = !state.user && (row as any).is_open ? mon.thumbnail || '' : '';
+    const [art, setArt] = useState<string>(full ? guestArt : mon.thumbnail || mon.artwork || '');
     const ref = useRef<HTMLElement>(null);
 
     useEffect(() => {

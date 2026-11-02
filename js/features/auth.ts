@@ -1,4 +1,5 @@
 import { getClient } from '../core/supabase.ts';
+import { effectiveZoom } from '../core/ui-scale.ts';
 import { dropCachedAvatar } from '../core/avatar.ts';
 import { frameCount } from '../core/art-shield.ts';
 import { esc, publicName } from '../core/html.ts';
@@ -1032,16 +1033,17 @@ function positionUserHoverCard(anchor) {
     const gap = 10;
     card.style.display = 'block';
     card.style.visibility = 'hidden';
-    const width = card.offsetWidth || 300;
-    const height = card.offsetHeight || 180;
+    const z = effectiveZoom();
+    const width = (card.offsetWidth || 300) * z;
+    const height = (card.offsetHeight || 180) * z;
     let left = rect.left;
     let top = rect.bottom + gap;
     if (left + width > window.innerWidth - 12) left = window.innerWidth - width - 12;
     if (left < 12) left = 12;
     if (top + height > window.innerHeight - 12) top = rect.top - height - gap;
     if (top < 12) top = 12;
-    card.style.left = `${Math.round(left)}px`;
-    card.style.top = `${Math.round(top)}px`;
+    card.style.left = `${Math.round(left / z)}px`;
+    card.style.top = `${Math.round(top / z)}px`;
     card.style.visibility = 'visible';
 }
 
