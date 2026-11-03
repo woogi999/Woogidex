@@ -235,6 +235,45 @@ function MoveRow({ move, index, ghost, onAdd }: { move: any; index?: number; gho
     );
 }
 
+/** The same move as a card, for the grid view: badges, name, numbers, then how it's learned. */
+function MoveCard({ move, index, ghost, onAdd }: { move: any; index?: number; ghost?: boolean; onAdd?: () => void }) {
+    const custom = api.isCustomMove(move);
+    const open = () => {
+        if (ghost) { onAdd?.(); return; }
+        if (custom) api.openCustomMoveModal(index); else api.showMoveDetail(move.name);
+    };
+    const type = String(move.type || 'Normal');
+    const prio = Number(move.priority) || 0;
+    return (
+        <div className={`ls-card${ghost ? ' is-ghost' : ''}${custom ? ' is-custom' : ''}`} role="listitem" tabIndex={0}
+            onClick={open} onKeyDown={e => { if (e.key === 'Enter' && e.target === e.currentTarget) open(); }}
+            title={ghost ? `Add ${move.name} to the learnset` : custom ? 'Edit this custom move' : 'See what it does'}>
+            <span className="ls-card-top">
+                <span className={`type-pill type-${type.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>{type}</span>
+                <CategoryBadge category={move.category} iconOnly />
+                {custom && <span className="ls-custom-tag">Custom</span>}
+                {!ghost && <button className="ls-remove" type="button" aria-label={`Remove ${move.name}`} title="Remove" onClick={e => { stop(e); api.removeLearnsetMove(index); }}><Icon name="x" size={14} /></button>}
+            </span>
+            <span className="ls-card-name">{move.name}</span>
+            <span className="ls-card-nums">
+                <span><small>BP</small>{Number(move.basePower) || '—'}</span>
+                <span><small>Acc</small>{accuracyText(move.accuracy)}</span>
+                <span><small>PP</small>{move.pp || '—'}</span>
+                {prio !== 0 && <span><small>Prio</small>{prioText(prio)}</span>}
+            </span>
+            <span className="ls-card-learn">
+                {ghost ? <span className="ls-add-hint"><Icon name="plus" size={13} />Add</span> : <MethodCell move={move} index={index!} />}
+            </span>
+        </div>
+    );
+}
+
+// the table or the grid: a choice for this browser only, the table by default
+const VIEW_KEY = 'woogidex-learnset-view';
+type LearnsetView = 'table' | 'grid';
+const readView = (): LearnsetView => { try { return localStorage.getItem(VIEW_KEY) === 'grid' ? 'grid' : 'table'; } catch { return 'table'; } };
+const saveView = (v: LearnsetView) => { try { if (v === 'table') localStorage.removeItem(VIEW_KEY); else localStorage.setItem(VIEW_KEY, v); } catch { /* private mode */ } };
+
 const COLUMNS: Array<[string, string, string?]> = [
     ['name', 'Name'], ['type', 'Type'], ['category', 'Cat'], ['power', 'BP'], ['accuracy', 'Acc'], ['pp', 'PP'], ['priority', 'Prio'], ['method', 'Learned']
 ];
@@ -249,6 +288,20 @@ function HeaderRow() {
                 <SortTh key={key} as="div" className={`ls-c ${COL_CLASS[key]}`} label={label} sortKey={key} sort={sort} onSort={k => api.cycleLearnsetSort(k)} />
             ))}
             <span className="ls-c ls-x" />
+        </div>
+    );
+}
+
+/** The grid view's sort: the same column names, as one row of buttons. */
+function SortStrip() {
+    const f = api.getLearnsetFilters();
+    const sort = f.sort === 'default' ? null : { key: f.sort, order: f.order };
+    return (
+        <div className="ls-sortbar" role="group" aria-label="Sort the learnset">
+            <span className="ls-sortbar-label">Sort</span>
+            {COLUMNS.map(([key, label]) => (
+                <SortTh key={key} as="div" className="ls-sortbar-item" label={label} sortKey={key} sort={sort} onSort={k => api.cycleLearnsetSort(k)} />
+            ))}
         </div>
     );
 }
@@ -273,6 +326,9 @@ export function LearnsetEditor() {
     const f = api.getLearnsetFilters();
     const [limit, setLimit] = useState(60);
     const [help, setHelp] = useState(false);
+    const [view, setView] = useState<LearnsetView>(readView);
+    const pickView = (v: LearnsetView) => { setView(v); saveView(v); };
+    const grid = view === 'grid';
     const input = useRef<HTMLInputElement>(null);
     const { method, level } = api.getNewMoveMethod();
     const res = api.learnsetSearch(limit);
@@ -312,6 +368,10 @@ export function LearnsetEditor() {
                             onChange={e => api.setNewMoveMethod({ level: e.target.value })} />
                     )}
                 </div>
+                <div className="segmented ls-view" role="group" aria-label="Show the learnset as">
+                    <button type="button" className={grid ? '' : 'active'} aria-pressed={!grid} title="Table" aria-label="Table" onClick={() => pickView('table')}><Icon name="table-cells" /></button>
+                    <button type="button" className={grid ? 'active' : ''} aria-pressed={grid} title="Grid" aria-label="Grid" onClick={() => pickView('grid')}><Icon name="squares-2x2" /></button>
+                </div>
             </div>
             {help && <QueryHelp onPick={q => { setQuery(q); setHelp(false); input.current?.focus(); }} />}
             {res.clauses.length > 0 && (res.clauses.length > 1 || res.clauses[0].not || res.clauses[0].any.some((a: any) => a.kind !== 'name')) && (
@@ -319,9 +379,11 @@ export function LearnsetEditor() {
                     {res.clauses.map((c: any, i: number) => <span key={i} className="ls-chip">{describeClause(c)}</span>)}
                 </div>
             )}
-            <div className="ls-table" role="table" aria-label="Learnset">
-                <HeaderRow />
-                {learned.map(({ m, i }) => <MoveRow key={`k:${m.name}-${i}`} move={m} index={i} />)}
+            <div className={grid ? 'ls-table is-grid' : 'ls-table'} role={grid ? 'region' : 'table'} aria-label="Learnset">
+                {grid ? <SortStrip /> : <HeaderRow />}
+                {grid
+                    ? learned.length > 0 && <div className="ls-grid" role="list">{learned.map(({ m, i }) => <MoveCard key={`k:${m.name}-${i}`} move={m} index={i} />)}</div>
+                    : learned.map(({ m, i }) => <MoveRow key={`k:${m.name}-${i}`} move={m} index={i} />)}
                 {!learned.length && (
                     total
                         ? <p className="ls-empty">{query ? 'It doesn’t know any moves like that.' : 'No moves.'}</p>
@@ -333,7 +395,9 @@ export function LearnsetEditor() {
                         <small>Click one to add it{method !== 'none' ? ` as ${method === 'level' ? `Lv ${level || '?'}` : method === 'tm' ? 'TM' : 'Egg'}` : ''} · Enter adds the first</small>
                     </div>
                 )}
-                {others.map(m => <MoveRow key={`o:${m.key}`} move={m} ghost onAdd={() => api.addMoveFromSearch(m.key)} />)}
+                {grid
+                    ? others.length > 0 && <div className="ls-grid" role="list">{others.map(m => <MoveCard key={`o:${m.key}`} move={m} ghost onAdd={() => api.addMoveFromSearch(m.key)} />)}</div>
+                    : others.map(m => <MoveRow key={`o:${m.key}`} move={m} ghost onAdd={() => api.addMoveFromSearch(m.key)} />)}
                 {res.more > 0 && <button type="button" className="ls-more" onClick={() => setLimit(n => n + 100)}>Show {Math.min(100, res.more)} more of {res.more}</button>}
                 {query && !others.length && !learned.length && <p className="ls-empty">No moves match “{query}”.</p>}
             </div>
