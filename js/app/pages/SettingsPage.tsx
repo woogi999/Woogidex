@@ -9,7 +9,8 @@ import { api, state } from '../../core/app.ts';
 import { isLowEndDevice } from '../../core/device.ts';
 import { Icon } from '../components/Icon.tsx';
 import { useStore, useViewShown } from '../store.ts';
-import { useSlide } from '../hooks.ts';
+import { useRoute, useSlide } from '../hooks.ts';
+import { Link } from '../components/Link.tsx';
 import { slideIn } from '../../core/motion.ts';
 import { ext, type SettingsGroup as Group, type SettingsItem as Item, type SettingsSection as Section } from '../../core/extend.ts';
 import { resetTours } from '../../features/onboarding.ts';
@@ -128,26 +129,27 @@ export function SettingsPage() {
     useStore();
     const opened = useViewShown('settings-view');
     const narrow = useNarrow();
-    const [section, setSection] = useState<SectionKey>('appearance');
-    // phones: the menu, or a section on top of it
-    const [inSection, setInSection] = useState(false);
+    // the address names the section: /settings/<section>. /settings alone is
+    // the first section on a wide screen, and the menu on a phone
+    const route = useRoute();
+    const asked = route.name === 'settings' ? route.param : '';
     const [query, setQuery] = useState('');
     const sections = visibleSections();
     const Identity = ext.settingsIdentity;
+    // phones: the menu, or a section on top of it
+    const inSection = !!asked;
 
-    // every visit starts on the section it was opened with (the menu, on a
-    // phone, unless one was asked for), and refetches what the server knows
+    // every visit refetches what the server knows
     useEffect(() => {
         if (!opened) return;
-        const asked = api.takeSettingsTab?.() as SectionKey | '';
-        setSection(asked || 'appearance');
-        setInSection(!!asked);
         setQuery('');
         for (const fn of ext.settingsOpened) fn();
     }, [opened]);
+    // a new section starts at its top, with the search cleared
+    useEffect(() => { setQuery(''); window.scrollTo({ top: 0 }); }, [asked]);
 
     // the Account section goes away on sign-out
-    const current = sections.find(s => s.key === section) || sections[0];
+    const current = sections.find(s => s.key === asked) || sections.find(s => s.key === 'appearance') || sections[0];
     const searching = query.trim().length > 0;
     const showMain = !narrow || inSection || searching;
     const showNav = !narrow || (!inSection && !searching) || searching;
@@ -164,12 +166,7 @@ export function SettingsPage() {
         if (narrow) slideIn(root.current, inSection ? 1 : -1);
     }, [inSection]);
 
-    const open = (key: SectionKey) => {
-        setSection(key);
-        setInSection(true);
-        setQuery('');
-        window.scrollTo({ top: 0 });
-    };
+    const open = (key: SectionKey) => api.openPath(`settings/${key}`);
 
     return (
         <div ref={root} className={`st${narrow ? ' st-narrow' : ''}${narrow && inSection && !searching ? ' st-in-section' : ''}`}>
@@ -181,15 +178,14 @@ export function SettingsPage() {
                     {!searching && (
                         <nav className="st-nav-list">
                             {sections.map(s => (
-                                <button key={s.key} type="button"
+                                <Link key={s.key} to={`settings/${s.key}`}
                                     className={`st-nav-item${!narrow && s.key === current.key ? ' is-active' : ''}`}
-                                    aria-current={!narrow && s.key === current.key ? 'page' : undefined}
-                                    onClick={() => open(s.key)}>
+                                    aria-current={!narrow && s.key === current.key ? 'page' : undefined}>
                                     <span className="st-nav-text">
                                         <span className="st-nav-label">{s.label}</span>
                                     </span>
                                     <Icon name="chevron-right" size={16} className="st-nav-chevron" />
-                                </button>
+                                </Link>
                             ))}
                         </nav>
                     )}
@@ -200,7 +196,7 @@ export function SettingsPage() {
                 <main className="st-main" ref={narrow ? undefined : main}>
                     {searching
                         ? <SearchResults query={query} sections={sections} onOpen={open} />
-                        : <SectionView key={current.key} section={current} onBack={narrow ? () => setInSection(false) : undefined} />}
+                        : <SectionView key={current.key} section={current} onBack={narrow ? () => api.openPath('settings') : undefined} />}
                 </main>
             )}
         </div>
@@ -323,9 +319,9 @@ function SearchResults({ query, sections, onOpen }: { query: string; sections: S
             </header>
             {hits.map(({ section, groups }) => (
                 <div key={section.key} className="st-result">
-                    <button type="button" className="st-result-section" onClick={() => onOpen(section.key)}>
+                    <Link to={`settings/${section.key}`} className="st-result-section">
                         {section.label}<Icon name="chevron-right" size={14} />
-                    </button>
+                    </Link>
                     {groups.map(({ group, items }) => <GroupView key={group.id} group={group} items={items} />)}
                 </div>
             ))}

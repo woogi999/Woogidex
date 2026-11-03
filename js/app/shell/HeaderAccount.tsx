@@ -7,6 +7,7 @@ import { notificationsView } from '../../core/notifications.ts';
 import { Avatar } from '../components/Avatar.tsx';
 import { BadgeRow } from '../components/Badge.tsx';
 import { Icon } from '../components/Icon.tsx';
+import { Link, profilePath } from '../components/Link.tsx';
 import { useClickAway } from '../components/editor/fields.tsx';
 import { countLabel } from './Header.tsx';
 
@@ -22,11 +23,11 @@ export function MessagesButton() {
     const active = document.body.dataset.page === 'messages-view';
     const unread: number = api.unreadMessageTotal?.() || 0;
     return (
-        <button className={`notifications-bell-btn header-messages-btn${active ? ' active' : ''}`} type="button" onClick={() => api.openMessages()}
+        <Link to="messages" className={`notifications-bell-btn header-messages-btn${active ? ' active' : ''}`}
             aria-label={unread ? `Messages, ${unread} unread` : 'Messages'} title="Messages">
             <Icon name="chat-bubble-oval-left-ellipsis" size={20} />
             {unread > 0 && <span className="notifications-badge">{countLabel(unread)}</span>}
-        </button>
+        </Link>
     );
 }
 
@@ -57,8 +58,12 @@ export function Notifications() {
                             ))
                             : !v.items.length
                                 ? <div className="notifications-empty">You're all caught up - no notifications yet.</div>
-                                : v.items.map(n => (
-                                    <button key={n.id} className={`notification-item${n.read ? '' : ' unread'}`} type="button" onClick={() => api.openNotification(n.id)}>
+                                : v.items.map(n => {
+                                    // a link when it leads somewhere, else a button that only marks it read
+                                    const Row: any = n.path ? Link : 'button';
+                                    const target = n.path ? { to: n.path } : { type: 'button' };
+                                    return (
+                                    <Row key={n.id} className={`notification-item${n.read ? '' : ' unread'}`} {...target} onClick={() => api.onNotificationClick(n.id)}>
                                         <Avatar userId={n.actorId} url={n.actorAvatar} name={n.actorName} className="notification-avatar" />
                                         <span className="notification-body">
                                             <span className="notification-text"><strong>{n.actorName}</strong> {n.text}</span>
@@ -66,14 +71,18 @@ export function Notifications() {
                                             <span className="notification-time">{n.time}</span>
                                         </span>
                                         {!n.read && <span className="notification-dot" aria-hidden="true" />}
-                                    </button>
-                                ))}
+                                    </Row>
+                                    );
+                                })}
                     </div>
                 </div>
             )}
         </div>
     );
 }
+
+// your own profile: by username, or by id until you have one
+const ownProfilePath = (user: { id: string; username?: string }) => user.username ? profilePath(user.username) : `profile/${user.id}`;
 
 const displayName = () => {
     const user = state.user;
@@ -102,15 +111,15 @@ export function AccountMenuTop({ close }: { close: () => void }) {
     const name = displayName();
     return (
         <>
-            <button type="button" className="header-profile-popover-identity" onClick={then(() => api.showProfileView())}>
+            <Link to={ownProfilePath(user)} className="header-profile-popover-identity" onClick={close}>
                 <span className="header-profile-popover-avatar"><Avatar userId={user.id} url={user.avatarUrl} name={name} className="header-avatar-img" /></span>
                 <span className="header-profile-popover-copy">
                     <strong>{name}<BadgeRow badgeKeys={user.displayBadges || []} size={12} /></strong>
                     <small>{user.username ? '@' + user.username : 'Edit profile'}</small>
                 </span>
-            </button>
+            </Link>
             <div className="header-profile-popover-divider" />
-            <button type="button" className="header-profile-popover-item" onClick={then(() => api.showProfileView())}><Icon name="user" /><span>View Profile</span></button>
+            <Link to={ownProfilePath(user)} className="header-profile-popover-item" onClick={close}><Icon name="user" /><span>View Profile</span></Link>
         </>
     );
 }
@@ -132,9 +141,9 @@ export function AccountMenuBottom({ close }: { close: () => void }) {
                 </>
             )}
             <div className="header-profile-popover-legal">
-                <button type="button" onClick={then(() => api.openTermsPage())}>Terms</button>
+                <Link to="terms" onClick={close}>Terms</Link>
                 <span aria-hidden="true">&middot;</span>
-                <button type="button" onClick={then(() => api.openPrivacyPage())}>Privacy</button>
+                <Link to="privacy" onClick={close}>Privacy</Link>
                 <span aria-hidden="true">&middot;</span>
                 <button type="button" onClick={then(() => api.openCommunityRulesModal())}>Community Rules</button>
             </div>

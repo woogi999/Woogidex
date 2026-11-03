@@ -184,21 +184,14 @@ function isDarkModeEnabled() {
     return document.documentElement.getAttribute('data-theme') === 'dark';
 }
 
-// the section the next Settings visit opens on (js/app/pages/SettingsPage.tsx
-// takes it). '' is "none in particular": the first section on a wide screen,
-// the list of sections on a phone.
-let settingsTabRequest = '';
-function takeSettingsTab() {
-    const tab = settingsTabRequest;
-    settingsTabRequest = '';
-    return tab;
-}
-
+// /settings/<section> opens on that section (js/app/pages/SettingsPage.tsx
+// reads it from the address). /settings alone is "none in particular": the
+// first section on a wide screen, the list of sections on a phone.
 function openSettings(tab = '') {
     log.debug('SETTINGS', 'Opening settings page');
-    settingsTabRequest = typeof tab === 'string' ? tab : '';
+    const section = typeof tab === 'string' ? tab : '';
     api.activateTopLevelView?.('settings-view');
-    api.setRoute?.('settings', 'Settings');
+    api.setRoute?.(section ? `settings/${encodeURIComponent(section)}` : 'settings', 'Settings');
 }
 
 // the Settings page renders from the settings themselves; this just tells it to
@@ -394,7 +387,7 @@ const battleStubs = {
 };
 
 Object.assign(api, data, editor, sampleSets, editorCore, pokedex, storage, exporter, showdownExport, essentialsExport, evolution, analysis, battleStubs, abilityBlocks, nameRoll, fieldRoll, protect, router, recovery, regions, notebook, customTypes, entityArt, moveInheritance, settingsApi, {
-    loadDarkMode, toggleDarkMode, updateDarkModeUI, openSettings, takeSettingsTab, isDarkModeEnabled,
+    loadDarkMode, toggleDarkMode, updateDarkModeUI, openSettings, isDarkModeEnabled,
     setRoute, setPageTitle, setShareMeta, setRobots, setCanonical, showNotFound, showLanding, activateTopLevelView,
     updateSettingsUI, loadSettings, showToast, closeHeaderProfilePopover, toggleHeaderProfilePopover
 });
@@ -540,7 +533,7 @@ async function handleRoute(route) {
         return true;
     }
     if (name === 'battle') { api.showCollection?.(); api.openBattle?.(); return true; }
-    if (name === 'settings') { api.openSettings?.(); return true; }
+    if (name === 'settings') { api.openSettings?.(param); return true; }
     if (name === '') { await showLanding(); return true; }
     if (name === 'collection') { api.showCollection?.(); return true; }
     if (name === router.NOT_FOUND) { showNotFound(param); return true; }
@@ -575,6 +568,36 @@ function showNotFound(path) {
 // the browser's back and forward buttons
 router.listenForHistory(async (route) => {
     if (!(await handleRoute(route))) api.showCollection?.();
+});
+
+/**
+ * Opens a route path the way a link does: one new history entry, then the
+ * same opener a direct visit to that address runs, so a click and a deep
+ * link can never show different pages. Like back/forward, the opener's own
+ * address changes replace that entry instead of adding more.
+ * @param path e.g. 'community/12', no leading slash
+ */
+async function openPath(path: string) {
+    router.navigateRoute(path);
+    const handled = await router.replacingHistory(() => handleRoute(router.currentRoute()));
+    if (!handled) api.showCollection?.();
+}
+api.openPath = openPath;
+
+// Links to the app's own pages are real <a href> (hover shows the address,
+// Ctrl+click and middle click open a new tab). A plain click stays in the
+// page: it is routed here instead of reloading the site. A link with a
+// target, a download, or a destination the app does not own (another site,
+// admin.html, a file) is left to the browser.
+document.addEventListener('click', (event) => {
+    if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    const a = (event.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+    if (!a || (a.target && a.target !== '_self') || a.hasAttribute('download')) return;
+    if ((a.getAttribute('href') || '').startsWith('#')) return;
+    const path = router.appPathOf(a.href);
+    if (path === null) return;
+    event.preventDefault();
+    openPath(path).catch(e => log.error('ROUTER', 'Could not open that link', e));
 });
 
 // a click on the dimmed page beside the sheet lands on #editor-view itself

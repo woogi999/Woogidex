@@ -142,7 +142,7 @@ function notificationText(n) {
  */
 function notificationsView(): {
     signedIn: boolean; open: boolean; unread: number; loading: boolean;
-    items: Array<{ id: string; read: boolean; actorName: string; actorId: string; actorAvatar: string; text: string; preview: string; time: string }>;
+    items: Array<{ id: string; read: boolean; actorName: string; actorId: string; actorAvatar: string; text: string; preview: string; time: string; path: string }>;
 } {
     const ns = ensureNotificationState();
     return {
@@ -150,7 +150,7 @@ function notificationsView(): {
         loading: !!ns.loading && !ns.items.length,
         items: ns.items.map(n => ({
             id: String(n.id), read: !!n.read, actorName: n.actor_name || 'Someone', actorId: n.actor_id || '', actorAvatar: n.actor_avatar_url || '',
-            text: notificationText(n), preview: n.preview || '', time: timeAgo(n.created_at)
+            text: notificationText(n), preview: n.preview || '', time: timeAgo(n.created_at), path: notificationPath(n)
         }))
     };
 }
@@ -253,48 +253,47 @@ async function markNotificationRead(id) {
     }
 }
 
-async function openNotification(id) {
-    const ns = ensureNotificationState();
-    const n = ns.items.find(x => String(x.id) === String(id));
-    if (!n) return;
-    await markNotificationRead(id);
-    closeNotificationsPanel();
-    if (n.type === 'mon_comment' && n.target_id) {
-        await api.openPublishedMonById?.(n.target_id);
-    } else if (n.type === 'profile_comment' && n.target_id) {
-        await api.showProfileView?.(n.target_id);
-    } else if (n.type === 'mod_content_removed' || n.type === 'report_reviewed' || n.type === 'appeal_decided') {
-        api.openSettings?.('safety');
-    } else if (n.type === 'badge_granted' || n.type === 'role_granted') {
+/**
+ * Where a notification leads, as a route path ('post/12'), or '' when it
+ * leads nowhere. Profiles open by user id: the page swaps in the username.
+ */
+function notificationPath(n): string {
+    const target = String(n.target_id || '');
+    const event = (sub = '') => `events/${encodeURIComponent(target.replace(/^event:/, ''))}${sub}`;
+    // "post:<id>", "mon:<id>", "profile:<id>" or "event:<id>"
+    const tagged = () => {
+        const [kind, id] = target.split(':');
+        const key = encodeURIComponent(id || '');
+        if (kind === 'mon') return `community/${key}`;
+        if (kind === 'profile') return `profile/${key}`;
+        if (kind === 'event') return `events/${key}`;
+        return `post/${key}`;
+    };
+    switch (n.type) {
+        case 'mod_content_removed': case 'report_reviewed': case 'appeal_decided': return 'settings/safety';
         // your own profile, where the badge now shows
-        await api.showProfileView?.(state.user?.id);
-    } else if (n.type === 'follow' && n.actor_id) {
-        await api.showProfileView?.(n.actor_id);
-    } else if (n.type === 'post_comment' && n.target_id) {
-        await api.openPost?.(n.target_id);
-    } else if ((n.type === 'event_entry_removed' || n.type === 'event_announcement') && n.target_id) {
-        await api.openEvents?.(String(n.target_id).replace(/^event:/, ''));
-    } else if ((n.type === 'event_edit_request' || n.type === 'event_feedback') && n.target_id) {
-        await api.openEvents?.(`${String(n.target_id).replace(/^event:/, '')}/enter`);
-    } else if ((n.type === 'mention' || n.type === 'comment_reply') && n.target_id) {
-        // "post:<id>", "mon:<id>", "profile:<id>" or "event:<id>": where it was
-        const [kind, id] = String(n.target_id).split(':');
-        if (kind === 'mon') await api.openPublishedMonById?.(id);
-        else if (kind === 'profile') await api.showProfileView?.(id);
-        else if (kind === 'event') await api.openEvents?.(id);
-        else await api.openPost?.(id);
-    } else if (n.type === 'event_results_private' && n.target_id) {
-        // straight to where the announcement gets written
-        await api.openEvents?.(`${String(n.target_id).replace(/^event:/, '')}/dashboard`);
-    } else if (n.type === 'mod_event_unpublished' && n.target_id) {
-        await api.openEvents?.(`${String(n.target_id).replace(/^event:/, '')}/dashboard`);
-    } else if (n.type === 'repost' && n.target_id) {
-        // "mon:<id>", "post:<id>" or "event:<id>": what was reposted
-        const [kind, id] = String(n.target_id).split(':');
-        if (kind === 'mon') await api.openPublishedMonById?.(id);
-        else if (kind === 'event') await api.openEvents?.(id);
-        else await api.openPost?.(id);
+        case 'badge_granted': case 'role_granted': return state.user?.id ? `profile/${state.user.id}` : '';
+        case 'follow': return n.actor_id ? `profile/${encodeURIComponent(n.actor_id)}` : '';
     }
+    if (!target) return '';
+    switch (n.type) {
+        case 'mon_comment': return `community/${encodeURIComponent(target)}`;
+        case 'profile_comment': return `profile/${encodeURIComponent(target)}`;
+        case 'post_comment': return `post/${encodeURIComponent(target)}`;
+        case 'event_entry_removed': case 'event_announcement': return event();
+        case 'event_edit_request': case 'event_feedback': return event('/enter');
+        // straight to where the announcement gets written
+        case 'event_results_private': case 'mod_event_unpublished': return event('/dashboard');
+        // where it was, or what was reposted
+        case 'mention': case 'comment_reply': case 'repost': return tagged();
+    }
+    return '';
+}
+
+/** A notification was clicked: it is read, and the panel closes. Its link does the rest. */
+function onNotificationClick(id) {
+    markNotificationRead(id);
+    closeNotificationsPanel();
 }
 
 // ==================== which kinds you get ====================
@@ -370,5 +369,5 @@ export async function setNotificationPref(key: string, on: boolean) {
 export {
     notificationsView,
     createNotification, fetchNotifications, refreshNotifications, renderNotificationBadge, renderNotificationsPanel,
-    toggleNotificationsPanel, closeNotificationsPanel, markAllNotificationsRead, markNotificationRead, openNotification
+    toggleNotificationsPanel, closeNotificationsPanel, markAllNotificationsRead, markNotificationRead, onNotificationClick
 };

@@ -8,11 +8,12 @@ import { api } from '../../core/app.ts';
 import { navInk } from '../../core/motion.ts';
 import { ext, registerNav, slots } from '../../core/extend.ts';
 import { Icon } from '../components/Icon.tsx';
+import { Link } from '../components/Link.tsx';
 import { useClickAway } from '../components/editor/fields.tsx';
 import { notify, useStore } from '../store.ts';
 
-registerNav({ page: 'collection-view', label: 'Collection', title: 'My Collection', icon: 'library', order: 10, open: () => api.showCollection() });
-registerNav({ page: 'battle-view', label: 'Battle', title: 'Battle', icon: 'swords', order: 30, open: () => api.openBattle() });
+registerNav({ page: 'collection-view', label: 'Collection', title: 'My Collection', icon: 'library', order: 10, path: 'collection' });
+registerNav({ page: 'battle-view', label: 'Battle', title: 'Battle', icon: 'swords', order: 30, path: 'battle' });
 
 /** A badge's number: 9+ past nine. */
 export const countLabel = (n: number) => (n > 9 ? '9+' : String(n));
@@ -55,9 +56,9 @@ export function Header() {
     return (
         <>
             <div className="header-left">
-                <button className="logo logo-button" type="button" onClick={() => api.showLanding()} aria-label="Woogidex home" title="Woogidex">
+                <Link to="" className="logo logo-button" aria-label="Woogidex home" title="Woogidex">
                     <img src="assets/woogidex_logo.png" alt="Woogidex" width="95" height="32" />
-                </button>
+                </Link>
                 {slots(ext.headerLeft).map((Slot, i) => <Slot key={i} />)}
             </div>
             <nav className="header-nav" aria-label="Main navigation" ref={nav}>
@@ -65,11 +66,11 @@ export function Header() {
                 {ext.nav.map(n => {
                     const badge = n.badge?.() || 0;
                     return (
-                        <button key={n.page} className={`header-nav-btn${section === n.page ? ' active' : ''}`} type="button" onClick={n.open}
+                        <Link key={n.page} to={n.path} className={`header-nav-btn${section === n.page ? ' active' : ''}`}
                             title={n.title} aria-label={n.title} aria-current={section === n.page ? 'page' : undefined}>
                             <Icon name={n.icon} /><span className="header-nav-label">{n.label}</span>
                             {badge > 0 && <span className="header-nav-badge">{countLabel(badge)}</span>}
-                        </button>
+                        </Link>
                     );
                 })}
             </nav>
@@ -89,7 +90,6 @@ function AccountMenu() {
     const open = accountMenuOpen;
     const ref = useClickAway(open, closeHeaderProfilePopover);
     const close = closeHeaderProfilePopover;
-    const then = (fn: () => void) => () => { close(); fn(); };
     const Button = ext.accountButton;
     const signedIn = !!api.isLoggedIn?.();
     return (
@@ -100,7 +100,7 @@ function AccountMenu() {
             {open && (
                 <div className="header-profile-popover">
                     {slots(ext.accountMenuTop).map((Slot, i) => <Slot key={i} close={close} />)}
-                    <button type="button" className="header-profile-popover-item" onClick={then(() => api.openSettings())}><Icon name="settings" /><span>Settings</span></button>
+                    <Link to="settings" className="header-profile-popover-item" onClick={close}><Icon name="settings" /><span>Settings</span></Link>
                     {slots(ext.accountMenuItems).map((Slot, i) => <Slot key={i} close={close} />)}
                     {/* a switch, not a one-shot button, so it reads as a setting and shows which theme is on */}
                     <label className="header-profile-popover-item header-theme-row">

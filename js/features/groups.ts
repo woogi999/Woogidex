@@ -123,15 +123,6 @@ export async function openGroups(param = '') {
     loadForView(view);
 }
 
-/** The Groups panel was picked in the hub's sidebar. */
-export function onGroupsPanelShown() {
-    const v = gs().view;
-    const [path, title] = routeFor(v);
-    replaceRoute(path);
-    api.setPageTitle?.(title);
-    loadForView(v);
-}
-
 // ==================== reads ====================
 
 export async function loadMyMemberships(force = false) {

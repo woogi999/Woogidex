@@ -24,7 +24,8 @@ export interface NavItem {
     label: string;
     title: string;
     icon: string;
-    open: () => void;
+    /** the route path the tab links to, e.g. 'collection' */
+    path: string;
     /** where it sits; Core uses 10 (Collection) and 30 (Battle) */
     order: number;
     /** the small count on the tab, or 0 */

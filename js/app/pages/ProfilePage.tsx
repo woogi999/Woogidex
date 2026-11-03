@@ -319,7 +319,7 @@ function Intro({ profile, isOwn, details = true }: { profile: any; isOwn: boolea
             {!details ? <p className="profile2-bio is-empty">Details are private.</p> : profile.bio ? <p className="profile2-bio">{profile.bio}</p> : <p className="profile2-bio is-empty">{isOwn ? 'Add a bio so people know what you make.' : 'No bio yet.'}</p>}
             <ul className="profile2-facts">
                 {details && profile.location && <li><Icon name="map-pin" size={16} /> {profile.location}</li>}
-                {details && site && <li><Icon name="link" size={16} /> <a href={/^https?:\/\//i.test(site) ? site : '#'} target="_blank" rel="noopener noreferrer nofollow ugc">{siteLabel}</a></li>}
+                {details && site && <li><Icon name="link" size={16} /> {/^https?:\/\//i.test(site) ? <a href={site} target="_blank" rel="noopener noreferrer nofollow ugc">{siteLabel}</a> : siteLabel}</li>}
                 {profile.created_at && <li><Icon name="calendar" size={16} /> Joined {new Date(profile.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'long' })}</li>}
             </ul>
             {isOwn && <ConnectedBadges />}

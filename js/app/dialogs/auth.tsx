@@ -117,7 +117,7 @@ function AuthDialog({ mode: startMode = 'signin', close }: DialogProps<{ mode?: 
                         <label htmlFor="auth-password">Password</label>
                         <input type="password" id="auth-password" name="password" autoComplete={signup ? 'new-password' : 'current-password'} placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
                     </div>
-                    {!signup && <a href="#" className="auth-forgot-link" onClick={e => { e.preventDefault(); api.openForgotPasswordModal(); }}>Forgot password?</a>}
+                    {!signup && <button type="button" className="auth-forgot-link" onClick={() => api.openForgotPasswordModal()}>Forgot password?</button>}
                     {signup && (
                         <div className="auth-terms-row">
                             <label className="auth-terms-check">
@@ -130,9 +130,9 @@ function AuthDialog({ mode: startMode = 'signin', close }: DialogProps<{ mode?: 
                         {busy ? (signup ? 'Signing up…' : 'Signing in…') : (signup ? 'Sign Up' : 'Sign In')}
                     </button>
                 </form>
-                <a href="#" className="auth-switch-link" onClick={e => { e.preventDefault(); switchMode(); }}>
+                <button type="button" className="auth-switch-link" onClick={switchMode}>
                     {signup ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-                </a>
+                </button>
             </div>
         </Modal>
     );
@@ -169,7 +169,7 @@ function ForgotPasswordDialog({ close }: DialogProps) {
                             <button type="submit" className="btn btn-primary auth-submit-btn" disabled={busy}>{busy ? 'Sending…' : 'Send Reset Link'}</button>
                         </form>
                     </>}
-                <a href="#" className="auth-switch-link" onClick={e => { e.preventDefault(); close(); api.openAuthModal('signin'); }}>Back to sign in</a>
+                <button type="button" className="auth-switch-link" onClick={() => { close(); api.openAuthModal('signin'); }}>Back to sign in</button>
             </div>
         </Modal>
     );

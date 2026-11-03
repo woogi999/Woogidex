@@ -602,9 +602,16 @@ function exitCommunityRoute() {}
  * @param publishedId
  * @returns whether it opened
  */
-async function handleCommunityRoute(publishedId: string): Promise<boolean> {
-    const id = String(publishedId || '').trim();
-    if (!id) return false;
+// /community is the hub's Home, /community/browse the grid, and
+// /community/<id> one Fakemon. Groups and events have their own routes.
+async function handleCommunityRoute(param: string): Promise<boolean> {
+    const id = String(param || '').trim();
+    if (!id) { await openCommunityHub({ panel: 'feed' }); return true; }
+    if (id === 'browse') {
+        await openCommunityHub({ panel: 'browse' });
+        replaceRoute('community/browse');
+        return true;
+    }
     return await openPublishedMonById(id, { preserveRoute: true });
 }
 
@@ -850,7 +857,7 @@ function closeCommunityHub() {
 }
 
 import { publicName } from '../core/html.ts';
-import { routeUrl, navigateRoute } from '../core/router.ts';
+import { routeUrl, navigateRoute, replaceRoute } from '../core/router.ts';
 import { form } from '../editor/draft.ts';
 import { NAME_MAX } from '../core/data.ts';
 
@@ -961,12 +968,19 @@ function setCommunityPanel(panel) {
  * Switches panel and paints it. Each panel owns what it needs to fetch, so
  * this is the one place that knows the mapping.
  */
+// each panel has an address, and showing one goes there (js/host.ts routes)
+const PANEL_PATHS = { feed: 'community', browse: 'community/browse', groups: 'groups', events: 'events' };
+function communityPanelPath(panel): string { return PANEL_PATHS[panel] || 'community'; }
 function showCommunityPanel(panel) {
+    api.openPath?.(communityPanelPath(panel));
+}
+
+/** Switches the hub's panel in place, with no change of address (a public event opened signed out). */
+function switchCommunityPanel(panel) {
     setCommunityPanel(panel);
     const cs = ensureCommunityState();
     if (cs.panel === 'events') api.showEventsPanel?.();
     else if (cs.panel === 'feed') api.fetchFeed?.('foryou');
-    else if (cs.panel === 'groups') api.onGroupsPanelShown?.();
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
@@ -1593,7 +1607,7 @@ export {
     switchCommunityPreviewMon, toggleCommunityLayout, setCommunityLayout, applyCommunityLayoutUI, communityLayoutMode, getCommunityPrefs,
     requestCardArtwork,
     showCommunityLanding, browseCommunityFakemon, renderCommunityLanding,
-    showCommunityPanel, renderCommunityUploads, openCommunityPublishModal, openCommunityUpdateModalFor,
+    showCommunityPanel, switchCommunityPanel, communityPanelPath, renderCommunityUploads, openCommunityPublishModal, openCommunityUpdateModalFor,
     exportOpenCommunityMon, addOpenCommunityMonToCollection, setOpenCommunityMon, signInForTeaser, canTakeOpenCommunityMon, communityState, publishLimits, describeCooldown,
     attachLiveAuthorInfo, ensureCommunityState,
 };

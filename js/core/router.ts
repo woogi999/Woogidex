@@ -56,6 +56,33 @@ export function currentRoute(): Route {
 }
 
 /**
+ * The href for a route, for a link inside the app: '/community/12' on a
+ * domain root. Hovering it shows the address, and the browser can copy it or
+ * open it in a new tab. A plain click is routed in the page (js/core/app.ts).
+ * @param path e.g. 'community/12' or 'search?q=x' -- no leading slash
+ */
+export function routeHref(path: string): string {
+    return `${basePath()}${String(path || '').replace(/^\/+/, '')}`;
+}
+
+/**
+ * The route path ('community/12', 'search?q=x', '' for the root) that a link
+ * points at, or null when the app does not own it: another site, a file
+ * (admin.html, an asset), or a path no route claims.
+ */
+export function appPathOf(href: string): string | null {
+    let url: URL;
+    try { url = new URL(href, document.baseURI); } catch { return null; }
+    if (url.origin !== window.location.origin) return null;
+    const base = basePath();
+    if (!url.pathname.startsWith(base)) return null;
+    const rest = url.pathname.slice(base.length).replace(/\/+$/, '');
+    const name = rest.split('/')[0];
+    if (name && !knownRoute(name)) return null;
+    return `${rest}${url.search}`;
+}
+
+/**
  * Absolute URL for a route, for share links and anything that leaves the page.
  * @param path e.g. 'community/12' -- no leading slash
  */

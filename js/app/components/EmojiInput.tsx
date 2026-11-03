@@ -39,20 +39,8 @@ export function EmojiText({ text, className = '' }: { text: string; className?: 
 export function RichText({ text, className = '' }: { text: string; className?: string }) {
     // renderCommentMarkdown escapes the text first, then builds a closed set of tags
     const html = useMemo(() => renderCommentMarkdown(text), [text]);
-    function openMention(e: React.MouseEvent) {
-        const a = (e.target as Element).closest?.('a.rt-mention, a.rt-hashtag') as HTMLAnchorElement | null;
-        if (!a || e.ctrlKey || e.metaKey || e.shiftKey || e.button !== 0) return;
-        e.preventDefault();
-        e.stopPropagation();
-        if (a.classList.contains('rt-hashtag')) {
-            // the search page for the tag (js/host.ts); without it, nothing to search
-            if (api.openSearchPage) api.openSearchPage(`#${a.dataset.hashtag || ''}`);
-            return;
-        }
-        api.activateTopLevelView?.('profile-view');
-        api.handleProfileRoute?.(a.dataset.mention || '');
-    }
-    return <div className={`rich-text ${className}`.trim()} onClick={openMention} dangerouslySetInnerHTML={{ __html: html }} />;
+    // @name and #tag are plain links to their pages; js/core/app.ts routes the click
+    return <div className={`rich-text ${className}`.trim()} dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 // ==================== the picker ====================

@@ -72,11 +72,7 @@ export function installHost(): void {
     // a page that shows the server's data waits (briefly) for sign-in at boot
     registerRoute('community', {
         needsAccount: true, needsShowdown: true, skeleton: () => api.renderCommunityGridSkeleton?.(),
-        open: async param => {
-            if (param) return await api.handleCommunityRoute?.(param) === true;
-            await api.openCommunityHub?.();
-            return true;
-        }
+        open: async param => await api.handleCommunityRoute?.(param) === true
     });
     registerRoute('events', {
         needsAccount: true, needsShowdown: true, skeleton: () => api.renderEventsSkeleton?.(),
@@ -107,7 +103,7 @@ export function installHost(): void {
     });
 
     // ---- the header ----
-    registerNav({ page: 'community-view', label: 'Community', title: 'Community', icon: 'users', order: 20, open: () => api.openCommunityHub(), alsoFor: ['community-detail-view', 'post-view'] });
+    registerNav({ page: 'community-view', label: 'Community', title: 'Community', icon: 'users', order: 20, path: 'community', alsoFor: ['community-detail-view', 'post-view'] });
     ext.headerLeft.push(GlobalSearch);
     ext.headerActions.push(MessagesButton, Notifications, SignInButton);
     ext.accountButton = AccountButton;

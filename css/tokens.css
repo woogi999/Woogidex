@@ -114,6 +114,10 @@ body {
     -webkit-font-smoothing: antialiased;
 }
 h1, h2, h3, h4 { color: var(--text-primary); line-height: 1.25; }
+/* a link that is styled as a control (a nav tab, a card, a menu row) looks
+   like the control, not like blue underlined text. :where() keeps this at
+   zero specificity, so any class rule wins */
+:where(a[class]) { color: inherit; text-decoration: none; }
 .btn:focus-visible, .tab:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;

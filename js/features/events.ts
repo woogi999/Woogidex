@@ -743,7 +743,7 @@ export async function openEvents(param = '') {
 function openGuestEvent(id: string, tab: EventTab = 'about') {
     events.view = { kind: 'event', id, tab };
     api.activateTopLevelView?.('community-view');
-    api.showCommunityPanel?.('events');
+    api.switchCommunityPanel?.('events');
     document.body.classList.add('event-guest');
 }
 

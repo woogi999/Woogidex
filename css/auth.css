@@ -35,6 +35,16 @@
     line-height: 1.5;
     margin: -2px 0 14px;
 }
+/* buttons that read as links: they open another step, not a page */
+.auth-switch-link,
+.auth-forgot-link {
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    font-family: inherit;
+    cursor: pointer;
+}
 .auth-switch-link {
     display: block;
     text-align: center;

@@ -8,9 +8,10 @@ import { api, state } from '../../core/app.ts';
 import { CommunityFeed } from '../components/community.tsx';
 import { EventsPanel } from '../components/EventsPanel.tsx';
 import { Icon } from '../components/Icon.tsx';
+import { Link } from '../components/Link.tsx';
 import { Avatar } from '../components/Avatar.tsx';
 import { FeedCard, FeedSkeleton, PostComposer } from '../components/feed.tsx';
-import { events, getLiveEvents, showEventView } from '../../features/events.ts';
+import { getLiveEvents } from '../../features/events.ts';
 import { useStore } from '../store.ts';
 import { useSlide } from '../hooks.ts';
 import { fadeSwap, staggerIn } from '../../core/motion.ts';
@@ -57,12 +58,7 @@ export function CommunityPage() {
                     : <button className="btn btn-primary hub-publish" type="button" onClick={() => api.openCommunityPublishModal()}><Icon name="upload" /><span>Publish a Fakémon</span></button>}
                 <nav className="hub-nav-list" id="community-tabs" role="tablist" aria-orientation="vertical">
                     {TABS.map(([key, label]) => (
-                        <button key={key} className={`hub-nav-item${panel === key ? ' active' : ''}`} type="button" role="tab" aria-selected={panel === key}
-                            onClick={() => {
-                                if (key === 'events') events.view = { kind: 'list' };
-                                if (key === 'groups') api.groupsState().view = { kind: 'list' };
-                                api.showCommunityPanel(key);
-                            }}>{label}</button>
+                        <Link key={key} to={api.communityPanelPath(key)} className={`hub-nav-item${panel === key ? ' active' : ''}`} role="tab" aria-selected={panel === key}>{label}</Link>
                     ))}
                 </nav>
             </aside>
@@ -282,7 +278,7 @@ function GuestLocked({ what }: { what: 'browse' | 'groups' | 'events' }) {
             <p>{body}</p>
             <p className="guest-locked-sub">This part of the hub needs a free account.</p>
             <GuestButtons />
-            <button type="button" className="link-btn guest-locked-back" onClick={() => api.showCommunityPanel('feed')}>Back to Home</button>
+            <Link to="community" className="link-btn guest-locked-back">Back to Home</Link>
         </div>
     );
 }
@@ -316,11 +312,11 @@ function SuggestedCreators({ items, inline }: { items: FeedItem[]; inline?: bool
                 <div className="feed-inline-strip">
                     {top.map(({ item }) => (
                         <div className="feed-inline-person" key={item.user_id}>
-                            <button type="button" className="feed-inline-person-main" onClick={() => api.showUserProfile(item.user_id)}>
+                            <Link to={`profile/${item.user_id}`} className="feed-inline-person-main">
                                 <Avatar userId={item.user_id} url={item.author_avatar_url} name={item.author_name} className="feed-avatar feed-avatar-lg" />
                                 <strong>{item.author_name || 'Someone'}</strong>
                                 <small>In your feed</small>
-                            </button>
+                            </Link>
                             <button type="button" className="feed-follow-btn" onClick={() => api.followUser(item.user_id)}>Follow</button>
                         </div>
                     ))}
@@ -332,10 +328,10 @@ function SuggestedCreators({ items, inline }: { items: FeedItem[]; inline?: bool
         <RailCard title="Creators to follow" icon="users">
             {top.map(({ item }) => (
                 <div className="feed-rail-person" key={item.user_id}>
-                    <button type="button" className="feed-rail-person-main" onClick={() => api.showUserProfile(item.user_id)}>
+                    <Link to={`profile/${item.user_id}`} className="feed-rail-person-main">
                         <Avatar userId={item.user_id} url={item.author_avatar_url} name={item.author_name} className="feed-avatar feed-avatar-sm" />
                         <span>{item.author_name || 'Someone'}</span>
-                    </button>
+                    </Link>
                     <button type="button" className="feed-follow-btn" onClick={() => api.followUser(item.user_id)}>Follow</button>
                 </div>
             ))}
@@ -370,11 +366,11 @@ function LiveContests({ inline }: { inline?: boolean }) {
     return (
         <RailCard inline={inline} title="Happening now" icon="trophy" className="community-contest-section">
             {live.slice(0, 3).map(ev => (
-                <button type="button" className="community-contest-card" key={ev.id} onClick={() => { api.showCommunityPanel('events'); showEventView({ kind: 'event', id: ev.id }); }}>
+                <Link to={`events/${encodeURIComponent(ev.slug || ev.id)}`} className="community-contest-card" key={ev.id}>
                     <span className="community-contest-phase">{ev.phase === 'voting' ? 'Voting open' : 'Taking entries'}</span>
                     <strong>{ev.title}</strong>
                     {ev.category && <span className="community-contest-count">{ev.category}</span>}
-                </button>
+                </Link>
             ))}
         </RailCard>
     );
