@@ -219,10 +219,20 @@ body[data-page="messages-view"] .app-container { max-width: none; padding: 0; }
    bottom right, like Instagram on the web (js/app/shell/MessagesDock.tsx).
    Phones use the full-screen page and keep the header's messages button;
    wide screens use the dock instead of that button. */
-.msg-dock { position: fixed; right: var(--sp-5); bottom: var(--sp-5); z-index: 11500; }
+/* behind the editor sheet (11500): it slides down out of sight while the
+   sheet opens, and back up once the sheet has closed */
+.msg-dock {
+    position: fixed; right: var(--sp-5); bottom: var(--sp-5); z-index: 11400;
+    transition: transform var(--dur-slow) var(--ease-out) .12s, opacity var(--dur) ease .12s, visibility 0s linear 0s;
+}
+body.editor-sheet-open .msg-dock {
+    transform: translateY(calc(100% + var(--sp-5) + 12px)); opacity: 0; visibility: hidden; pointer-events: none;
+    transition: transform var(--dur) var(--ease-in), opacity var(--dur-fast) ease, visibility 0s linear var(--dur);
+}
+.reduce-motion .msg-dock, .reduce-motion body.editor-sheet-open .msg-dock { transform: none; }
+@media (prefers-reduced-motion: reduce) { .msg-dock, body.editor-sheet-open .msg-dock { transform: none; } }
 body[data-page="messages-view"] .msg-dock,
-body[data-page="not-found-view"] .msg-dock,
-body.editor-sheet-open .msg-dock { display: none; }
+body[data-page="not-found-view"] .msg-dock { display: none; }
 @media (max-width: 760px) { .msg-dock { display: none; } }
 @media (min-width: 761px) { .header-messages-btn { display: none; } }
 
