@@ -2,7 +2,7 @@
 
 *Last updated 31 August 2026*
 
-Welcome to Woogidex. By creating an account or using the site at **dex.woogi.xyz**, you agree to these terms. If you do not agree with them, please do not use Woogidex.
+Welcome to Woogidex. By creating an account or using the site at **woogidex.com** (or its old address, **dex.woogi.xyz**), you agree to these terms. If you do not agree with them, please do not use Woogidex.
 
 ---
 

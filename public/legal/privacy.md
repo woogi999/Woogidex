@@ -4,7 +4,7 @@
 
 This Privacy Notice explains how Woogidex ("I", "me", "my") collects, stores, uses and shares your information when you:
 
-- visit my website at **dex.woogi.xyz**, or any site of mine that links to this notice;
+- visit my website at **woogidex.com** (or its old address, **dex.woogi.xyz**), or any site of mine that links to this notice;
 - use Woogidex, a browser-based toolkit for making and organising Fakémon; or
 - contact me in any other way.
 
