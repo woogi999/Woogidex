@@ -8,6 +8,7 @@ import { Avatar } from './Avatar.tsx';
 import { BadgeRow } from './Badge.tsx';
 import { ReactionSummary } from './comments.tsx';
 import { Icon } from './Icon.tsx';
+import { Link, insideControl, monPath } from './Link.tsx';
 import { ShieldedArt } from './ShieldedArt.tsx';
 import { TypeBadges } from './profile.tsx';
 import { modContext } from './ModButton.tsx';
@@ -93,10 +94,9 @@ export function AuthorLine({ row, className = 'community-card-author', prefix = 
     return (
         <div className={className}>
             <Avatar userId={row.user_id} url={row.author_avatar_url} name={row.author_name} />
-            <span className="community-author-link" data-user-id={row.user_id}
-                onClick={e => { e.stopPropagation(); api.showUserProfile(row.user_id); }}>
+            <Link to={`profile/${row.user_id}`} className="community-author-link" data-user-id={row.user_id}>
                 {prefix}{row.author_name}
-            </span>
+            </Link>
             <BadgeRow badgeKeys={row.author_badges} size={13} />
         </div>
     );
@@ -115,10 +115,12 @@ export function MonReactions({ row, className = 'community-reactions' }: { row: 
 
 function CommunityCard({ row, isMine, canDelete }: { row: FeedRow; isMine: boolean; canDelete: boolean }) {
     const mon = row.fakemon_data || {};
-    const open = () => api.openMonDetail(row.id);
+    const path = monPath(row.id);
+    const open = () => api.openPath(path);
     const evo = evoBadgeLabel(row);
     return (
-        <div className="collection-card community-card" onClick={open}
+        // a card, not one link: it holds the author's link and buttons. Its name is the link
+        <div className="collection-card community-card" onClick={e => { if (!insideControl(e)) open(); }}
             {...modContext({ userId: row.user_id, userName: row.author_name, content: { kind: 'mon', id: row.id, label: `"${mon.name || 'a Fakémon'}"` }, onRemoved: () => api.dropFeedItem?.('mon', row.id) })}>
             {canDelete && (
                 <button className="card-delete-btn community-unpublish-btn" title={isMine ? 'Unpublish' : 'Remove (staff)'}
@@ -129,7 +131,7 @@ function CommunityCard({ row, isMine, canDelete }: { row: FeedRow; isMine: boole
             {/* the family badge sits on the artwork's corner, so every card is the same height */}
             <LazyArt row={row}>{evo && <span className="community-card-evo-badge">{evo}</span>}</LazyArt>
             <div className="card-body">
-                <div className="card-name" title={mon.name}>{mon.name}</div>
+                <Link to={path} className="card-name" title={mon.name}>{mon.name}</Link>
                 <TypeBadges type1={mon.type1} type2={mon.type2} />
                 <div className="community-card-stats" aria-label="Community activity">
                     <MonReactions row={row} />
@@ -188,18 +190,19 @@ const Num = ({ label, value, cls = 'col-stat' }: { label: string; value: ReactNo
 
 function CommunityRow({ row, isMine, canDelete }: { row: FeedRow; isMine: boolean; canDelete: boolean }) {
     const mon = row.fakemon_data || {};
-    const open = () => api.openMonDetail(row.id);
+    const path = monPath(row.id);
+    const open = () => api.openPath(path);
     const evo = evoBadgeLabel(row);
     const stats = mon.stats;
     return (
-        <tr className="dex-row" tabIndex={0} aria-label={mon.name || 'Fakémon'} onClick={open}
+        <tr className="dex-row" tabIndex={0} aria-label={mon.name || 'Fakémon'} onClick={e => { if (!insideControl(e)) open(); }}
             onKeyDown={e => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); open(); } }}
             {...modContext({ userId: row.user_id, userName: row.author_name, content: { kind: 'mon', id: row.id, label: `"${mon.name || 'a Fakémon'}"` }, onRemoved: () => api.dropFeedItem?.('mon', row.id) })}>
             <td className="col-icon"><LazyArt row={row} className="card-art dex-art" /></td>
             <td className="col-num">{mon.number || '—'}</td>
             <td className="col-name">
                 <span className="dex-name">
-                    <span className="card-name dex-name-text" title={mon.name}>{mon.name || 'Unnamed'}</span>
+                    <Link to={path} className="card-name dex-name-text" title={mon.name}>{mon.name || 'Unnamed'}</Link>
                     {evo && <span className="vanilla-card-tag vanilla-card-tag-inline">{evo}</span>}
                 </span>
             </td>
@@ -257,7 +260,7 @@ export function CommunityFeed({ rows, loading, prefs, viewerId, viewerIsStaff, t
 export function LandingCard({ row, onOpen }: { row: FeedRow; onOpen?: () => void }) {
     const mon = row.fakemon_data || {};
     return (
-        <button type="button" className="community-landing-card" onClick={onOpen || (() => api.openMonDetail(row.id))}>
+        <Link to={monPath(row.id)} className="community-landing-card" onClick={onOpen ? e => { e.preventDefault(); onOpen(); } : undefined}>
             <LazyArt row={row} className="community-landing-art" />
             <span className="community-landing-body">
                 <span className="community-landing-name">{mon.name || 'Unnamed'}</span>
@@ -272,6 +275,6 @@ export function LandingCard({ row, onOpen }: { row: FeedRow; onOpen?: () => void
                     </span>
                 </span>
             </span>
-        </button>
+        </Link>
     );
 }

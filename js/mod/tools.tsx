@@ -10,6 +10,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import { api, state } from '../core/app.ts';
 import { Icon } from '../app/components/Icon.tsx';
+import { Link } from '../app/components/Link.tsx';
 import { Modal } from '../app/components/Modal.tsx';
 import { closeDialog, openDialog, registerDialog, type DialogProps } from '../app/dialogs.tsx';
 import { isActive, whenText } from '../features/moderation-model.ts';
@@ -155,7 +156,7 @@ function ModMenu({ close, target, at }: DialogProps<{ target: ModTarget; at: { x
                 {onContent.length > 0 && <div className="mod-menu-group">{onContent.map(item)}</div>}
                 {onUser.length > 0 && <div className="mod-menu-group">{onUser.map(item)}</div>}
                 <div className="mod-menu-group">
-                    <button type="button" role="menuitem" onClick={() => { close(); api.showProfileView?.(target.userId); }}><Icon name="user" size={14} /> Open profile</button>
+                    <Link role="menuitem" to={`profile/${target.userId}`} onClick={close}><Icon name="user" size={14} /> Open profile</Link>
                     <a role="menuitem" href="admin.html" target="_blank" rel="noopener"><Icon name="external-link" size={14} /> Staff panel</a>
                 </div>
             </div>

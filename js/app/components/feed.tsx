@@ -9,6 +9,7 @@ import { evoBadgeLabel } from '../../features/community-feed-model.ts';
 import { Avatar } from './Avatar.tsx';
 import { BadgeRow } from './Badge.tsx';
 import { Icon } from './Icon.tsx';
+import { Link, insideControl, monPath } from './Link.tsx';
 import { EmojiInput, RichText } from './EmojiInput.tsx';
 import { CommentThread, ReactionSummary, timeAgo } from './comments.tsx';
 import { notify } from '../store.ts';
@@ -57,31 +58,39 @@ const modTarget = (item: FeedItem): ModTarget => {
     };
 };
 
-function Byline({ item, verb }: { item: FeedItem; verb?: string }) {
+/** Opens a card's address on a click, unless the click was on a link or button inside it. */
+function openCard(e: React.MouseEvent, path: string) {
+    if (!insideControl(e)) api.openPath(path);
+}
+
+/** @param to the item's own page: its time links there, the way Facebook's does */
+function Byline({ item, verb, to }: { item: FeedItem; verb?: string; to?: string }) {
     const isMine = !!state.user && state.user.id === item.user_id;
     const following = !isMine && api.isFollowing?.(item.user_id);
     return (
         <div className="feed-byline">
-            <button type="button" className="feed-byline-avatar" onClick={() => api.showUserProfile(item.user_id)} aria-label={`${item.author_name || 'Creator'}'s profile`}>
+            <Link to={`profile/${item.user_id}`} className="feed-byline-avatar" aria-label={`${item.author_name || 'Creator'}'s profile`}>
                 <Avatar userId={item.user_id} url={item.author_avatar_url} name={item.author_name} className="feed-avatar" />
-            </button>
+            </Link>
             <div className="feed-byline-text">
                 <span className="feed-byline-name">
-                    <span className="community-author-link" data-user-id={item.user_id} onClick={() => api.showUserProfile(item.user_id)}>{item.author_name || 'Someone'}</span>
+                    <Link to={`profile/${item.user_id}`} className="community-author-link" data-user-id={item.user_id}>{item.author_name || 'Someone'}</Link>
                     <BadgeRow badgeKeys={item.author_badges} size={13} />
                     {/* a post in a group: "Name > Group", like Facebook */}
                     {item.group && (
                         <>
                             <Icon name="chevron-right" size={12} className="feed-byline-sep" />
-                            <button type="button" className="feed-byline-group" onClick={() => api.showGroupView({ kind: 'group', slug: item.group.slug, tab: 'posts' })}>
+                            <Link to={`groups/${item.group.slug}`} className="feed-byline-group">
                                 {item.group.name}
-                            </button>
+                            </Link>
                         </>
                     )}
                 </span>
                 <span className="feed-byline-meta">
                     {verb && <>{verb} · </>}
-                    <time dateTime={item.created_at} title={new Date(item.created_at).toLocaleString()}>{timeAgo(item.created_at)}</time>
+                    {to
+                        ? <Link to={to} className="feed-byline-time"><time dateTime={item.created_at} title={new Date(item.created_at).toLocaleString()}>{timeAgo(item.created_at)}</time></Link>
+                        : <time dateTime={item.created_at} title={new Date(item.created_at).toLocaleString()}>{timeAgo(item.created_at)}</time>}
                     {item.edited_at && <> · edited</>}
                 </span>
             </div>
@@ -169,17 +178,18 @@ export function MonFeedCard({ item }: { item: FeedItem }) {
     const [comments, setComments] = useState(false);
     const mon = item.fakemon_data || {};
     const evo = evoBadgeLabel(item);
-    const open = () => { api.recordOpened?.(item.id, item.user_id); openMon(item); };
+    // the link opens it; this only counts the open for the feed's ranking
+    const opened = () => api.recordOpened?.(item.id, item.user_id);
     return (
         <article className="feed-card feed-card-mon" ref={ref as any} {...modContext(modTarget(item))}>
-            <Byline item={item} verb="published a Fakémon" />
-            <button type="button" className="feed-mon-art-btn" onClick={open} aria-label={`Open ${mon.name || 'this Fakémon'}`}>
+            <Byline item={item} verb="published a Fakémon" to={monPath(item.id)} />
+            <Link to={monPath(item.id)} className="feed-mon-art-btn" onClick={opened} aria-label={`Open ${mon.name || 'this Fakémon'}`}>
                 <LazyArt row={item as any} className="feed-mon-art" full>{evo && <span className="community-card-evo-badge">{evo}</span>}</LazyArt>
-            </button>
+            </Link>
             <FeedActions item={item} comments={comments} onComments={() => setComments(v => !v)} />
             <div className="feed-mon-body">
                 <div className="feed-mon-title">
-                    <button type="button" className="feed-mon-name" onClick={open}>{mon.name || 'Unnamed'}</button>
+                    <Link to={monPath(item.id)} className="feed-mon-name" onClick={opened}>{mon.name || 'Unnamed'}</Link>
                     {mon.number && <span className="feed-mon-number">{mon.number}</span>}
                     <TypeBadges type1={mon.type1} type2={mon.type2} />
                 </div>
@@ -191,10 +201,7 @@ export function MonFeedCard({ item }: { item: FeedItem }) {
     );
 }
 
-/** The feed's rows aren't in the hub grid's list; the detail page opens from the id. */
-function openMon(item: FeedItem) {
-    api.openPublishedMonById(item.id);
-}
+const postPath = (id: string) => `post/${encodeURIComponent(id)}`;
 
 // ==================== a post ====================
 
@@ -207,7 +214,7 @@ export function PostMons({ mons }: { mons: any[] }) {
             {mons.map(m => {
                 const row = { id: m.id, fakemon_data: { name: m.name, type1: m.type1, type2: m.type2 } };
                 return (
-                    <button type="button" key={m.id} className="post-mon" onClick={() => api.openPublishedMonById(m.id)} title={`Open ${m.name || 'this Fakémon'}`}>
+                    <Link key={m.id} to={monPath(m.id)} className="post-mon" title={`Open ${m.name || 'this Fakémon'}`}>
                         <LazyArt row={row as any} className="post-mon-art" full />
                         <span className="post-mon-label">
                             <strong>{m.name || 'Unnamed'}</strong>
@@ -215,7 +222,7 @@ export function PostMons({ mons }: { mons: any[] }) {
                                 {[m.type1, m.type2].filter(Boolean).map(t => <span key={t} className={`type-badge type-${String(t).toLowerCase()}`}>{t}</span>)}
                             </span>
                         </span>
-                    </button>
+                    </Link>
                 );
             })}
         </div>
@@ -230,21 +237,22 @@ export function RepostEmbed({ item }: { item: any }) {
     if (item.kind === 'mon') {
         const mon = item.fakemon_data || {};
         return (
-            <button type="button" className="repost-embed is-mon" onClick={() => api.openPublishedMonById(item.id)}>
+            <Link to={monPath(item.id)} className="repost-embed is-mon">
                 <LazyArt row={item} className="repost-embed-art" />
                 <span className="repost-embed-text">
                     <span className="repost-embed-by"><Avatar userId={item.user_id} url={item.author_avatar_url} name={name} className="feed-avatar feed-avatar-xs" />{name}</span>
                     <strong>{mon.name || 'Unnamed'}</strong>
                     <TypeBadges type1={mon.type1} type2={mon.type2} />
                 </span>
-            </button>
+            </Link>
         );
     }
     return (
-        <div className="repost-embed is-post" role="link" tabIndex={0} onClick={() => api.openPost(item.id)} onKeyDown={e => { if (e.key === 'Enter') api.openPost(item.id); }}>
+        // a card, not one link: its words can hold @name and #tag links of their own
+        <div className="repost-embed is-post" onClick={e => openCard(e, postPath(item.id))}>
             <span className="repost-embed-by">
                 <Avatar userId={item.user_id} url={item.author_avatar_url} name={name} className="feed-avatar feed-avatar-xs" />{name}
-                <time dateTime={item.created_at}>{timeAgo(item.created_at)}</time>
+                <Link to={postPath(item.id)}><time dateTime={item.created_at}>{timeAgo(item.created_at)}</time></Link>
             </span>
             {item.body && <div className="post-body is-clamped repost-embed-body"><RichText text={item.body} /></div>}
             {(item.mons || []).length > 0 && <span className="repost-embed-mons">{(item.mons || []).map((m: any) => m.name).filter(Boolean).join(' · ')}</span>}
@@ -262,9 +270,8 @@ export function PostEvents({ events }: { events?: any[] }) {
 
 /** A shared event (js/features/events.ts): its cover, name and where it's at; opens the event. */
 function EventEmbed({ item }: { item: any }) {
-    const open = () => api.openEvents?.(item.slug || item.id);
     return (
-        <div className="repost-embed is-event" role="link" tabIndex={0} onClick={open} onKeyDown={e => { if (e.key === 'Enter') open(); }}>
+        <Link to={`events/${encodeURIComponent(item.slug || item.id)}`} className="repost-embed is-event">
             <span className="repost-embed-event-art">{item.cover_image ? <img src={item.cover_image} alt="" loading="lazy" draggable={false} /> : <Icon name="trophy" size={24} />}</span>
             <span className="repost-embed-text">
                 <span className="repost-embed-event-meta"><Icon name="calendar-days" size={13} />Event{item.category ? ` · ${item.category}` : ''} · {EVENT_STAGE[item.stage] || 'Event'}</span>
@@ -272,7 +279,7 @@ function EventEmbed({ item }: { item: any }) {
                 {item.tagline && <span className="repost-embed-event-tagline">{item.tagline}</span>}
                 {item.entry_count != null && <span className="repost-embed-event-meta">{item.entry_count} {Number(item.entry_count) === 1 ? 'entry' : 'entries'}</span>}
             </span>
-        </div>
+        </Link>
     );
 }
 
@@ -323,13 +330,13 @@ export function PostFeedCard({ item, full = false }: { item: FeedItem; full?: bo
     const [menu, setMenu] = useState(false);
     // the full post page still has its own link; comments open right here
     const [comments, setComments] = useState(full);
-    const open = () => api.openPost(item.id);
+    const open = () => api.openPath(postPath(item.id));
     const verb = item.repost ? 'shared' : (item.mon_ids || []).length ? `shared ${(item.mon_ids || []).length} Fakémon`
         : (item.events || []).length ? `shared ${(item.events || []).length === 1 ? 'an event' : `${item.events.length} events`}` : '';
     return (
         <article className={`feed-card feed-card-post${full ? ' is-full' : ''}`} ref={ref as any} {...modContext(modTarget(item))}>
             <div className="feed-card-head">
-                <Byline item={item} verb={verb} />
+                <Byline item={item} verb={verb} to={full ? undefined : postPath(item.id)} />
                 {(isMine || canDelete || state.user) && (
                     <div className="feed-menu-wrap">
                         <button type="button" className="feed-menu-btn" aria-label="Post options" onClick={() => setMenu(v => !v)}><Icon name="ellipsis-horizontal" size={18} /></button>
@@ -363,7 +370,7 @@ export function PostFeedCard({ item, full = false }: { item: FeedItem; full?: bo
             {item.repost && <div className="repost-embed-wrap"><RepostEmbed item={item.repost} /></div>}
             {(item.tags || []).length > 0 && (
                 <div className="post-tags">{(item.tags || []).map((t: string) => (
-                    <button key={t} type="button" className="post-tag" onClick={() => api.openSearchPage?.(`#${t}`)} title={`Posts tagged #${t}`}>#{t}</button>
+                    <Link key={t} to={`search?q=${encodeURIComponent('#' + t)}`} className="post-tag" title={`Posts tagged #${t}`}>#{t}</Link>
                 ))}</div>
             )}
             <FeedActions item={item} comments={comments} onComments={() => setComments(v => !v)} />
@@ -380,7 +387,7 @@ function RepostedCard({ item }: { item: FeedItem }) {
         <div className="reposted">
             <div className="reposted-by">
                 <Icon name="arrow-path-rounded-square" size={15} />
-                <button type="button" className="link-btn" onClick={() => api.showUserProfile(item.user_id)}>{mine ? 'You' : item.author_name || 'Someone'}</button>
+                <Link to={`profile/${item.user_id}`} className="link-btn">{mine ? 'You' : item.author_name || 'Someone'}</Link>
                 <span>reposted · {timeAgo(item.created_at)}</span>
             </div>
             {original.kind === 'mon' ? <MonFeedCard item={original} />

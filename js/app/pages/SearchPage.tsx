@@ -68,7 +68,8 @@ export function SearchPage() {
         openSearchPage(draft, { filter });
     }
 
-    function pick(result: SearchResult) {
+    function pick(result: SearchResult, viaLink: boolean) {
+        if (viaLink) return;
         try { result.run(); } catch (err) { log.error('SEARCH', 'Search result action failed', { title: result.title, error: String(err) }); }
     }
 

@@ -7,6 +7,7 @@ import { api } from '../../core/app.ts';
 import { Avatar } from './Avatar.tsx';
 import { BadgeIcon, BadgeRow, badgeDefinition } from './Badge.tsx';
 import { ShieldedArt } from './ShieldedArt.tsx';
+import { Link, monPath } from './Link.tsx';
 
 export interface PublishedRow { id: string; user_id?: string; published_at?: string; fakemon_data?: { name?: string; type1?: string; type2?: string; artwork?: string }; }
 
@@ -70,11 +71,11 @@ export function ProfileMons({ mons, loading = false, owner = false }: { mons?: P
             {mons.map(row => {
                 const mon = row.fakemon_data || {};
                 const card = (
-                    <button key={row.id} type="button" className="profile-mon-card" onClick={() => api.openPublishedMonById(row.id)}>
+                    <Link key={row.id} to={monPath(row.id)} className="profile-mon-card">
                         <MonArt row={row} />
                         <strong>{mon.name || 'Fakemon'}</strong>
                         <TypeBadges type1={mon.type1} type2={mon.type2} />
-                    </button>
+                    </Link>
                 );
                 if (!owner) return card;
                 // your own: manage it here (the hub's "My uploads" used to do this)

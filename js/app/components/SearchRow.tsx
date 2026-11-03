@@ -7,6 +7,7 @@ import { Icon } from './Icon.tsx';
 import { matchParts, type SearchResult } from '../../features/search.ts';
 import { ShieldedArt } from './ShieldedArt.tsx';
 import { Avatar } from './Avatar.tsx';
+import { Link } from './Link.tsx';
 
 export function Highlighted({ text, query }: { text: string; query: string }) {
     const parts = matchParts(text, query);
@@ -35,21 +36,34 @@ interface RowProps {
     className?: string;
     id?: string;
     active?: boolean;
-    onPick: (result: SearchResult, event: MouseEvent) => void;
+    /** viaLink: the row was a link that is going to its page by itself */
+    onPick: (result: SearchResult, viaLink: boolean) => void;
     /** the dropdown picks on mousedown, so the box keeps focus */
     onMouseDown?: boolean;
 }
 
 export function SearchRow({ result, query, className = '', id, active = false, onPick, onMouseDown = false }: RowProps) {
-    const handler = (event: MouseEvent) => { if (onMouseDown) event.preventDefault(); onPick(result, event); };
-    return (
-        <button type="button" className={`gs-item${className ? ` ${className}` : ''}${active ? ' is-active' : ''}`} role="option" id={id}
-            aria-selected={active} {...(onMouseDown ? { onMouseDown: handler } : { onClick: handler })}>
+    const cls = `gs-item${className ? ` ${className}` : ''}${active ? ' is-active' : ''}`;
+    const body = (
+        <>
             <Thumb result={result} />
             <span className="gs-text">
                 <span className="gs-title"><Highlighted text={result.title} query={query} /></span>
                 {result.sub && <span className="gs-sub">{result.sub}</span>}
             </span>
-        </button>
+        </>
+    );
+    // a page: a real link (mousedown only keeps the box focused, the click goes there)
+    if (result.path) {
+        return (
+            <Link to={result.path} className={cls} role="option" id={id} aria-selected={active}
+                onMouseDown={onMouseDown ? (event: MouseEvent) => event.preventDefault() : undefined}
+                onClick={() => onPick(result, true)}>{body}</Link>
+        );
+    }
+    const handler = (event: MouseEvent) => { if (onMouseDown) event.preventDefault(); onPick(result, false); };
+    return (
+        <button type="button" className={cls} role="option" id={id}
+            aria-selected={active} {...(onMouseDown ? { onMouseDown: handler } : { onClick: handler })}>{body}</button>
     );
 }

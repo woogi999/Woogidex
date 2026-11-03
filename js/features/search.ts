@@ -23,10 +23,15 @@ export interface SearchResult {
     /** a person, drawn with their avatar */
     person?: { id: string; avatarUrl: string; name: string };
     score: number;
+    /** the page it opens, as a route path: then the row is a real link */
+    path?: string;
     run: () => void;
 }
 
-interface Entry { title: string; sub: string; icon: string; keywords: string; when?: () => boolean; run: () => void; }
+interface Entry { title: string; sub: string; icon: string; keywords: string; when?: () => boolean; path?: string; run: () => void; }
+
+/** A result that goes to a page: a link to it, and Enter opens it the same way. */
+const goTo = (path: string) => ({ path, run: () => api.openPath?.(path) });
 
 export const DROPDOWN_LIMIT = 5;
 export const PAGE_LIMIT = 60;
@@ -38,18 +43,18 @@ export const PEOPLE_PAGE_LIMIT = 30;
 // ---- places and actions ----
 // keywords widen what a place answers to; `when` hides it if it doesn't apply
 export const PLACES: Entry[] = [
-    { title: 'My Collection', sub: 'Your Fakémon and folders', icon: 'library', keywords: 'home fakemon folders library', run: () => api.showCollection?.() },
-    { title: 'Community Hub', sub: 'See what others are making', icon: 'users', keywords: 'community hub feed', run: () => api.openCommunityHub?.() },
-    { title: 'Browse Fakémon', sub: 'Community Hub', icon: 'layout-grid', keywords: 'browse community explore', run: () => api.openCommunityHub?.({ panel: 'browse' }) },
-    { title: 'Events', sub: 'Community Hub', icon: 'trophy', keywords: 'events contests competitions vote sign-ups', run: () => api.openEvents?.() },
+    { title: 'My Collection', sub: 'Your Fakémon and folders', icon: 'library', keywords: 'home fakemon folders library', ...goTo('collection') },
+    { title: 'Community Hub', sub: 'See what others are making', icon: 'users', keywords: 'community hub feed', ...goTo('community') },
+    { title: 'Browse Fakémon', sub: 'Community Hub', icon: 'layout-grid', keywords: 'browse community explore', ...goTo('community/browse') },
+    { title: 'Events', sub: 'Community Hub', icon: 'trophy', keywords: 'events contests competitions vote sign-ups', ...goTo('events') },
     { title: 'My uploads', sub: 'Your profile', icon: 'upload', keywords: 'uploads published publish', run: () => api.showProfileView?.(null) },
-    { title: 'Battle', sub: 'Battle your Fakémon', icon: 'swords', keywords: 'battle fight simulator team', run: () => api.openBattle?.() },
-    { title: 'Credits', sub: 'Who makes Woogidex', icon: 'badge-info', keywords: 'credits about team', run: () => api.openSettings?.('about') },
-    { title: 'Settings', sub: 'Appearance, data and account', icon: 'settings', keywords: 'settings preferences options backup', run: () => api.openSettings?.() },
+    { title: 'Battle', sub: 'Battle your Fakémon', icon: 'swords', keywords: 'battle fight simulator team', ...goTo('battle') },
+    { title: 'Credits', sub: 'Who makes Woogidex', icon: 'badge-info', keywords: 'credits about team', ...goTo('settings/about') },
+    { title: 'Settings', sub: 'Appearance, data and account', icon: 'settings', keywords: 'settings preferences options backup', ...goTo('settings') },
     { title: 'My profile', sub: 'Your public page', icon: 'user', keywords: 'profile account me', when: () => !!state.user, run: () => api.showProfileView?.() },
     { title: 'Feedback & bug reports', sub: 'Tell us what’s wrong or what you’d like', icon: 'message-circle-warning', keywords: 'feedback bug report issue idea suggestion', run: () => api.openFeedbackModal?.() },
-    { title: 'Terms of Service', sub: 'Policy', icon: 'scroll-text', keywords: 'terms tos legal', run: () => api.openTermsPage?.() },
-    { title: 'Privacy Policy', sub: 'Policy', icon: 'shield', keywords: 'privacy policy legal data', run: () => api.openPrivacyPage?.() },
+    { title: 'Terms of Service', sub: 'Policy', icon: 'scroll-text', keywords: 'terms tos legal', ...goTo('terms') },
+    { title: 'Privacy Policy', sub: 'Policy', icon: 'shield', keywords: 'privacy policy legal data', ...goTo('privacy') },
     { title: 'Community Rules', sub: 'Policy', icon: 'list-checks', keywords: 'rules guidelines community', run: () => api.openCommunityRulesModal?.() }
 ];
 export const ACTIONS: Entry[] = [
@@ -220,7 +225,7 @@ export async function communityResults(query: string, limit: number): Promise<Se
         publishedId: row.id,
         // author matches rank under name/species matches
         score: Math.max(score(query, row.name, row.species), score(query, row.author_name) / 2, 1),
-        run: () => api.openPublishedMonById?.(row.id)
+        ...goTo(`community/${encodeURIComponent(row.id)}`)
     })), limit);
 }
 
@@ -243,7 +248,7 @@ export async function peopleResults(query: string, limit: number): Promise<Searc
             icon: 'user',
             person: { id: p.id, avatarUrl: p.avatar_url || '', name },
             score: Math.max(score(q, p.display_name), score(q, p.username), 1),
-            run: () => api.showUserProfile?.(p.id)
+            ...goTo(`profile/${p.id}`)
         };
     }), limit);
 }

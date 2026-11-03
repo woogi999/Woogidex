@@ -7,7 +7,7 @@ import { log } from '../core/log.ts';
 import { state, api } from '../core/app.ts';
 import { confirmDialog } from '../core/confirm-dialog.ts';
 import { renderCommentMarkdown } from '../core/data.ts';
-import { navigateRoute, routeUrl, emailLinkParams } from '../core/router.ts';
+import { navigateRoute, replaceRoute, currentRoute, watchAddress, routeUrl, emailLinkParams } from '../core/router.ts';
 import { mountIsland } from '../app/island.tsx';
 import { UserHoverCard } from '../app/components/profile.tsx';
 import { notify } from '../app/store.ts';
@@ -828,7 +828,16 @@ async function showProfileView(userId: any = null, options: Record<string, any> 
         renderProfilePage();
         if (state.profilePageEditing) api.updateConnectedAccountsUI?.();
         const username = state.profilePageUser?.username;
-        if (username) navigateRoute(`profile/${encodeURIComponent(username)}`);
+        // the address names the profile by username. The load can finish after
+        // you have left (a link, Back): then the address is not this page's any more
+        if (username && document.body.dataset.page === 'profile-view') {
+            const path = `profile/${encodeURIComponent(username)}`;
+            const route = currentRoute();
+            const named = [String(userId), username].map(s => s.toLowerCase()).includes(route.param.toLowerCase());
+            // opened from its address (by id, or another case): put the username in place
+            if (route.name === 'profile') { if (named) replaceRoute(path); }
+            else navigateRoute(path);
+        }
         document.title = `${state.profilePageUser?.display_name || username || 'Profile'} · Woogidex`;
     } catch (e: any) {
         log.error('AUTH', 'Profile page failed to load', e);
@@ -1103,6 +1112,7 @@ async function showUserProfile(userIdOrUsername) {
     if (!api.requireAccount?.('Sign in to view profiles.',
         () => showUserProfile(userIdOrUsername))) return;
     try {
+        const moved = watchAddress();
         const client = await getClient();
         const value = String(userIdOrUsername || '').trim();
         if (!value) { showProfileNotFound(); return; }
@@ -1134,6 +1144,7 @@ async function showUserProfile(userIdOrUsername) {
             targetId = byUsername?.id || null;
         }
 
+        if (moved()) return;
         if (!targetId) { showProfileNotFound(); return; }
         await showProfileView(targetId);
     } catch (e: any) {

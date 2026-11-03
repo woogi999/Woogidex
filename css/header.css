@@ -181,7 +181,7 @@ input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; appe
 }
 
 /* the identity row is a link to your profile */
-button.header-profile-popover-identity {
+.header-profile-popover-identity {
     width: 100%;
     border: 0; border-radius: 6px;
     background: transparent;
@@ -189,7 +189,7 @@ button.header-profile-popover-identity {
     cursor: pointer;
     padding: 8px;
 }
-button.header-profile-popover-identity:hover { background: var(--bg-panel); }
+.header-profile-popover-identity:hover { background: var(--bg-panel); }
 
 /* ---------- theme switch ---------- */
 .header-theme-row { position: relative; }

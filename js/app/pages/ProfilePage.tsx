@@ -14,6 +14,7 @@ import { Avatar } from '../components/Avatar.tsx';
 import { BadgeRow } from '../components/Badge.tsx';
 import { ConnectedAccounts } from '../components/ConnectedAccounts.tsx';
 import { Icon } from '../components/Icon.tsx';
+import { Link, monPath } from '../components/Link.tsx';
 import { FeedCard, FeedSkeleton } from '../components/feed.tsx';
 import { WallComposer, WallPostCard } from '../components/comments.tsx';
 import { getThread, loadThread } from '../../features/comments.ts';
@@ -183,7 +184,7 @@ function PublicProfile({ profile, isOwn }: { profile: any; isOwn: boolean }) {
                     {isOwn ? (
                         <>
                             <button className="btn btn-primary btn-sm" type="button" onClick={() => api.editOwnProfile()}><Icon name="pencil" size={14} /> Edit profile</button>
-                            <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openMessages()}><Icon name="chat-bubble-oval-left-ellipsis" size={14} /> Messages</button>
+                            <Link to="messages" className="btn btn-secondary btn-sm"><Icon name="chat-bubble-oval-left-ellipsis" size={14} /> Messages</Link>
                         </>
                     ) : state.user && !blocked ? (
                         <>
@@ -303,7 +304,7 @@ function ProfileMenu({ profile, isOwn, blocked }: { profile: any; isOwn: boolean
                         : <button type="button" className="is-danger" onClick={() => { setOpen(false); api.blockUser(profile.id, name); }}><Icon name="no-symbol" size={14} /> Block {name}</button>)}
                     {!isOwn && state.user && <button type="button" onClick={() => { setOpen(false); openReportDialog('profile', profile.id, null, name); }}><Icon name="flag" size={14} /> Report {name}</button>}
                     {isOwn && <button type="button" onClick={() => { setOpen(false); openCommentControls('profile', profile.id); }}><Icon name="chat-bubble-left-right" size={14} /> Who can post on my wall</button>}
-                    <button type="button" onClick={() => { setOpen(false); api.showCollection(); }}><Icon name="arrow-left" size={14} /> Back to my collection</button>
+                    <Link to="collection" onClick={() => setOpen(false)}><Icon name="arrow-left" size={14} /> Back to my collection</Link>
                 </div>
             )}
         </div>
@@ -336,9 +337,9 @@ function GalleryPeek({ profile, onAll }: { profile: any; onAll: () => void }) {
             <div className="profile2-card-head"><h3>Fakémon</h3><button type="button" className="link-btn" onClick={onAll}>See all</button></div>
             <div className="profile2-peek">
                 {mons.map((row: any) => (
-                    <button type="button" key={row.id} className="profile2-peek-mon" onClick={() => api.openPublishedMonById(row.id)} title={row.fakemon_data?.name}>
+                    <Link key={row.id} to={monPath(row.id)} className="profile2-peek-mon" title={row.fakemon_data?.name}>
                         <LazyArt row={row} className="profile2-peek-art" />
-                    </button>
+                    </Link>
                 ))}
             </div>
         </section>
@@ -421,13 +422,13 @@ function FollowListDialog({ close, userId, which, isOwn, name }: DialogProps<{ u
                     const iFollow = api.isFollowing?.(r.id);
                     return (
                         <div className="follow-row" key={r.id}>
-                            <button type="button" className="follow-row-main" onClick={() => { close(); api.showUserProfile(r.id); }}>
+                            <Link to={`profile/${r.id}`} className="follow-row-main" onClick={close}>
                                 <Avatar userId={r.id} url={r.avatar_url} name={r.display_name || r.username} className="feed-avatar" />
                                 <span className="follow-row-text">
                                     <strong>{r.display_name || r.username}<BadgeRow badgeKeys={r.display_badges || []} size={12} /></strong>
                                     <span>@{r.username}</span>
                                 </span>
-                            </button>
+                            </Link>
                             {isOwn && which === 'followers' ? (
                                 <button type="button" className="btn btn-secondary btn-sm" title="Remove this follower"
                                     onClick={async () => { if (await api.removeFollower(r.id)) setRows((rows || []).filter(x => x.id !== r.id)); }}>Remove</button>

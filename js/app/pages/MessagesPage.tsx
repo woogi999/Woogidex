@@ -10,6 +10,7 @@ import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef,
 import { api, state } from '../../core/app.ts';
 import { Avatar } from '../components/Avatar.tsx';
 import { Icon } from '../components/Icon.tsx';
+import { Link, isPlainClick } from '../components/Link.tsx';
 import { EmojiInput, RichText } from '../components/EmojiInput.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { registerDialog, openDialog, type DialogProps } from '../dialogs.tsx';
@@ -136,14 +137,16 @@ export function ChatList({ conversations, loaded, activeId, title = 'Chats', act
                             {!query && <button type="button" className="btn btn-primary btn-sm" onClick={() => openDialog('new-chat')}>Start one</button>}
                         </div>
                     ) : list.map(c => (
-                        <button type="button" key={c.id} className={`chat-row${c.id === activeId ? ' active' : ''}${c.unread ? ' is-unread' : ''}`} onClick={() => openChat(inDock, c.id)}>
+                        // a link to the chat's page; in the dock, a plain click opens it in the dock instead
+                        <Link key={c.id} to={`messages/${encodeURIComponent(c.id)}`} className={`chat-row${c.id === activeId ? ' active' : ''}${c.unread ? ' is-unread' : ''}`}
+                            onClick={inDock ? e => { if (isPlainClick(e)) { e.preventDefault(); api.openDock(c.id); } } : undefined}>
                             <ChatAvatar convo={c} />
                             <span className="chat-row-text">
                                 <span className="chat-row-title">{api.conversationTitle(c)}{c.muted && <Icon name="bell-slash" size={12} className="chat-muted" />}</span>
                                 <span className="chat-row-preview">{c.preview || (c.kind === 'group' ? `${c.members.length} people` : 'Say hi!')} · {timeAgo(c.last_message_at)}</span>
                             </span>
                             {c.unread > 0 && <span className="chat-unread-dot" aria-label={`${c.unread} unread`}>{c.unread > 9 ? '9+' : c.unread}</span>}
-                        </button>
+                        </Link>
                     ))}
             </div>
             <div className="chat-list-foot"><Icon name="lock-closed" size={12} /> End-to-end encrypted</div>
@@ -594,10 +597,10 @@ function ChatInfo({ convo, onClose }: { convo: Conversation; onClose: () => void
                 </div>
                 {convo.members.map(x => (
                     <div className="chat-member" key={x.id}>
-                        <button type="button" className="chat-member-main" onClick={() => api.showUserProfile(x.id)}>
+                        <Link to={`profile/${x.id}`} className="chat-member-main">
                             <Avatar userId={x.id} url={x.avatar_url} name={x.display_name || x.username} className="feed-avatar feed-avatar-sm" />
                             <span>{x.display_name || x.username}{x.id === me && ' (you)'}{x.role === 'owner' && convo.kind === 'group' && <small className="chat-owner"> · owner</small>}</span>
-                        </button>
+                        </Link>
                         {convo.kind === 'group' && isOwner && x.id !== me && (
                             <button type="button" className="chat-icon-btn" title="Remove from group" aria-label={`Remove ${x.display_name || x.username}`} onClick={() => api.removeGroupMember(convo.id, x.id, x.display_name || x.username)}><Icon name="user-minus" size={16} /></button>
                         )}
@@ -606,7 +609,7 @@ function ChatInfo({ convo, onClose }: { convo: Conversation; onClose: () => void
             </div>
             <div className="chat-info-section chat-info-actions">
                 <button type="button" onClick={() => api.setChatMuted(convo.id, !convo.muted)}><Icon name={convo.muted ? 'bell' : 'bell-slash'} size={16} /> {convo.muted ? 'Unmute' : 'Mute'} notifications</button>
-                {convo.kind === 'dm' && other && <button type="button" onClick={() => api.showUserProfile(other.id)}><Icon name="user" size={16} /> View profile</button>}
+                {convo.kind === 'dm' && other && <Link to={`profile/${other.id}`}><Icon name="user" size={16} /> View profile</Link>}
                 {convo.kind === 'dm' && other && <button type="button" className="is-danger" onClick={() => api.blockUser(other.id, other.display_name || other.username)}><Icon name="no-symbol" size={16} /> Block {other.display_name || other.username}</button>}
                 <button type="button" className="is-danger" onClick={() => api.removeGroupMember(convo.id, me)}><Icon name="arrow-right-start-on-rectangle" size={16} /> {convo.kind === 'group' ? 'Leave group' : 'Leave chat'}</button>
             </div>

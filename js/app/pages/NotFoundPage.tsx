@@ -3,6 +3,7 @@
 
 import { api } from '../../core/app.ts';
 import { Icon } from '../components/Icon.tsx';
+import { Link } from '../components/Link.tsx';
 import { useRoute } from '../hooks.ts';
 
 export function NotFoundPage() {
@@ -11,9 +12,9 @@ export function NotFoundPage() {
     return (
         <section className="not-found-panel" aria-labelledby="not-found-title">
             {/* the page has no header, so the logo is how you know where you are */}
-            <button className="not-found-logo" type="button" onClick={() => api.showCollection()} aria-label="Woogidex home">
+            <Link to="" className="not-found-logo" aria-label="Woogidex home">
                 <img src="assets/woogidex_icon.png" alt="Woogidex" />
-            </button>
+            </Link>
             <div className="not-found-code" aria-hidden="true">
                 <span>4</span>
                 <span className="not-found-ball"><span className="not-found-ball-band" /><span className="not-found-ball-button" /></span>
@@ -25,12 +26,12 @@ export function NotFoundPage() {
                 Nothing lives at <code className="not-found-path">{path}</code>. The link may be mistyped, or whatever was here has moved on.
             </p>
             <div className="not-found-actions">
-                <button className="btn btn-primary" type="button" onClick={() => api.showCollection()}>
+                <Link to="collection" className="btn btn-primary">
                     <Icon name="layout-grid" size={16} /> My collection
-                </button>
-                {api.openCommunityHub && <button className="btn btn-secondary" type="button" onClick={() => api.openCommunityHub()}>
+                </Link>
+                <Link to="community" className="btn btn-secondary">
                     <Icon name="users" size={16} /> Community Hub
-                </button>}
+                </Link>
             </div>
         </section>
     );

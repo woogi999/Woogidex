@@ -118,6 +118,10 @@ h1, h2, h3, h4 { color: var(--text-primary); line-height: 1.25; }
    like the control, not like blue underlined text. :where() keeps this at
    zero specificity, so any class rule wins */
 :where(a[class]) { color: inherit; text-decoration: none; }
+/* links that took over from buttons keep the box the button had (a link is
+   inline by default; a button is inline-block) */
+:where(a.feed-byline-avatar, a.comment-avatar, a.post-tag, a.feed-mon-name, a.feed-byline-group) { display: inline-block; }
+:where(a.card-name) { display: block; }
 .btn:focus-visible, .tab:focus-visible {
     outline: 2px solid var(--accent);
     outline-offset: 2px;

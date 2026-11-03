@@ -6,6 +6,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, state } from '../../core/app.ts';
 import { Icon } from './Icon.tsx';
+import { Link } from './Link.tsx';
 import { Avatar } from './Avatar.tsx';
 import { Modal } from './Modal.tsx';
 import { FeedCard, FeedSkeleton, PostComposer, timeAgo } from './feed.tsx';
@@ -79,7 +80,7 @@ function GroupRow({ group }: { group: Group }) {
     const status = api.myGroupStatus(group.id);
     return (
         <div className="group-row" style={tint(group)}>
-            <button type="button" className="group-row-main" onClick={() => api.showGroupView({ kind: 'group', slug: group.slug, tab: 'posts' })}>
+            <Link to={`groups/${group.slug}`} className="group-row-main">
                 <GroupTile group={group} />
                 <span className="group-row-text">
                     <strong>{group.name}</strong>
@@ -89,7 +90,7 @@ function GroupRow({ group }: { group: Group }) {
                     </small>
                     {group.description && <span className="group-row-desc">{group.description}</span>}
                 </span>
-            </button>
+            </Link>
             <JoinButton group={group} status={status} compact />
         </div>
     );
@@ -130,7 +131,7 @@ function NewGroup() {
     }
     return (
         <div className="groups groups-new">
-            <button type="button" className="link-btn groups-back" onClick={() => api.showGroupView({ kind: 'list' })}><Icon name="arrow-left" size={14} /> All groups</button>
+            <Link to="groups" className="link-btn groups-back"><Icon name="arrow-left" size={14} /> All groups</Link>
             <div className="groups-new-grid">
                 <form className="groups-form" onSubmit={e => { e.preventDefault(); submit(); }}>
                     <h2>Create a group</h2>
@@ -232,7 +233,7 @@ function GroupPage({ slug, tab }: { slug: string; tab: GroupTab }) {
     const go = (t: GroupTab) => api.showGroupView({ kind: 'group', slug, tab: t });
     return (
         <div className="groups group-page" style={tint(group)}>
-            <button type="button" className="link-btn groups-back" onClick={() => api.showGroupView({ kind: 'list' })}><Icon name="arrow-left" size={14} /> All groups</button>
+            <Link to="groups" className="link-btn groups-back"><Icon name="arrow-left" size={14} /> All groups</Link>
             <div className="group-cover" />
             <header className="group-head">
                 <GroupTile group={group} size="lg" />
@@ -405,10 +406,10 @@ const nameOf = (m: Member) => m.profile?.display_name || m.profile?.username || 
 function MemberRow({ m, children }: { m: Member; children?: React.ReactNode }) {
     return (
         <div className="group-member">
-            <button type="button" className="group-member-main" onClick={() => api.showUserProfile(m.user_id)}>
+            <Link to={`profile/${m.user_id}`} className="group-member-main">
                 <Avatar userId={m.user_id} url={m.profile?.avatar_url} name={nameOf(m)} className="feed-avatar feed-avatar-sm" />
                 <span><strong>{nameOf(m)}</strong>{m.profile?.username && <small>@{m.profile.username}</small>}</span>
-            </button>
+            </Link>
             <span className="group-member-actions">{children}</span>
         </div>
     );
@@ -469,14 +470,14 @@ export function YourGroupsRail() {
         <section className="feed-rail-card rail-groups">
             <h3>Your groups</h3>
             {groups.length ? groups.map(g => (
-                <button key={g.id} type="button" className="rail-group" onClick={() => api.showGroupView({ kind: 'group', slug: g.slug, tab: 'posts' })}>
+                <Link key={g.id} to={`groups/${g.slug}`} className="rail-group">
                     <GroupTile group={g} size="sm" />
                     <span>{g.name}</span>
-                </button>
+                </Link>
             )) : <p className="rail-groups-empty">Join groups for the stuff you are into.</p>}
-            <button type="button" className="link-btn" onClick={() => api.showGroupView({ kind: groups.length ? 'list' : 'list' })}>
+            <Link to="groups" className="link-btn">
                 {groups.length ? 'See all groups' : 'Find groups'} <Icon name="arrow-right" size={12} />
-            </button>
+            </Link>
         </section>
     );
 }

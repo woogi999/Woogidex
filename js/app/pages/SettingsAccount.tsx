@@ -6,6 +6,7 @@ import { useId, type ReactNode } from 'react';
 import { api, state } from '../../core/app.ts';
 import { registerSettingsGroup, registerSettingsSection, ext } from '../../core/extend.ts';
 import { Icon } from '../components/Icon.tsx';
+import { Link } from '../components/Link.tsx';
 import { Avatar } from '../components/Avatar.tsx';
 import {
     ACCOUNT_DELETION_GRACE_DAYS, accountDeletionDueAt, cancelAccountDeletion, formatDue, openDeleteAccountModal
@@ -101,14 +102,14 @@ export function IdentityCard() {
     }
     const name = user.displayName || user.username || 'Your profile';
     return (
-        <button type="button" className="st-identity" onClick={() => api.showProfileView()}>
+        <Link to={user.username ? `profile/${encodeURIComponent(user.username)}` : `profile/${user.id}`} className="st-identity">
             <span className="st-identity-avatar"><Avatar userId={user.id} url={user.avatarUrl} name={name} className="st-avatar-img" /></span>
             <span className="st-identity-text">
                 <strong>{name}</strong>
                 <small>{user.username ? '@' + user.username : 'View your profile'}</small>
             </span>
             <Icon name="chevron-right" size={16} className="st-nav-chevron" />
-        </button>
+        </Link>
     );
 }
 

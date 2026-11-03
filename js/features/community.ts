@@ -515,6 +515,7 @@ function updateOpenCommunityMon() {
 }
 
 async function openPublishedMonById(publishedId, options: Record<string, any> = {}) {
+    const moved = watchAddress();
     // Shared links land here. An open Fakemon opens for anyone; any other
     // holds the link, signs the visitor in, then opens the Fakemon they came for.
     const open = !state.user ? await fetchMonDetailRow(publishedId).catch(() => null) : null;
@@ -533,6 +534,8 @@ async function openPublishedMonById(publishedId, options: Record<string, any> = 
     const cs = ensureCommunityState();
     cs.mons = [data, ...(cs.mons || []).filter(x => x.id !== data.id)];
     if (state.user) await attachLiveAuthorInfo(cs.mons);
+    // the visitor went somewhere else while this loaded
+    if (moved()) return true;
     await openMonDetail(publishedId, options);
     return true;
 }
@@ -607,9 +610,10 @@ function exitCommunityRoute() {}
 async function handleCommunityRoute(param: string): Promise<boolean> {
     const id = String(param || '').trim();
     if (!id) { await openCommunityHub({ panel: 'feed' }); return true; }
-    if (id === 'browse') {
-        await openCommunityHub({ panel: 'browse' });
-        replaceRoute('community/browse');
+    if (id === 'browse') { await openCommunityHub({ panel: 'browse' }); return true; }
+    // one the feed already has opens straight away (it fetches the rest itself)
+    if (state.user && ensureCommunityState().mons?.some(x => String(x.id) === id)) {
+        await openMonDetail(id, { preserveRoute: true });
         return true;
     }
     return await openPublishedMonById(id, { preserveRoute: true });
@@ -810,7 +814,8 @@ async function openCommunityHub({ panel = null }: { panel?: any } = {}) {
     api.exitProfileRoute?.();
 
     api.activateTopLevelView?.('community-view');
-    api.setRoute?.('community', 'Community Hub');
+    // the panel's own address, at once (the feed can take seconds to load)
+    api.setRoute?.(communityPanelPath(panel || ensureCommunityState().panel || 'feed'), 'Community Hub');
 
     if (!guest && !hasAcceptedCommunityRules()) {
         openCommunityRulesModal({ requireAgreement: false });
@@ -857,7 +862,7 @@ function closeCommunityHub() {
 }
 
 import { publicName } from '../core/html.ts';
-import { routeUrl, navigateRoute, replaceRoute } from '../core/router.ts';
+import { routeUrl, navigateRoute, watchAddress } from '../core/router.ts';
 import { form } from '../editor/draft.ts';
 import { NAME_MAX } from '../core/data.ts';
 
@@ -1400,6 +1405,7 @@ async function openMonDetail(publishedId, options: Record<string, any> = {}) {
     cs.teaser = null;
     let row = cs.mons.find(m => m.id === publishedId);
     if (!row) return;
+    const moved = watchAddress();
     // feed only loads slim fields; fetch the full row now that this one mon
     // is actually opened, for the real learnset/artwork/cry/evolution graph.
     // fetched once and flagged on cs.mons - full artwork across a family can
@@ -1419,6 +1425,8 @@ async function openMonDetail(publishedId, options: Record<string, any> = {}) {
         api.showToast?.('Could not load the full details for this Fakemon.', 'error');
         return;
     }
+    // the visitor went somewhere else while it loaded (the row stays cached)
+    if (moved()) return;
     cs.openMonId = publishedId;
     cs.openMonRow = row;
     if (!options.preserveRoute) navigateRoute(`community/${encodeURIComponent(String(publishedId))}`);

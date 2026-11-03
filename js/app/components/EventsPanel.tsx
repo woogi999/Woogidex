@@ -15,7 +15,7 @@ import {
     describeWinnerRules, effectivePhase, entryAllowance, entryImage, entryTitle, events, exportEntriesCsv, exportEntriesJson, exportVotesJson,
     fakemonForEntry, fakemonFromFile, fakemonFromText, fmtDate, hasSubmittedBallot, isLive, isPast, loadEvent, loadEventsList, permsFor,
     previewEventFakemon, ranked, readEventDraft, relTime, removeEntry, removeEntryLimit, removeHelper, saveEvent, scoresComplete,
-    setEntryLimit, setPhase, setPlacement, shareLink, showEventView, shrinkImage, startBallot, submitBallot, submitEntry,
+    setEntryLimit, setPhase, setPlacement, shareLink, showEventView, eventViewPath, shrinkImage, startBallot, submitBallot, submitEntry,
     readEventTemplates, saveEventTemplate, deleteEventTemplate, removeEntryAsTeam, findPeople,
     takingEntries, updateBallot, updateEntry, updateHelper, votingOpen, writeEventDraft, readEntryDraft, writeEntryDraft, clearEntryDraft,
     myTimeZone, timeZones, zonedParts, zonedToUtc,
@@ -35,6 +35,7 @@ import {
 import { Avatar } from './Avatar.tsx';
 import { EmojiGlyph, EmojiInput, RichText } from './EmojiInput.tsx';
 import { Icon } from './Icon.tsx';
+import { Link } from './Link.tsx';
 import { Modal } from './Modal.tsx';
 import { PokedexBoard } from './board/PokedexBoard.tsx';
 import { EvoStrip } from './board/CommunityEvoStrip.tsx';
@@ -76,7 +77,7 @@ function PhasePill({ ev }: { ev: EventRow }) {
 }
 
 function BackLink({ to, children }: { to: Parameters<typeof showEventView>[0]; children: ReactNode }) {
-    return <button type="button" className="ev-back" data-leave-guard onClick={() => showEventView(to)}><Icon name="arrow-left" size={14} />{children}</button>;
+    return <Link to={eventViewPath(to)} className="ev-back" data-leave-guard><Icon name="arrow-left" size={14} />{children}</Link>;
 }
 
 // ==================== the list: every event a ticket ====================
@@ -241,11 +242,11 @@ function TicketStats({ ev }: { ev: EventRow }) {
 function Ticket({ ev, manage = false }: { ev: EventRow; manage?: boolean }) {
     const p = permsFor(ev);
     const [what, when] = keyDate(ev);
-    const open = () => showEventView({ kind: 'event', id: ev.slug || ev.id, tab: 'about' });
+    const path = eventViewPath({ kind: 'event', id: ev.slug || ev.id, tab: 'about' });
     return (
         // the outer box draws the shadow, the inner one is cut to a ticket's shape (a mask would clip the shadow)
         <div className={`ev-ticket${isLive(ev) ? ' is-live' : ''}`}><div className="ev-ticket-shape">
-            <button type="button" className="ev-ticket-main" onClick={open} aria-label={`${ev.title}, ${STAGE_LABEL[effectivePhase(ev)]}`}>
+            <Link to={path} className="ev-ticket-main" aria-label={`${ev.title}, ${STAGE_LABEL[effectivePhase(ev)]}`}>
                 <Cover ev={ev} className="ev-ticket-art" />
                 <span className="ev-ticket-body">
                     <span className="ev-meta-line">{ev.category || 'Event'}</span>
@@ -254,7 +255,7 @@ function Ticket({ ev, manage = false }: { ev: EventRow; manage?: boolean }) {
                     <TicketSchedule ev={ev} />
                     <TicketStats ev={ev} />
                 </span>
-            </button>
+            </Link>
             <div className="ev-ticket-stub">
                 <PhasePill ev={ev} />
                 <span className="ev-stub-what">{what}</span>
@@ -647,15 +648,15 @@ function EventComments({ ev, perms }: { ev: EventRow; perms: ReturnType<typeof p
 
 /**
  * While `dirty`: closing or reloading the tab gets the browser's "Leave site?",
- * and the site's own ways out (the header, the hub's menu, a [data-leave-guard]
- * button) ask first.
+ * and the site's own ways out (any link to another page of the site, the
+ * header, the hub's menu, a [data-leave-guard] button) ask first.
  * The Community page stays mounted while hidden, so once you've left it the
  * guard stands down (it used to ask on every header click until the form was
  * sent), and stands up again when you come back to the unfinished work.
  * ponytail: the browser's Back button isn't asked about; the autosave keeps the work.
  */
-const LEAVING = '.logo-button, .header-nav-btn, .header-messages-btn, .notification-item, .header-profile-popover-identity, '
-    + 'button.header-profile-popover-item, .header-profile-popover-legal button, .hub-nav button, [data-leave-guard]';
+const LEAVING = 'a[href]:not([target]):not([download]), .logo-button, .header-nav-btn, .header-messages-btn, .notification-item, '
+    + '.header-profile-popover-identity, .header-profile-popover-item, .header-profile-popover-legal button, .hub-nav-item, [data-leave-guard]';
 const eventsOnScreen = () => {
     const view = document.getElementById('community-view');
     return !view || view.getClientRects().length > 0;

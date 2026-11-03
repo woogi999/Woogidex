@@ -689,6 +689,9 @@ export async function loadEvent(key: string) {
 // /events/<id>             the event page: the shareable link for entrants
 // /events/<id>/dashboard   organizers and helpers: entries, results, team, settings
 
+/** The address of an events view, as a route path. */
+export const eventViewPath = (v: View) => routeFor(v)[0];
+
 function routeFor(v: View): [string, string] {
     if (v.kind === 'new') return ['events/new', 'New event'];
     // a loaded event's custom link wins over whatever key opened it

@@ -5,6 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, state } from '../../core/app.ts';
 import { Icon } from './Icon.tsx';
+import { Link } from './Link.tsx';
 import { Modal } from './Modal.tsx';
 import { timeAgo } from './feed.tsx';
 import { registerDialog, openDialog, type DialogProps } from '../dialogs.tsx';
@@ -45,9 +46,9 @@ export function PinnedPosts({ userId, isOwn }: { userId: string; isOwn: boolean 
             {pinned.map((p: PinnedPost) => (
                 <article key={p.id} className="biz-pin">
                     <span className="biz-pin-kicker"><Icon name="pin" size={12} /> Pinned</span>
-                    <button type="button" className="biz-pin-body" onClick={() => api.openPost(p.id)}>
+                    <Link to={`post/${encodeURIComponent(p.id)}`} className="biz-pin-body">
                         {p.body ? p.body.slice(0, 280) : `${p.mon_ids?.length || 0} Fakémon`}
-                    </button>
+                    </Link>
                     <span className="biz-pin-meta">
                         <time dateTime={p.created_at}>{timeAgo(p.created_at)}</time>
                         {isOwn && <button type="button" className="link-btn" onClick={() => api.togglePin(p.id)}>Unpin</button>}
@@ -102,7 +103,7 @@ function BusinessInsights({ close }: DialogProps) {
                             <ol className="biz-top">
                                 {data.top_posts.map(p => (
                                     <li key={p.id}>
-                                        <button type="button" className="biz-top-body" onClick={() => { close(); api.openPost(p.id); }}>{p.body || 'A post with Fakémon'}</button>
+                                        <Link to={`post/${encodeURIComponent(p.id)}`} className="biz-top-body" onClick={close}>{p.body || 'A post with Fakémon'}</Link>
                                         <span className="biz-top-stats">
                                             <span title="Reactions"><Icon name="face-smile" size={13} /> {p.reactions}</span>
                                             <span title="Comments"><Icon name="chat-bubble-oval-left" size={13} /> {p.comments}</span>

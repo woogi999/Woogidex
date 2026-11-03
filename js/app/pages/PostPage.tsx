@@ -4,6 +4,7 @@
 import { api } from '../../core/app.ts';
 import { PostFeedCard } from '../components/feed.tsx';
 import { Icon } from '../components/Icon.tsx';
+import { Link } from '../components/Link.tsx';
 import { useStore } from '../store.ts';
 
 export function PostPage() {
@@ -18,7 +19,7 @@ export function PostPage() {
             </div>
             {p.error ? (
                 <div className="feed-empty"><Icon name="exclamation-triangle" size={24} /><p>{p.error}</p>
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => api.openCommunityHub()}>Go to the Community Hub</button></div>
+                    <Link to="community" className="btn btn-secondary btn-sm">Go to the Community Hub</Link></div>
             ) : !p.row ? (
                 <div className="feed-card skel-card" style={{ minHeight: 220 }} />
             ) : (

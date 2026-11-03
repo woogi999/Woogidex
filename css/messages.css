@@ -178,8 +178,8 @@ body[data-page="messages-view"] .app-container { max-width: none; padding: 0; }
 .chat-member-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; border: 0; background: none; padding: 4px; border-radius: 5px; cursor: pointer; color: var(--text-primary); font: inherit; font-size: 14px; text-align: left; }
 .chat-member-main:hover { background: var(--bg-panel); }
 .chat-owner { color: var(--text-muted); }
-.chat-info-actions button { display: flex; align-items: center; gap: 8px; padding: 8px; border: 0; border-radius: 5px; background: transparent; color: var(--text-primary); font: inherit; font-size: 14px; cursor: pointer; text-align: left; }
-.chat-info-actions button:hover { background: var(--bg-panel); }
+.chat-info-actions button, .chat-info-actions a { display: flex; align-items: center; gap: 8px; padding: 8px; border: 0; border-radius: 5px; background: transparent; color: var(--text-primary); font: inherit; font-size: 14px; cursor: pointer; text-align: left; text-decoration: none; }
+.chat-info-actions button:hover, .chat-info-actions a:hover { background: var(--bg-panel); }
 .chat-info-actions button.is-danger { color: var(--danger); }
 .chat-info-note { font-size: 11px; color: var(--text-muted); line-height: 1.5; margin: 0; }
 

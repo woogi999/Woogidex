@@ -184,11 +184,11 @@
     padding: 4px; display: flex; flex-direction: column;
 }
 .feed-menu-right { right: 0; left: auto; }
-.feed-menu button {
+.feed-menu button, .feed-menu a {
     display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 0; border-radius: 5px; background: transparent;
-    color: var(--text-primary); font: inherit; font-size: 13px; cursor: pointer; text-align: left; white-space: nowrap;
+    color: var(--text-primary); font: inherit; font-size: 13px; cursor: pointer; text-align: left; white-space: nowrap; text-decoration: none;
 }
-.feed-menu button:hover { background: var(--bg-panel); }
+.feed-menu button:hover, .feed-menu a:hover { background: var(--bg-panel); }
 .feed-menu button.is-danger { color: var(--danger); }
 
 /* ---- staff tools (js/app/components/ModButton.tsx, js/mod/tools.tsx); only staff ever see these ---- */

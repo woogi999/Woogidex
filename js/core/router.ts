@@ -167,6 +167,16 @@ export function navigateRoute(path: string, opts: { replace?: boolean } = {}): v
     emit();
 }
 
+/**
+ * For an opener that waits on the network before it shows its page: call
+ * this first, and after the wait, stop if it returns true. Then the visitor
+ * went somewhere else meanwhile (a link, Back), and that page wins.
+ */
+export function watchAddress(): () => boolean {
+    const at = window.location.href;
+    return () => window.location.href !== at;
+}
+
 /** Rewrites the current entry's address without adding a history entry. */
 export function replaceRoute(path: string): void {
     navigateRoute(path, { replace: true });

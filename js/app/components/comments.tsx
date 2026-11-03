@@ -15,6 +15,7 @@ import { Avatar } from './Avatar.tsx';
 import { ModButton, modContext, type ModTarget } from './ModButton.tsx';
 import { BadgeRow } from './Badge.tsx';
 import { Icon } from './Icon.tsx';
+import { Link } from './Link.tsx';
 import { EmojiButton, EmojiGlyph, EmojiInput, QUICK_REACTIONS, RichText } from './EmojiInput.tsx';
 import { Modal } from './Modal.tsx';
 import { openDialog, registerDialog, type DialogProps } from '../dialogs.tsx';
@@ -151,11 +152,11 @@ function ReactionListDialog({ close, kind, id }: DialogProps<{ kind: ReactionKin
                 {rows === null ? <SkeletonRows count={3} avatar label="Loading comments" />
                     : !list.length ? <p className="comment-empty">No reactions yet.</p>
                     : list.map((r, i) => (
-                        <button type="button" key={`${r.user.id}-${r.emoji}-${i}`} className="reaction-list-row" onClick={() => { close(); api.showUserProfile(r.user.id); }}>
+                        <Link key={`${r.user.id}-${r.emoji}-${i}`} to={`profile/${r.user.id}`} className="reaction-list-row" onClick={close}>
                             <Avatar userId={r.user.id} url={r.user.avatar_url} name={r.user.display_name || r.user.username} className="feed-avatar feed-avatar-sm" />
                             <span className="reaction-list-name">{r.user.display_name || r.user.username || 'Someone'}</span>
                             <EmojiGlyph code={r.emoji} size={18} />
-                        </button>
+                        </Link>
                     ))}
             </div>
         </Modal>
@@ -256,9 +257,9 @@ function CommentItem({ kind, parentId, parentOwnerId, comment, replies: tree, de
 
     return (
         <div className={`comment${depth ? ' is-reply' : ''}`} {...modContext(commentModTarget(kind, parentId, comment))}>
-            <button type="button" className="comment-avatar" onClick={() => api.showUserProfile(comment.user_id)} aria-label={`${comment.author_name || 'Someone'}'s profile`}>
+            <Link to={`profile/${comment.user_id}`} className="comment-avatar" aria-label={`${comment.author_name || 'Someone'}'s profile`}>
                 <Avatar userId={comment.user_id} url={comment.author_avatar_url} name={comment.author_name} className="feed-avatar feed-avatar-sm" />
-            </button>
+            </Link>
             <div className="comment-main">
                 {editing ? (
                     <div className="comment-edit" onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); setDraft(comment.body); setEditing(false); } }}>
@@ -272,7 +273,7 @@ function CommentItem({ kind, parentId, parentOwnerId, comment, replies: tree, de
                 ) : (
                     <div className="comment-bubble">
                         <span className="comment-author">
-                            <span className="community-author-link" data-user-id={comment.user_id} onClick={() => api.showUserProfile(comment.user_id)}>{comment.author_name || 'Someone'}</span>
+                            <Link to={`profile/${comment.user_id}`} className="community-author-link" data-user-id={comment.user_id}>{comment.author_name || 'Someone'}</Link>
                             <BadgeRow badgeKeys={comment.author_badges} size={12} />
                         </span>
                         <RichText text={comment.body} className="comment-body" />
@@ -435,12 +436,12 @@ export function WallPostCard({ profileId, profileName, comment }: { profileId: s
         <article className="feed-card feed-card-post wall-post" {...modContext(commentModTarget('profile', profileId, comment))}>
             <div className="feed-card-head">
                 <div className="feed-byline">
-                    <button type="button" className="feed-byline-avatar" onClick={() => api.showUserProfile(comment.user_id)} aria-label={`${comment.author_name || 'Someone'}'s profile`}>
+                    <Link to={`profile/${comment.user_id}`} className="feed-byline-avatar" aria-label={`${comment.author_name || 'Someone'}'s profile`}>
                         <Avatar userId={comment.user_id} url={comment.author_avatar_url} name={comment.author_name} className="feed-avatar" />
-                    </button>
+                    </Link>
                     <div className="feed-byline-text">
                         <span className="feed-byline-name">
-                            <span className="community-author-link" data-user-id={comment.user_id} onClick={() => api.showUserProfile(comment.user_id)}>{comment.author_name || 'Someone'}</span>
+                            <Link to={`profile/${comment.user_id}`} className="community-author-link" data-user-id={comment.user_id}>{comment.author_name || 'Someone'}</Link>
                             <BadgeRow badgeKeys={comment.author_badges} size={13} />
                             {!onOwnWall && <><Icon name="chevron-right" size={13} className="wall-post-arrow" /><span>{profileName}</span></>}
                         </span>

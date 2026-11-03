@@ -8,6 +8,7 @@ import {
     type Poll, type PollDraft, type PollParent, type VoterVisibility
 } from '../../features/polls.ts';
 import { Icon } from './Icon.tsx';
+import { Link } from './Link.tsx';
 import { Avatar } from './Avatar.tsx';
 import { Modal } from './Modal.tsx';
 import { EmojiInput, EmojiText } from './EmojiInput.tsx';
@@ -188,11 +189,11 @@ function PollVotersDialog({ close, poll }: DialogProps<{ poll: Poll }>) {
                 {rows === null ? <SkeletonRows count={3} avatar label="Loading" />
                     : !list.length ? <p className="comment-empty">No votes here yet.</p>
                     : list.map(r => (
-                        <button type="button" key={r.user.id} className="reaction-list-row" onClick={() => { close(); api.showUserProfile(r.user.id); }}>
+                        <Link key={r.user.id} to={`profile/${r.user.id}`} className="reaction-list-row" onClick={close}>
                             <Avatar userId={r.user.id} url={r.user.avatar_url} name={r.user.display_name || r.user.username} className="feed-avatar feed-avatar-sm" />
                             <span className="reaction-list-name">{r.user.display_name || r.user.username || 'Someone'}</span>
                             <span className="poll-voter-picks">{r.choices.map(c => poll.options[c]).filter(Boolean).join(', ')}</span>
-                        </button>
+                        </Link>
                     ))}
             </div>
         </Modal>

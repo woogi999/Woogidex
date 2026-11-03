@@ -121,8 +121,9 @@ function Palette({ seed, onClose }: { seed: string; onClose: () => void }) {
     const flat = groups.flatMap(([, rows]) => rows);
     const current = Math.min(active, Math.max(0, flat.length - 1));
 
-    function run(r: SearchResult | undefined) {
+    function run(r: SearchResult | undefined, viaLink = false) {
         if (!r) return;
+        if (viaLink) { close(() => {}); return; }
         close(() => {
             try { r.run(); } catch (err) { log.error('SEARCH', 'Quick search: result action failed', { title: r.title, error: String(err) }); }
         });
@@ -165,7 +166,7 @@ function Palette({ seed, onClose }: { seed: string; onClose: () => void }) {
                             <div className="gs-group-label">{label}</div>
                             {rows.map(r => {
                                 const i = index++;
-                                return <SearchRow key={`${label}-${i}`} id={`qs-opt-${i}`} result={r} query={query} active={i === current} onPick={() => run(r)} />;
+                                return <SearchRow key={`${label}-${i}`} id={`qs-opt-${i}`} result={r} query={query} active={i === current} onPick={(_, viaLink) => run(r, viaLink)} />;
                             })}
                         </Fragment>
                     ))}

@@ -88,9 +88,10 @@ export function GlobalSearch() {
     }
     const flat = groups.flatMap(([, list]) => list);
 
-    function run(r: SearchResult | undefined) {
+    function run(r: SearchResult | undefined, viaLink = false) {
         if (!r) return;
         closeGlobalSearch({ clear: true });
+        if (viaLink) return;
         try { r.run(); } catch (err) { log.error('SEARCH', 'Search result action failed', { title: r.title, error: String(err) }); }
     }
 
@@ -138,7 +139,7 @@ export function GlobalSearch() {
                         <div className="gs-group-label">{label}</div>
                         {list.map(r => {
                             const i = index++;
-                            return <SearchRow key={`${label}-${i}`} id={`gs-opt-${i}`} result={r} query={query} active={i === active} onMouseDown onPick={() => run(r)} />;
+                            return <SearchRow key={`${label}-${i}`} id={`gs-opt-${i}`} result={r} query={query} active={i === active} onMouseDown onPick={(_, viaLink) => run(r, viaLink)} />;
                         })}
                     </Fragment>
                 ))}
