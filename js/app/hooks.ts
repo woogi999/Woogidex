@@ -55,6 +55,73 @@ export function useSlide<T extends string | number>(current: T, order: readonly 
 }
 
 /**
+ * Whether a swipe that starts on `target` belongs to something else: a
+ * slider, a text area, a drag surface or a sideways scroller. A one-line field
+ * does not count: a quick swipe across one does nothing in it, and on a
+ * form-heavy tab nearly every stroke starts on one.
+ */
+function swipeTaken(target: Element, root: Element): boolean {
+    // drag surfaces: sliders (stat bars too), the notes' drawing canvases, evolution nodes
+    if (target.closest('input[type="range"], [role="slider"], textarea, [contenteditable="true"], [contenteditable=""], .doodle-canvas, .notes-ink, [data-node-id], [data-no-swipe], .ctx-menu')) return true;
+    if (target instanceof HTMLInputElement && document.activeElement === target) return true;
+    for (let n: Element | null = target; n && n !== root.parentElement; n = n.parentElement) {
+        if (n.scrollWidth > n.clientWidth + 2 && /(auto|scroll)/.test(getComputedStyle(n).overflowX)) return true;
+    }
+    return false;
+}
+
+/**
+ * Swipe left or right on a phone to go to the next or previous tab in
+ * `order`, like Instagram and Facebook. Put the ref on the area that holds the
+ * tabs and their content. The page's own slide (useSlide) plays the move.
+ * The left screen edge is left to the phone's own "back" swipe.
+ */
+export function useSwipeTabs<T extends string>(order: readonly T[], current: T, go: (next: T) => void, enabled = true) {
+    // a callback ref: the area can appear after the first render (a profile that loads)
+    const [el, setEl] = useState<HTMLElement | null>(null);
+    const latest = useRef({ order, current, go, enabled });
+    latest.current = { order, current, go, enabled };
+    useEffect(() => {
+        if (!el) return;
+        let start: { x: number; y: number; t: number } | null = null;
+        const down = (e: TouchEvent) => {
+            start = null;
+            if (!latest.current.enabled || e.touches.length !== 1 || !isPhone() || document.body.classList.contains('modal-open')) return;
+            const t = e.touches[0];
+            if (t.clientX < 24 || swipeTaken(e.target as Element, el)) return;
+            start = { x: t.clientX, y: t.clientY, t: Date.now() };
+        };
+        const up = (e: TouchEvent) => {
+            const s = start;
+            start = null;
+            const t = e.changedTouches[0];
+            if (!s || !t) return;
+            const dx = t.clientX - s.x, dy = t.clientY - s.y;
+            // a quick, mostly sideways stroke; a long press (the menu) or a scroll is not one
+            if (Date.now() - s.t > 700 || Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8) return;
+            if (window.getSelection()?.toString()) return;
+            const { order, current, go } = latest.current;
+            const i = order.indexOf(current);
+            const next = order[i + (dx < 0 ? 1 : -1)];
+            if (i < 0 || next === undefined) return;
+            go(next);
+            // the new tab stays in view in a strip that scrolls sideways
+            requestAnimationFrame(() => el.querySelector('[role="tab"][aria-selected="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
+        };
+        const cancel = () => { start = null; };
+        el.addEventListener('touchstart', down, { passive: true });
+        el.addEventListener('touchend', up, { passive: true });
+        el.addEventListener('touchcancel', cancel, { passive: true });
+        return () => {
+            el.removeEventListener('touchstart', down);
+            el.removeEventListener('touchend', up);
+            el.removeEventListener('touchcancel', cancel);
+        };
+    }, [el]);
+    return setEl;
+}
+
+/**
  * How many of `total` entries to draw now. A new `key` (another tab, folder,
  * layout or search) starts at `first`, enough to fill a screen. Then each idle
  * moment adds `step` more until all are drawn. A big collection then paints

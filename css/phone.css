@@ -166,6 +166,12 @@
     .collection-sort .btn { flex-basis: 40px; width: 40px; }
     #collection-shiny-toggle[aria-pressed="true"] { border-color: transparent; }
 
+    /* areas that swipe between tabs (useSwipeTabs in js/app/hooks.ts) reach the
+       bottom of the screen, so a swipe below short content still lands */
+    .hub, .st-narrow.st-in-section .st-main {
+        min-height: calc(100dvh - var(--header-h) - var(--bottom-nav-h) - env(safe-area-inset-bottom, 0px) - var(--sp-6));
+    }
+
     /* ==================== Community Hub ==================== */
     /* Publish lives in the Create tab now; guests keep their Join button */
     .hub:not(.is-guest) .hub-publish { display: none; }

@@ -22,7 +22,7 @@ import { BadgePicker, ProfileMons } from '../components/profile.tsx';
 import { LazyArt } from '../components/community.tsx';
 import { ShieldedArt } from '../components/ShieldedArt.tsx';
 import { useStore } from '../store.ts';
-import { useSlide } from '../hooks.ts';
+import { useSlide, useSwipeTabs } from '../hooks.ts';
 import { Modal } from '../components/Modal.tsx';
 import { openDialog, registerDialog, type DialogProps } from '../dialogs.tsx';
 import { NAME_MAX } from '../../core/data.ts';
@@ -142,6 +142,7 @@ function PublicProfileSkeleton() {
 function PublicProfile({ profile, isOwn }: { profile: any; isOwn: boolean }) {
     const [tab, setTab] = useState<Tab>('posts');
     const pane = useSlide(tab, ['posts', 'fakemon'] as Tab[]);
+    const swipe = useSwipeTabs(['posts', 'fakemon'] as Tab[], tab, setTab);
     const displayName = profile.display_name || profile.username || 'Profile';
     const stats = profile.stats || {};
     const following = api.isFollowing?.(profile.id) || !!stats.i_follow;
@@ -212,7 +213,7 @@ function PublicProfile({ profile, isOwn }: { profile: any; isOwn: boolean }) {
                         <Intro profile={profile} isOwn={isOwn} details={see('details')} />
                         {see('fakemon') && <GalleryPeek profile={profile} onAll={() => setTab('fakemon')} />}
                     </div>
-                    <div className="profile2-main">
+                    <div className="profile2-main" ref={swipe}>
                         <div className="profile2-tabs" role="tablist">
                             {tabs.map(([key, label, n]) => (
                                 <button key={key} type="button" role="tab" aria-selected={tab === key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>

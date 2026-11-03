@@ -9,7 +9,7 @@ import { api, state } from '../../core/app.ts';
 import { isLowEndDevice } from '../../core/device.ts';
 import { Icon } from '../components/Icon.tsx';
 import { useStore, useViewShown } from '../store.ts';
-import { useRoute, useSlide } from '../hooks.ts';
+import { useRoute, useSlide, useSwipeTabs } from '../hooks.ts';
 import { Link } from '../components/Link.tsx';
 import { slideIn } from '../../core/motion.ts';
 import { ext, type SettingsGroup as Group, type SettingsItem as Item, type SettingsSection as Section } from '../../core/extend.ts';
@@ -167,6 +167,8 @@ export function SettingsPage() {
     }, [inSection]);
 
     const open = (key: SectionKey) => api.openPath(`settings/${key}`);
+    // on a phone, inside a section, a swipe goes to the next or previous section
+    const swipe = useSwipeTabs(sections.map(s => s.key), current.key, open, narrow && inSection && !searching);
 
     return (
         <div ref={root} className={`st${narrow ? ' st-narrow' : ''}${narrow && inSection && !searching ? ' st-in-section' : ''}`}>
@@ -193,7 +195,7 @@ export function SettingsPage() {
             )}
 
             {showMain && (
-                <main className="st-main" ref={narrow ? undefined : main}>
+                <main className="st-main" ref={narrow ? swipe : main}>
                     {searching
                         ? <SearchResults query={query} sections={sections} onOpen={open} />
                         : <SectionView key={current.key} section={current} onBack={narrow ? () => api.openPath('settings') : undefined} />}

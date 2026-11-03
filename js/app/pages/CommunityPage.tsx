@@ -13,7 +13,7 @@ import { Avatar } from '../components/Avatar.tsx';
 import { FeedCard, FeedSkeleton, PostComposer } from '../components/feed.tsx';
 import { getLiveEvents } from '../../features/events.ts';
 import { useStore } from '../store.ts';
-import { useSlide } from '../hooks.ts';
+import { useSwipeTabs, useSlide } from '../hooks.ts';
 import { fadeSwap, staggerIn } from '../../core/motion.ts';
 import { NetworkNotice } from '../components/NetworkNotice.tsx';
 import { GroupsPanel, YourGroupsRail } from '../components/groups.tsx';
@@ -49,8 +49,10 @@ export function CommunityPage() {
     // phone, a row of chips (sections go left and right)
     const main = useSlide(panel, PANELS, useMedia('(max-width: 760px)') ? 'x' : 'y');
     const guest = !state.user;
+    // a phone swipes between the sections, like the chips above them
+    const swipe = useSwipeTabs(PANELS, panel, next => api.openPath(api.communityPanelPath(next)));
     return (
-        <div className={`hub${guest ? ' is-guest' : ''}`}>
+        <div ref={swipe} className={`hub${guest ? ' is-guest' : ''}`}>
             {/* the hub's sections, as a sidebar (a scrolling row of chips on a phone) */}
             <aside className="hub-nav" aria-label="Community Hub">
                 {guest

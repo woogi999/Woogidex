@@ -13,6 +13,7 @@ import { directionIn, sheetResize, slideIn } from '../../core/motion.ts';
 import { api } from '../../core/app.ts';
 import { editForm, form } from '../../editor/draft.ts';
 import { Icon } from '../components/Icon.tsx';
+import { useSwipeTabs } from '../hooks.ts';
 import { RegionAssign } from '../components/RegionAssign.tsx';
 import { useClickAway } from '../components/editor/fields.tsx';
 import { ArtworkSection } from '../components/editor/ArtworkSection.tsx';
@@ -92,8 +93,10 @@ export function EditorPage() {
         slideIn(document.getElementById(`tab-${tab}`), directionIn(TAB_ORDER, lastTab.current, tab));
         lastTab.current = tab;
     }, [tab]);
+    // a phone swipes from tab to tab
+    const swipe = useSwipeTabs(TAB_ORDER, tab, next => api.switchTab(null, next));
     return (
-        <div className="editor-sheet" role="dialog" aria-labelledby="editor-sheet-title">
+        <div ref={swipe} className="editor-sheet" role="dialog" aria-labelledby="editor-sheet-title">
             <div className="editor-sheet-head">
                 <button className="btn btn-secondary btn-icon btn-sm editor-sheet-close" type="button" onClick={() => api.showCollection()} aria-label="Close the editor" title="Close (Esc)"><Icon name="x" /></button>
                 <div className="editor-sheet-heading">
