@@ -4,6 +4,16 @@ import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } fr
 import { currentRoute, onRouteChange, type Route } from '../core/router.ts';
 import { directionIn, slideIn } from '../core/motion.ts';
 
+/** The phone layout (css/phone.css): a bottom tab bar, sheets instead of popovers. */
+export const PHONE = '(max-width: 760px)';
+const phoneQuery = () => window.matchMedia(PHONE);
+export const isPhone = () => phoneQuery().matches;
+
+/** Whether the phone layout is on, kept current. */
+export function usePhone(): boolean {
+    return useSyncExternalStore(fn => { const mq = phoneQuery(); mq.addEventListener('change', fn); return () => mq.removeEventListener('change', fn); }, isPhone);
+}
+
 let lastHref = '';
 let lastRoute: Route = { name: '', param: '' };
 

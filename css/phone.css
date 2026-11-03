@@ -1,0 +1,245 @@
+/* ==================== phone ====================
+   The phone layout, as a phone app would draw it (up to 760px wide). Loaded
+   after css/mobile.css, so it wins. css/mobile.css keeps the card grids and
+   the touch rules for cards; this file sets the frame and the sizes:
+
+   - a slim top bar (logo, messages, notifications) with plain icons;
+   - a bottom tab bar: Collection, Community, Create, Search, You
+     (js/app/shell/Header.tsx). Create and You open sheets;
+   - menus are sheets along the bottom, in reach of the thumb
+     (js/app/components/ContextMenu.tsx);
+   - soft filled controls instead of outlined boxes, so a screen full of
+     controls stays quiet;
+   - text fields at 16px: iPhone Safari zooms the page in on a smaller one
+     and leaves it zoomed, which made the whole site look huge and squashed;
+   - the editor takes the whole screen.
+
+   The breakpoint is PHONE in js/app/hooks.ts: keep the two in step.
+   ==================== */
+
+/* the grip at the top of a sheet; only sheets draw it */
+.ctx-grip { display: none; }
+.header-profile-popover-note { margin-left: auto; font-size: 11.5px; font-weight: 600; color: var(--text-muted); }
+
+@media (max-width: 760px) {
+    :root {
+        --header-h: 48px;
+        --bottom-nav-h: 52px;
+        --sheet-r: 14px;
+    }
+
+    /* ==================== the top bar ==================== */
+    .header { padding: 0 6px 0 12px; gap: 4px; }
+    .logo img, .logo-button img { height: 24px; width: auto; }
+    /* search is a tab in the bottom bar */
+    .header .global-search { display: none; }
+    .header-actions { gap: 2px; }
+    /* plain icons, like a phone app: no filled circles */
+    .header .notifications-bell-btn,
+    .header .header-messages-btn {
+        width: 40px; height: 40px;
+        background: transparent;
+        color: var(--text-primary);
+    }
+    .header .notifications-bell-btn:hover,
+    .header .header-messages-btn:hover { background: var(--bg-panel); }
+    .header .notifications-bell-btn svg,
+    .header .header-messages-btn svg { width: 24px; height: 24px; }
+    .header .notifications-bell-btn.active,
+    .header .header-messages-btn.active { color: var(--accent); }
+
+    /* ==================== the bottom tab bar ==================== */
+    .header-nav {
+        background: var(--bg-card);
+        border-top: 1px solid var(--border-light);
+        box-shadow: none;
+    }
+    .header-nav-ink { display: none; }
+    .header-nav-btn { gap: 2px; color: var(--text-secondary); }
+    .header-nav-btn::before { display: none; }
+    .header-nav-btn svg { width: 24px; height: 24px; }
+    .header-nav-btn:active svg { transform: scale(.9); }
+    .header-nav-label { font: 600 10px/1.2 var(--font-sans); letter-spacing: .01em; }
+    .header-nav-btn.active { color: var(--accent); }
+    .header-nav-btn.active .header-nav-label { font-weight: 800; }
+    .header-nav-badge { top: 3px; left: calc(50% + 5px); }
+    /* Create: the one filled button in the bar */
+    .header-nav-create { color: var(--text-primary); }
+    .header-nav-create svg {
+        width: 34px; height: 26px; padding: 3px 8px;
+        border-radius: 8px;
+        background: var(--accent); color: #fff;
+    }
+    /* You: your picture in place of an icon */
+    .header-profile-wrap.is-tab { position: static; display: flex; flex: 1 1 0; min-width: 0; }
+    .header-profile-wrap.is-tab .header-profile-btn {
+        flex: 1 1 0; width: auto; height: auto; padding: 0;
+        border: 0; border-radius: 0; background: transparent;
+    }
+    .header-profile-wrap.is-tab .header-profile-avatar {
+        width: 26px; height: 26px; flex: 0 0 26px;
+        font-size: 11px;
+        box-shadow: 0 0 0 1.5px var(--bg-card), 0 0 0 2.5px transparent;
+    }
+    .header-profile-wrap.is-tab .header-profile-btn[aria-expanded="true"] .header-profile-avatar { box-shadow: 0 0 0 1.5px var(--bg-card), 0 0 0 3px var(--text-primary); }
+    .header-profile-wrap.is-tab .header-profile-avatar svg { width: 18px; height: 18px; }
+
+    /* ==================== sheets ====================
+       the context menu (.ctx-menu.is-sheet), the account menu and the
+       Create menu, all on one pattern: a dimmed page, a sheet that rises
+       from the bottom, a grip, rows a thumb can hit */
+    .ctx-backdrop, .header-profile-backdrop {
+        position: fixed; inset: 0;
+        background: rgba(17, 17, 20, .42);
+        animation: dialog-fade .18s ease both;
+    }
+    .ctx-backdrop { z-index: 20999; }
+    .no-overlay-blur .ctx-backdrop, .no-overlay-blur .header-profile-backdrop { background: rgba(17, 17, 20, .2); }
+    .ctx-grip {
+        display: block; flex: 0 0 auto;
+        width: 36px; height: 4px; margin: 4px auto 8px;
+        border-radius: 2px; background: var(--border-strong);
+    }
+    .ctx-menu.is-sheet,
+    .header-profile-wrap.is-tab .header-profile-popover {
+        position: fixed; left: 0; right: 0; bottom: 0; top: auto;
+        width: auto; min-width: 0; max-width: none;
+        max-height: min(78vh, 640px);
+        overflow-y: auto; overscroll-behavior: contain;
+        padding: 6px 8px calc(10px + env(safe-area-inset-bottom, 0px));
+        border: 0; border-top: 1px solid var(--border-light);
+        border-radius: var(--sheet-r) var(--sheet-r) 0 0;
+        background: var(--bg-card);
+        box-shadow: 0 -12px 40px rgba(0, 0, 0, .14);
+    }
+    .ctx-menu.is-sheet .ctx-head { padding: 2px 12px 10px; margin-bottom: 4px; }
+    .ctx-menu.is-sheet .ctx-head strong { font-size: 15px; }
+    .ctx-menu.is-sheet .ctx-head span { font-size: 12.5px; }
+    .ctx-menu.is-sheet .ctx-item,
+    .header-profile-wrap.is-tab .header-profile-popover-item {
+        height: 48px; gap: 14px; padding: 0 12px;
+        border-radius: 10px;
+        font: 600 15px var(--font-sans);
+    }
+    .ctx-menu.is-sheet .ctx-icon { width: 24px; }
+    .ctx-menu.is-sheet .ctx-icon svg,
+    .header-profile-wrap.is-tab .header-profile-popover-item svg { width: 21px; height: 21px; }
+    /* keyboard shortcuts mean nothing to a thumb */
+    .ctx-menu.is-sheet .ctx-hint { display: none; }
+    .ctx-menu.is-sheet .ctx-sub { margin-left: 22px; }
+    .ctx-menu.is-sheet .ctx-sub .ctx-item { height: 44px; font-size: 14.5px; }
+    .ctx-menu.is-sheet .ctx-sep { margin: 6px 12px; }
+    .header-profile-wrap.is-tab .header-profile-popover { animation: sheet-up .32s var(--ease-out) both; }
+    .header-profile-wrap.is-tab .header-profile-popover-identity { padding: 10px 12px; border-radius: 10px; }
+
+    /* ==================== type ==================== */
+    .page-title { font-size: 22px; letter-spacing: -0.015em; }
+    .page-header { margin-bottom: var(--sp-4); gap: var(--sp-3); }
+
+    /* ==================== controls: soft fills, no outlines ==================== */
+    .btn { font-size: 13.5px; }
+    .btn-sm { font-size: 12.5px; height: 32px; }
+    .btn-secondary {
+        background: var(--bg-panel);
+        border-color: transparent;
+        box-shadow: none;
+    }
+    .btn-secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--text-primary) 8%, var(--bg-panel)); }
+    .segmented { border-color: transparent; background: var(--bg-panel); }
+    .segmented button.active { background: var(--bg-card); box-shadow: var(--shadow-sm); }
+    :where(input[type="text"], input[type="number"], input[type="email"], input[type="password"],
+           input[type="search"], input[type="url"], input[type="datetime-local"], input[type="date"], input[type="time"], input:not([type]), select, textarea) {
+        background: var(--bg-panel);
+        border-color: transparent;
+    }
+    :where(input[type="text"], input[type="number"], input[type="email"], input[type="password"],
+           input[type="search"], input[type="url"], input[type="datetime-local"], input[type="date"], input[type="time"], input:not([type]), select) {
+        height: 40px;
+    }
+    :where(input, select, textarea):focus-visible { background: var(--bg-input); }
+    /* tabs: a quieter strip */
+    .tab { font-size: 13.5px; padding: 10px var(--sp-3); }
+
+    /* ==================== My Collection ==================== */
+    .collection-search input { height: 40px; border-radius: 10px; }
+    .collection-sort select, .collection-sort .btn { height: 40px; }
+    .collection-sort .btn { flex-basis: 40px; width: 40px; }
+    #collection-shiny-toggle[aria-pressed="true"] { border-color: transparent; }
+
+    /* ==================== Community Hub ==================== */
+    /* Publish lives in the Create tab now; guests keep their Join button */
+    .hub:not(.is-guest) .hub-publish { display: none; }
+    .hub-nav { gap: var(--sp-3); }
+    .hub-nav-list { gap: 6px; }
+    .hub-nav-item { height: 32px; padding: 0 14px; border-radius: 999px; font-size: 13.5px; }
+    .hub-nav-item:not(.active) { background: var(--bg-panel); }
+    /* a post's picture runs the full width of the screen, like Instagram */
+    .feed-card .feed-mon-art-btn { width: auto; margin: 0 calc(var(--sp-4) * -1); border-radius: 0; }
+    .feed-card .feed-mon-art { aspect-ratio: 1 / 1; }
+    .feed-byline { padding: 10px 0; gap: 9px; }
+    .feed-card .feed-avatar, .feed-card canvas.feed-avatar, .feed-card img.feed-avatar, .feed-card .feed-avatar-fallback { width: 36px; height: 36px; }
+    .feed-byline-name { font-size: 14px; }
+    .feed-mon-name { font-size: 15px; }
+    .feed-mon-caption { font-size: 14px; }
+    .post-body { font-size: 14.5px; line-height: 1.5; }
+    .feed-card-post.is-full .post-body { font-size: 15px; }
+    .feed-action { height: 36px; padding: 0 9px; font-size: 13px; }
+    .feed-action svg { width: 21px; height: 21px; }
+    .post-composer-prompt { height: 40px; border-radius: 999px; font-size: 14px; }
+    .post-composer.is-collapsed .feed-avatar, .post-composer.is-collapsed .feed-avatar-fallback { width: 36px; height: 36px; }
+
+    /* ==================== profiles ==================== */
+    .profile2-cover { height: 128px; border-radius: 0; margin: 0 calc(var(--sp-4) * -1); }
+    .profile2-head { margin-top: -48px; gap: 8px; }
+    .profile2-avatar-wrap { padding: 3px; }
+    .profile2-avatar, canvas.profile2-avatar, img.profile2-avatar, .profile2-avatar-fallback { width: 88px; height: 88px; font-size: 36px; }
+    .profile2-identity { gap: 2px; padding-bottom: 4px; }
+    .profile2-identity h1 { font-size: 20px; letter-spacing: -0.01em; }
+    .profile2-handle { font-size: 13px; }
+    .profile2-numbers { font-size: 13.5px; }
+    /* the two main buttons share the width, like Instagram */
+    .profile2-actions { width: 100%; flex-wrap: nowrap; gap: 6px; padding-bottom: 8px; }
+    .profile2-actions > .btn:not(.btn-icon) { flex: 1 1 0; min-width: 0; height: 34px; font-size: 13.5px; }
+    .profile2-actions .btn-icon { width: 34px; height: 34px; }
+    .profile2-actions .mod-btn { flex: 0 0 auto; height: 34px; }
+    .profile2-actions .feed-menu-wrap .btn-icon { width: 34px; height: 34px; }
+
+    /* ==================== Settings: rows, not a box ==================== */
+    .st-title { font-size: 22px; }
+    .st-search { border-color: transparent; background: var(--bg-panel); }
+    .st-narrow .st-nav-list { border: 0; border-radius: 0; background: transparent; }
+    .st-narrow .st-nav-item { min-height: 48px; padding: var(--sp-3) 4px; }
+    .st-narrow .st-nav-item + .st-nav-item { border-top-color: var(--border-light); }
+    .st-identity { border-radius: 12px; }
+
+    /* ==================== the editor: the whole screen ==================== */
+    #editor-view { top: 0; width: 100vw; }
+    #editor-view::before { top: 0; }
+    .editor-sheet-head {
+        min-height: 48px;
+        padding: calc(4px + env(safe-area-inset-top, 0px)) 8px 4px 6px;
+    }
+    .editor-sheet-title { font-size: 16px; }
+    /* the tabs keep their natural width and scroll sideways, like a phone app's top tabs */
+    .editor-tabs { grid-auto-columns: max-content; column-gap: 18px; padding: 0 12px; scroll-padding: 0 12px; }
+    .editor-tabs .tab { font-size: 13.5px; padding-left: 0; padding-right: 0; }
+    .editor-tabs .tab.active::after { left: 0; right: 0; }
+    .editor-sheet-body { padding: var(--sp-4) 12px calc(var(--sp-6) + env(safe-area-inset-bottom, 0px)); }
+    .form-group label { font-size: 12.5px; }
+}
+
+/* text fields at 16px on touch phones: a smaller one makes iPhone Safari
+   zoom the page in when it gets focus, and the zoom stays */
+@media (max-width: 760px) and (pointer: coarse) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
+    select, textarea { font-size: 16px !important; }
+    /* a finger leaves no hover behind: a row lights up only while pressed */
+    .ctx-menu.is-sheet .ctx-item:hover, .ctx-menu.is-sheet .ctx-item:focus-visible { background: none; box-shadow: none; }
+    .ctx-menu.is-sheet .ctx-item:active { background: var(--bg-panel); }
+}
+
+@keyframes sheet-up { from { transform: translateY(100%); } }
+.reduce-motion .header-profile-wrap.is-tab .header-profile-popover { animation-name: fade-only; }
+@media (prefers-reduced-motion: reduce) {
+    .header-profile-wrap.is-tab .header-profile-popover { animation-name: fade-only; }
+}

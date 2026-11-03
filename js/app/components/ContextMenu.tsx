@@ -12,6 +12,7 @@ import { gsap } from 'gsap';
 import { Icon } from './Icon.tsx';
 import { reducedMotion } from '../../core/motion.ts';
 import { effectiveZoom } from '../../core/ui-scale.ts';
+import { isPhone } from '../hooks.ts';
 
 export type MenuAction = { label: string; icon?: string; hint?: string; run: () => void; danger?: boolean; disabled?: boolean };
 export type MenuGroup = { label: string; icon?: string; items: MenuAction[] };
@@ -79,12 +80,19 @@ export function ContextMenuHost() {
 function Menu({ spec }: { spec: Open }) {
     const box = useRef<HTMLDivElement>(null);
     const [group, setGroup] = useState<string | null>(null);
+    // on a phone the menu is a sheet along the bottom (css/phone.css), in reach of the thumb
+    const [sheet] = useState(isPhone);
 
     // place it inside the window (flipped to the other side of the pointer if
     // it would run off), then play the entrance from that corner
     useLayoutEffect(() => {
         const el = box.current;
         if (!el) return;
+        if (sheet) {
+            if (reducedMotion()) gsap.fromTo(el, { opacity: 0 }, { opacity: 1, duration: 0.12 });
+            else gsap.fromTo(el, { yPercent: 100 }, { yPercent: 0, duration: 0.32, ease: 'expo.out' });
+            return;
+        }
         // the pointer is in the window's pixels; the box's own (and left/top) are
         // scaled by the interface size (js/core/ui-scale.ts)
         const z = effectiveZoom(el);
@@ -137,8 +145,12 @@ function Menu({ spec }: { spec: Open }) {
     const run = (a: MenuAction) => { closeContextMenu(true); a.run(); };
 
     return (
-        <div ref={box} className="ctx-menu" role="menu" aria-label={spec.title || 'Actions'} onKeyDown={onKey}
+        <>
+        {/* a tap on the dimmed page closes the sheet (the pointerdown above) */}
+        {sheet && <div className="ctx-backdrop" aria-hidden="true" />}
+        <div ref={box} className={`ctx-menu${sheet ? ' is-sheet' : ''}`} role="menu" aria-label={spec.title || 'Actions'} onKeyDown={onKey}
             onContextMenu={e => e.preventDefault()}>
+            {sheet && <span className="ctx-grip" aria-hidden="true" />}
             {spec.title && (
                 <div className="ctx-head">
                     <strong>{spec.title}</strong>
@@ -163,6 +175,7 @@ function Menu({ spec }: { spec: Open }) {
                 return <Action key={item.label} a={item} run={run} />;
             })}
         </div>
+        </>
     );
 }
 
