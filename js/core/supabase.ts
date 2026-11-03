@@ -4,15 +4,27 @@
 export const SUPABASE_PROJECT_URL = 'https://qstbascfeolkyxtrqqwv.supabase.co';
 export const SUPABASE_ANON_KEY = 'sb_publishable_B4jEJ--w0XFsgXDmQeJREA_xH1GRBsf';
 
-// Routing API calls through /sb on our own origin (proxied by worker/index.js,
-// see vite.config.js for local dev) puts requests behind the same WAF/rate
-// limiting as the static site and avoids a CORS preflight. Only flip this on
-// once the worker proxy is confirmed live, or every request 404s at once.
-const USE_SAME_ORIGIN_PROXY = true;
+// The API: worker/index.js in woogidex-backend, in front of Supabase, behind
+// Cloudflare's rate limiting. The site's live hosts call api.woogidex.com.
+// Anywhere else (the dev server, a local preview) it is /sb on the page's own
+// origin, proxied by vite.config.js. /sb also stays on the live hosts: saved
+// avatar addresses use it.
+const LIVE_HOSTS = ['woogidex.com', 'dex.woogi.xyz'];
+const pageHost = typeof window !== 'undefined' ? window.location.hostname : '';
+export const API_ORIGIN = LIVE_HOSTS.includes(pageHost) ? 'https://api.woogidex.com' : '';
 
-export const SUPABASE_URL = USE_SAME_ORIGIN_PROXY && typeof window !== 'undefined'
-    ? `${window.location.origin}/sb`
-    : SUPABASE_PROJECT_URL;
+export const SUPABASE_URL = typeof window === 'undefined' ? SUPABASE_PROJECT_URL
+    : API_ORIGIN || `${window.location.origin}/sb`;
+
+/** The address of one of the Worker's own endpoints: apiUrl('turn-credentials'). */
+export function apiUrl(path: string): string {
+    return `${API_ORIGIN || window.location.origin}/${path.replace(/^\/+/, '')}`;
+}
+
+// supabase-js names the saved session after the API's host. That host
+// changed (dex.woogi.xyz/sb, then api.woogidex.com), so the name stays the
+// one it always had, from the page's host. Else everyone is signed out.
+const SESSION_KEY = `sb-${pageHost.split('.')[0] || 'woogidex'}-auth-token`;
 
 let supabase: any = null;
 
@@ -38,7 +50,7 @@ export async function getClient() {
     if (supabase) return supabase;
     const { createClient } = await import('@supabase/supabase-js');
     supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-        auth: { persistSession: true, autoRefreshToken: true },
+        auth: { persistSession: true, autoRefreshToken: true, storageKey: SESSION_KEY },
         // a backend that's down often hangs instead of failing; this turns a
         // hang into an error, so loaders fall through to their error state
         global: { fetch: timedFetch }

@@ -11,6 +11,7 @@
 
 import { state, api } from '../core/app.ts';
 import { replaceRoute, routeUrl } from '../core/router.ts';
+import { apiUrl } from '../core/supabase.ts';
 import { confirmDialog } from '../core/confirm-dialog.ts';
 import { myIdentities } from './oauth.ts';
 import { notify } from '../app/store.ts';
@@ -1336,7 +1337,7 @@ export function exportVotesCsv() {
 // ---- the Google Sheets link ----
 
 /** The address Google Sheets reads (=IMPORTDATA), served as CSV by worker/index.js. */
-export const sheetUrl = (token: string) => routeUrl(`sheets/${token}.csv`);
+export const sheetUrl = (token: string) => apiUrl(`sheets/${token}.csv`);
 export const sheetFormula = (token: string) => `=IMPORTDATA("${sheetUrl(token)}")`;
 
 /** Makes the link for the submissions or the votes, or a new one (which retires the old). */

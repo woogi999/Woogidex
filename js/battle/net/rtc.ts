@@ -7,6 +7,7 @@
 import { api } from '../../core/app.ts';
 import { log } from '../../core/log.ts';
 import { isValidPeerMessage } from './protocol.ts';
+import { apiUrl } from '../../core/supabase.ts';
 
 const SIGNAL_POLL_MS = 900;
 const DISCONNECT_GRACE_MS = 45000;    // grace period before a dropped peer is given up on
@@ -268,7 +269,7 @@ export class BattleRTC {
 async function fetchIceServers(client) {
     try {
         const { data: { session } } = await client.auth.getSession();
-        const res = await fetch('/turn-credentials', { method: 'POST', headers: { authorization: `Bearer ${session?.access_token || ''}` } });
+        const res = await fetch(apiUrl('turn-credentials'), { method: 'POST', headers: { authorization: `Bearer ${session?.access_token || ''}` } });
         const data = await res.json();
         if (data?.warning) log.warn('RTC', 'No TURN relay', { warning: data.warning });
         if (Array.isArray(data?.iceServers) && data.iceServers.length) return data.iceServers;
