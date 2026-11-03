@@ -170,6 +170,11 @@ const collectionChannel: BroadcastChannel | null = (() => {
 /** True once the stored collection has been read successfully this session. */
 export function isCollectionLoaded() { return collectionLoaded; }
 
+/** Every collection list as storage holds it now (the data move reads its save back). */
+export async function readStoredLists(): Promise<Record<string, any[]>> {
+    return (await readStoredCollection()).lists;
+}
+
 /**
  * True when the collection loaded empty but this device has a record of it
  * holding something. Drives the warning modal in js/features/recovery.ts.

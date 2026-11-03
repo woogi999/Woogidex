@@ -34,6 +34,7 @@ import './app/dialogs/auth.tsx';
 import './app/dialogs/feedback.tsx';
 import './app/dialogs/safety.tsx';
 import { LegalPage } from './app/pages/LegalPage.tsx';
+import { MovePage } from './app/pages/MovePage.tsx';
 import { SearchPage } from './app/pages/SearchPage.tsx';
 import { ProfilePage } from './app/pages/ProfilePage.tsx';
 import { CommunityPage } from './app/pages/CommunityPage.tsx';
@@ -90,6 +91,9 @@ export function installHost(): void {
         }
     });
     registerRoute('privacy', { open: () => legal.openLegalPage('privacy') });
+    // woogidex.com/move: takes in the data the old address sends (js/features/data-move.ts)
+    registerPage({ view: 'move-view', Page: MovePage });
+    registerRoute('move', { open: () => { api.activateTopLevelView?.('move-view'); api.setPageTitle?.('Move your data'); return true; } });
     registerRoute('terms', { open: () => legal.openLegalPage('terms') });
     registerRoute('search', { needsAccount: true, open: async () => { await api.openSearchPage?.(new URLSearchParams(window.location.search).get('q') || ''); return true; } });
     // the old Updates & Credits page: news is now the Woogidex account's posts, credits are in Settings > About

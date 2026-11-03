@@ -13,6 +13,7 @@ import * as sampleSets from '../editor/sample-sets.ts';
 import * as editorCore from '../editor/editor-core.ts';
 import * as pokedex from '../features/pokedex.ts';
 import * as storage from './storage.ts';
+import { isOldSite, leaveIfNothingToMove } from '../features/data-move.ts';
 import * as exporter from '../export/export.ts';
 import * as showdownExport from '../export/showdown-export.ts';
 import * as essentialsExport from '../export/essentials-export.ts';
@@ -441,6 +442,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     mountDialogHost();
     // rewrite old #hash links before anything reads the route
     router.migrateLegacyHash();
+    // dex.woogi.xyz, the old address, only moves this browser's data to
+    // woogidex.com now (js/features/data-move.ts): no sign-in, no network
+    if (isOldSite()) {
+        await api.loadFromStorage();
+        if (leaveIfNothingToMove(storage.isCollectionLoaded())) return;
+        document.body.classList.add('is-moving');
+        activateTopLevelView('move-view');
+        setPageTitle('Woogidex moved');
+        return;
+    }
     const bootRoute = router.currentRoute();
     // paint a skeleton for the current route immediately so the first frame
     // has the right shape instead of sitting blank until data loads;
