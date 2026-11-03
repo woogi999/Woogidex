@@ -397,13 +397,10 @@ import { isFilterQuery, moveMatches, parseMoveQuery } from '../features/move-que
             return moves.map(m => ({ ...m, added: added.has(m.name.toLowerCase()) }));
         }
 
-        // the editor's move browser is the learnset's own search now: this
-        // takes you there (the battle teambuilder still opens its picker)
+        // Browse Moves: every move as cards with filters, next to the
+        // learnset's own search (a click adds it, the same way the search does)
         function openMoveBrowserModal() {
-            const box = document.getElementById('learnset-search') as HTMLInputElement | null;
-            if (box) { box.focus(); box.select(); return; }
-            api.switchTab?.('moves');
-            setTimeout(() => (document.getElementById('learnset-search') as HTMLInputElement | null)?.focus(), 60);
+            openDialog('move-browser', { mode: 'editor' });
         }
 
         function addMoveFromBrowser(key) {

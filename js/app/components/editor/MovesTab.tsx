@@ -19,6 +19,7 @@ export function MovesTab() {
                 </div>
                 <LearnsetEditor />
                 <div className="learnset-actions">
+                    <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openMoveBrowserModal()} title="Browse all moves with filters"><Icon name="squares-2x2" size={14} /> Browse Moves</button>
                     <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openCustomMoveChooser()}><Icon name="plus" size={14} /> Custom Move</button>
                     <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.addUniversalMoves()}><Icon name="plus" size={14} /> Universal Moves</button>
                     <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openMoveImportExportModal()}>Import / Export</button>
