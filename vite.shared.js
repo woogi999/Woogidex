@@ -1,17 +1,11 @@
-// The build, shared by Woogidex Core (vite.config.js here) and any site built
-// on it. A site passes its own root, host module and extras; everything else
-// (the 404 copy, the service worker, the emoji list, comment stripping) is
-// the same for both. Vite and the React plugin come in as arguments, so a
-// site's own copies are the ones that run.
+// The build: the 404 copy, the service worker, the emoji list and comment
+// stripping. vite.config.js adds the pages and the dev proxy.
 
-import { resolve, dirname, relative, isAbsolute } from 'path';
-import { cpSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
+import { resolve } from 'path';
+import { readdirSync, readFileSync, rmSync, writeFileSync } from 'fs';
 import { createHash } from 'crypto';
 
-// where Core is: this file's folder, unless a site says otherwise (a site that
-// links Core in as a folder junction passes the linked path, so module ids
-// keep the path the site sees; see woogidexConfig)
-let CORE = import.meta.dirname;
+const ROOT = import.meta.dirname;
 
 // static site on GitHub Pages, so this has to survive being served from a
 // subdirectory *and* from paths that don't exist on disk (/community/12).
@@ -65,7 +59,7 @@ function serviceWorker() {
         apply: 'build',
         enforce: 'post',
         generateBundle(_options, bundle) {
-            const publicDir = resolve(CORE, 'public');
+            const publicDir = resolve(ROOT, 'public');
             const typeIcons = readdirSync(resolve(publicDir, 'assets/types')).map(f => `assets/types/${f}`);
             const chunks = Object.keys(bundle)
                 .filter(f => /^bundle\/[^/]+\.(js|css)$/.test(f) && !SW_SKIP.test(f.slice('bundle/'.length)))
@@ -77,7 +71,7 @@ function serviceWorker() {
             for (const f of chunks) hash.update(f);
             hash.update(String(bundle['index.html']?.source ?? ''));
             for (const f of [...SW_PUBLIC, ...typeIcons]) hash.update(readFileSync(resolve(publicDir, f)));
-            const source = readFileSync(resolve(CORE, 'sw/service-worker.js'), 'utf8')
+            const source = readFileSync(resolve(ROOT, 'sw/service-worker.js'), 'utf8')
                 .replace('const VERSION = __VERSION__', `const VERSION = ${JSON.stringify(hash.digest('hex').slice(0, 12))}`)
                 .replace('const PRECACHE = __PRECACHE__', `const PRECACHE = ${JSON.stringify(files)}`)
                 // same rule as the HTML below: no source comments on the live site
@@ -159,7 +153,7 @@ function scanEmojis(root) {
 }
 
 function emojiManifest() {
-    const root = resolve(CORE, 'public/emojis');
+    const root = resolve(ROOT, 'public/emojis');
     return {
         name: 'woogidex-emoji-manifest',
         resolveId(id) { return id === EMOJI_VIRTUAL ? EMOJI_RESOLVED : null; },
@@ -202,80 +196,6 @@ function holdBackLanding(loadEnv) {
     };
 }
 
-// A site keeps only its own files and borrows the rest from Core, at the
-// same paths: js/features/auth.ts in the site can import '../core/app.ts',
-// and that is Core's js/core/app.ts. Anything the site has itself wins; a
-// relative import (or a /path from the HTML) that the site does not have is
-// looked up in Core. tsconfig.json's rootDirs tells TypeScript the same.
-function overlay(root) {
-    const inRoot = path => {
-        const rel = relative(root, path);
-        return rel && !rel.startsWith('..') && !isAbsolute(rel) ? rel : null;
-    };
-    // In the dev server a module is its URL. The page asking for js/core/app.ts
-    // and a module importing '../core/app.ts' (served from Core's folder) would
-    // be two copies of the app, so the page asks for Core's files where they are.
-    const coreUrl = rel => {
-        const fromRoot = inRoot(resolve(CORE, rel));
-        return fromRoot ? '/' + fromRoot.replace(/\\/g, '/') : '/@fs/' + resolve(CORE, rel).replace(/\\/g, '/');
-    };
-    return {
-        name: 'woogidex-overlay',
-        enforce: 'pre',
-        transformIndexHtml: {
-            order: 'pre',
-            handler(html, ctx) {
-                if (!ctx.server) return html;
-                const page = dirname(resolve(root, '.' + ctx.path));
-                return html.replace(/(<(?:script|link)\b[^>]*?\b(?:src|href)=")([^"#?:]+)(")/g, (all, open, url, close) => {
-                    if (/^\/\//.test(url)) return all;
-                    const file = url.startsWith('/') ? resolve(root, '.' + url) : resolve(page, url);
-                    const rel = inRoot(file);
-                    if (!rel || existsSync(file) || !existsSync(resolve(CORE, rel))) return all;
-                    return open + coreUrl(rel) + close;
-                });
-            }
-        },
-        resolveId(source, importer) {
-            if (source.startsWith('\0') || source.startsWith('/@')) return null;
-            const [path, query = ''] = source.split(/(?=\?)/);
-            let target;
-            if (path.startsWith('/')) target = resolve(root, '.' + path);
-            // (a page's <script src="js/..."> is relative too, without the ./)
-            else if (importer && !importer.startsWith('\0') && (path.startsWith('.') || (/\.html$/.test(importer.split('?')[0]) && !/^[\w+.-]+:/.test(path))))
-                target = resolve(dirname(importer.split('?')[0]), path);
-            else return null;
-            if (existsSync(target)) return null;
-            const rel = inRoot(target);
-            if (!rel) return null;
-            const core = resolve(CORE, rel);
-            // forward slashes, the way Vite writes ids: a backslashed path is a
-            // different module to it, and the app would load twice
-            return existsSync(core) ? core.replace(/\\/g, '/') + query : null;
-        }
-    };
-}
-
-// A site's public/ goes on top of Core's: served by the dev server, and
-// copied over Core's in the build (a file in both: the site's wins).
-function sitePublic(dir) {
-    let outDir = 'dist';
-    return {
-        name: 'woogidex-site-public',
-        configResolved(config) { outDir = resolve(config.root, config.build.outDir); },
-        configureServer(server) {
-            server.middlewares.use((req, _res, next) => {
-                const path = decodeURIComponent((req.url || '').split('?')[0]);
-                const file = resolve(dir, '.' + path);
-                if (path !== '/' && inside(dir, file) && existsSync(file) && !file.endsWith('.html')) req.url = '/@fs/' + file.replace(/\\/g, '/');
-                next();
-            });
-        },
-        writeBundle() { cpSync(dir, outDir, { recursive: true }); }
-    };
-}
-const inside = (dir, file) => { const rel = relative(dir, file); return !!rel && !rel.startsWith('..') && !isAbsolute(rel); };
-
 // The same-origin Supabase proxy (a site's Worker runs it in production);
 // the dev server stands in for it locally
 const supabaseProxy = target => ({
@@ -291,41 +211,22 @@ const supabaseProxy = target => ({
  * @param {object} o
  * @param {Function} o.react      @vitejs/plugin-react
  * @param {Function} o.loadEnv    vite's loadEnv
- * @param {string} [o.root]       the project being built (Core itself by default)
- * @param {string} [o.core]       where Core is, as the site sees it (this folder by default)
- * @param {string} [o.host]       the host module (js/host/standalone.ts by default)
- * @param {Record<string,string>} [o.inputs]  more pages, by name (the main one is root/index.html)
+ * @param {Record<string,string>} [o.inputs]  more pages, by name (the main one is index.html)
  * @param {string} [o.supabase]   the Supabase project URL /sb proxies to in dev
- * @param {string[]} [o.dedupe]   packages that must load once (the site's copy)
  */
-export function woogidexConfig({ react, loadEnv, root, core, host, inputs = {}, supabase, dedupe = [] }) {
-    if (core) CORE = resolve(core);
-    root = resolve(root || CORE);
-    const isSite = root !== CORE;
+export function woogidexConfig({ react, loadEnv, inputs = {}, supabase }) {
     const proxy = supabase ? { '/sb': supabaseProxy(supabase) } : undefined;
     return {
-        root,
+        root: ROOT,
         base: './',
-        publicDir: resolve(CORE, 'public'),
-        plugins: [
-            ...(isSite ? [overlay(root)] : []),
-            react(), emojiManifest(), fallback404(), serviceWorker(),
-            ...(isSite && existsSync(resolve(root, 'public')) ? [sitePublic(resolve(root, 'public'))] : []),
-            stripHtmlComments(), holdBackLanding(loadEnv)
-        ],
-        resolve: {
-            alias: { '@woogidex/host': host || resolve(CORE, 'js/host/standalone.ts') },
-            dedupe: ['react', 'react-dom', 'three', 'html2canvas', 'gsap', 'lenis', ...dedupe],
-            // Core linked into a site as a folder junction stays at the site's
-            // path, so its imports find the site's node_modules
-            preserveSymlinks: isSite
-        },
+        publicDir: resolve(ROOT, 'public'),
+        plugins: [react(), emojiManifest(), fallback404(), serviceWorker(), stripHtmlComments(), holdBackLanding(loadEnv)],
         build: {
-            outDir: resolve(root, 'dist'),
+            outDir: resolve(ROOT, 'dist'),
             assetsDir: 'bundle',
             emptyOutDir: true,
             rollupOptions: {
-                input: { main: resolve(root, 'index.html'), ...inputs },
+                input: { main: resolve(ROOT, 'index.html'), ...inputs },
                 output: {
                     // big, rarely-changing deps split out to stay cached across
                     // releases instead of invalidating with every code change
@@ -336,7 +237,7 @@ export function woogidexConfig({ react, loadEnv, root, core, host, inputs = {}, 
             }
         },
         // `preview` matters too: the smoke test uses it
-        server: { port: 5173, proxy, fs: { allow: [root, CORE] } },
+        server: { port: 5173, proxy },
         preview: { proxy }
     };
 }

@@ -1,0 +1,110 @@
+# Builds the site and deploys it to the woogidex Cloudflare Worker.
+#
+# The site is two repos:
+#   woogidex-core     (this, public)  the site: the Fakemon maker, battles,
+#                                     accounts, Community Hub, events, admin
+#   woogidex-backend  (private)       the Worker (worker/index.js, wrangler.jsonc)
+#                                     and Supabase (migrations, edge functions)
+#
+# Every deploy takes the latest main of both, so a change to either one
+# deploys the site. The backend asks for a deploy with a repository_dispatch
+# (its notify-deploy.yml). A push to main here deploys directly. Forks skip
+# this workflow, and pull requests never run it, so they get no secrets.
+#
+# Secrets, in the "production" environment (Settings > Environments), which
+# only main can deploy to:
+#   CLOUDFLARE_API_TOKEN    Workers Scripts: Edit on the account
+#   CLOUDFLARE_ACCOUNT_ID   the account the woogidex Worker lives in
+#   BACKEND_DEPLOY_KEY      read-only deploy key of woogidex-backend (SSH private key)
+#
+# Supabase (migrations and edge functions) is NOT deployed here. The Supabase
+# GitHub integration on woogidex-backend does it (see that repo's README).
+
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  repository_dispatch:
+    types: [backend-updated]
+  workflow_dispatch:
+
+# one deploy at a time, in order; a newer one waits for the running one
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: github.repository == 'woogi999/woogidex-core'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - name: Check the secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          BACKEND_DEPLOY_KEY: ${{ secrets.BACKEND_DEPLOY_KEY }}
+        run: |
+          missing=""
+          for name in CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID BACKEND_DEPLOY_KEY; do
+            [ -n "${!name}" ] || missing="$missing $name"
+          done
+          if [ -n "$missing" ]; then
+            echo "::error::Missing secrets in the production environment:$missing. The site was not deployed."
+            exit 1
+          fi
+
+      - name: Check out woogidex-core
+        uses: actions/checkout@v5
+
+      - name: Check out woogidex-backend
+        uses: actions/checkout@v5
+        with:
+          repository: woogi999/woogidex-backend
+          ref: main
+          path: .backend
+          ssh-key: ${{ secrets.BACKEND_DEPLOY_KEY }}
+          persist-credentials: false
+
+      - name: Show what is being deployed
+        run: |
+          {
+            echo "### Deploying"
+            echo "| repo | commit |"
+            echo "|---|---|"
+            echo "| woogidex-core | \`$(git rev-parse --short HEAD)\` $(git log -1 --format=%s | head -c 80) |"
+            echo "| woogidex-backend | \`$(git -C .backend rev-parse --short HEAD)\` $(git -C .backend log -1 --format=%s | head -c 80) |"
+            echo
+            echo "Triggered by: ${{ github.event_name }} ${{ github.event.action }}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy the Worker and the site
+        working-directory: .backend
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          rm -rf dist && cp -r ../dist dist
+          npx --yes wrangler@4 deploy --message "core $(git -C .. rev-parse --short HEAD), backend $(git rev-parse --short HEAD)"

@@ -1,6 +1,6 @@
 // The editor's Notes tab: how far along the Fakémon is, its tags, and a free
 // notepad with doodles for lore, move plans and "fix this later". All of it
-// stays private: publishing leaves it out (woogidex-web js/features/community.ts).
+// stays private: publishing leaves it out (js/features/community.ts).
 
 import { state } from '../../../core/app.ts';
 import { editForm, form } from '../../../editor/draft.ts';

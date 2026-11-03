@@ -215,7 +215,7 @@ button:active:not(:disabled), .btn:active:not(:disabled) { transform: scale(0.96
 .bulk-skel-card .skel-text { width: 60%; height: 10px; margin: 0 !important; }
 .bulk-skel-num { width: 90px; height: 22px; }
 .bulk-skel-sprite { width: 48px; height: 48px; }
-/* skeletons in messages and the changelog (woogidex-web) */
+/* skeletons in messages and the changelog */
 .chat-media-skel { position: absolute; inset: 0; border-radius: inherit; }
 .chat-audio-skel { display: inline-block; width: 16px; height: 16px; }
 .messenger-gate.messenger-gate-skel { align-items: stretch; justify-content: flex-start; padding: var(--sp-5); }

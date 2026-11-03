@@ -38,9 +38,8 @@ import { maybeShowOriginNotice } from './dev-notice.ts';
 import { initArtShield } from './art-shield.ts';
 import { cancelSheetOut, sheetIn, sheetOut, slideIn } from './motion.ts';
 import { ext } from './extend.ts';
-// whatever this build adds to the app (js/core/extend.ts): vite.shared.js
-// points the alias at js/host/standalone.ts, or at a host's own module
-import { installHost } from '@woogidex/host';
+// the site's pages, routes and settings on top of the app (js/core/extend.ts)
+import { installHost } from '../host.ts';
 
 import { state } from '../app/state.ts';
 export { state };

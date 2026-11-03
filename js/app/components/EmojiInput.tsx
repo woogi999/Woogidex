@@ -45,7 +45,7 @@ export function RichText({ text, className = '' }: { text: string; className?: s
         e.preventDefault();
         e.stopPropagation();
         if (a.classList.contains('rt-hashtag')) {
-            // the search page for the tag (woogidex-web); without it, nothing to search
+            // the search page for the tag (js/host.ts); without it, nothing to search
             if (api.openSearchPage) api.openSearchPage(`#${a.dataset.hashtag || ''}`);
             return;
         }

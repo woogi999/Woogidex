@@ -1,12 +1,10 @@
-// What a host adds to the app. Woogidex Core is the Fakémon maker and the
-// battle simulator, and it runs on its own: no accounts, no server, the
-// collection lives in the browser. A host (the woogidex.xyz site is one) adds
-// the rest through these registries before boot: more pages and routes,
-// header buttons, account settings, and functions on `api`.
+// What the host adds to the app. The Fakémon maker and the battle simulator
+// work with no account and no server, and the collection lives in the
+// browser. The host (js/host.ts) adds the rest through these registries
+// before boot: more pages and routes, header buttons, account settings, and
+// functions on `api`.
 //
-// A host is a module that exports installHost(). js/core/app.ts imports it
-// through the '@woogidex/host' alias, which vite.shared.js points at
-// js/host/standalone.ts unless the build names another one. Everything here
+// js/core/app.ts imports js/host.ts and calls its installHost(). Everything here
 // is read at boot and on render, so register before DOMContentLoaded (the
 // installHost call in app.ts takes care of that).
 

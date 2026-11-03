@@ -1,14 +1,20 @@
 {
-  "name": "woogidex-core",
+  "name": "woogidex",
   "private": true,
   "type": "module",
   "scripts": {
+    "sync": "node scripts/sync.mjs",
+    "site": "node scripts/site.mjs",
+    "mock-backend": "node scripts/mock-backend.mjs",
+    "local-db": "node scripts/local-db.mjs",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --test tests/*.test.mjs"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.112.3",
     "gsap": "3.15.0",
     "html2canvas": "^1.4.1",
     "react": "^19.2.8",

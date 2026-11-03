@@ -1,4 +1,5 @@
-# Checks that Woogidex Core type-checks and builds, on every push and pull request.
+# Checks that the site type-checks, passes its tests and builds, on every
+# push and pull request. Needs no secrets.
 
 name: CI
 
@@ -14,10 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
       - run: npm ci
       - run: npm run typecheck
+      - run: npm test
       - run: npm run build

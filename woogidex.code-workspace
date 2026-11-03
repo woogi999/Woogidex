@@ -1,0 +1,6 @@
+{
+  "folders": [
+    { "name": "core (public)", "path": "." },
+    { "name": "backend (private)", "path": "../woogidex-backend" }
+  ]
+}

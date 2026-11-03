@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<!-- Dev-only: paints the landing page's scenery and offers each layer as a WebP.
+     Run `npm run dev` and open /scripts/landing-painter/. Save the files into
+     public/assets/landing/<day|night>/ under the names shown. Not part of the
+     build (vite.config.js only builds index.html and admin.html). -->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Landing painter</title>
+    <style>
+        body { margin: 0; padding: 24px; font: 14px/1.5 system-ui, sans-serif; background: #f5f3ef; color: #1d2433; }
+        h1 { font-size: 20px; margin: 0 0 4px; }
+        p { margin: 0 0 16px; color: #55607a; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+        figure { margin: 0; padding: 10px; background: #fff; border: 1px solid #e6e2da; border-radius: 12px; }
+        figure img { display: block; width: 100%; background: repeating-conic-gradient(#eee 0 25%, #fff 0 50%) 0 0 / 16px 16px; border-radius: 6px; }
+        figcaption { display: flex; justify-content: space-between; margin-top: 8px; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <h1>Landing painter</h1>
+    <p>Painting… Each layer below is a download link. Layer order, back to front: sky, clouds, far, sea, fg; the cloud bank sits on top while scrolling.</p>
+    <div class="grid" id="out"></div>
+    <script type="module" src="./main.ts"></script>
+</body>
+</html>

@@ -20,12 +20,7 @@
         "skipLibCheck": true,
         "noFallthroughCasesInSwitch": true,
         "forceConsistentCasingInFileNames": true,
-        "types": [],
-        "paths": {
-            "@woogidex/host": [
-                "./js/host/standalone.ts"
-            ]
-        }
+        "types": []
     },
     "include": [
         "js/**/*",

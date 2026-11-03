@@ -223,7 +223,7 @@
 .ctx-sep { height: 1px; margin: 4px 6px; background: var(--border-light); }
 @media (pointer: coarse) { .ctx-item { height: 40px; } .ctx-sub .ctx-item { height: 38px; } }
 
-/* ==================== quick search, Ctrl+K (woogidex-web js/app/shell/QuickSearch.tsx) ==================== */
+/* ==================== quick search, Ctrl+K (js/app/shell/QuickSearch.tsx) ==================== */
 .qs-layer {
     position: fixed; inset: 0; z-index: 20500; display: flex; justify-content: center; align-items: flex-start;
     padding: min(14vh, 120px) 16px 16px; background: rgba(17, 17, 20, .38);

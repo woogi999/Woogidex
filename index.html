@@ -11,8 +11,7 @@
     <base href="/" target="_blank">
     <script>
         (function () {
-            // Core's routes; a site built on Core lists its own as well
-            var ROUTES = ['collection', 'editor', 'ability-editor', 'battle', 'settings'];
+            var ROUTES = ['collection', 'editor', 'ability-editor', 'community', 'events', 'battle', 'profile', 'privacy', 'terms', 'settings', 'updates', 'search', 'post', 'messages', 'groups'];
             var parts = window.location.pathname.split('/');
             var cut = -1;
             for (var i = 0; i < parts.length; i++) {
@@ -37,7 +36,18 @@
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Woogidex</title>
-    <meta name="description" content="Woogidex is a fan-made Fakemon creator: design custom Pokemon, build a dex of your own, and battle them out in a 3D simulator.">
+    <meta name="description" content="Woogidex is a fan-made Fakemon creator: design custom Pokemon, publish them to the Community Hub, and battle them out in a 3D simulator.">
+    <!-- link-preview metadata; update og:url if the domain changes again -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="Woogidex">
+    <meta property="og:title" content="Woogidex">
+    <meta property="og:description" content="A fan-made Fakemon creator. design custom Fakemon, publish them to the Community Hub, and battle them out in a simulator.">
+    <meta property="og:image" content="https://dex.woogi.xyz/assets/woogidex_icon.png">
+    <meta property="og:url" content="https://dex.woogi.xyz/">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Woogidex">
+    <meta name="twitter:description" content="A fan-made Fakemon creator. design custom Fakemon, publish them to the Community Hub, and battle them out in a simulator.">
+    <meta name="twitter:image" content="https://dex.woogi.xyz/assets/woogidex_icon.png">
     <!-- must run synchronously before style.css paints, so dark mode applies
          on the first frame instead of flashing light then switching -->
     <script>
@@ -70,7 +80,9 @@
     <noscript><link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;600;700;800&display=swap" rel="stylesheet"></noscript>
     <link rel="icon" type="image/png" href="assets/favicon.png">
     <!-- pages are welcome in search results; the artwork is hand-drawn and
-         stays out of image search and AI training -->
+         stays out of image search and AI training (robots.txt carries the
+         same refusal in full). worker/index.js sets this per page, and lifts
+         the image rules for a Fakemon its author made open -->
     <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:none, noimageindex, noai, noimageai">
     <!-- stylesheets, in cascade order -- THE ORDER IS LOAD-BEARING: later
          files restyle classes from earlier ones, and responsive.css sits
@@ -134,17 +146,20 @@
         }
     </script>
     <div class="app-container">
-        <!-- logo, the sections and the account menu: js/app/shell/Header.tsx -->
+        <!-- logo, search, the four sections, notifications and the account
+             menu: js/app/shell/Header.tsx -->
         <header class="header" id="app-header"></header>
 
         <!-- My Collection's regions: js/app/shell/Sidebar.tsx -->
         <aside class="app-sidebar" id="app-sidebar" aria-label="Regions"></aside>
 
-        <!-- a host's pages get their containers here too (js/core/extend.ts) -->
         <div id="main-content">
+            <!-- the landing page (/): js/app/pages/LandingPage.tsx -->
+            <div id="landing-view" style="display:none;"></div>
 
             <!-- battle view -->
             <div id="battle-view" style="display:none;"></div>
+
 
             <!-- ability battle-effect block editor view -->
             <div id="ability-block-editor-view" style="display:none;"></div>
@@ -152,9 +167,31 @@
             <!-- editor view -->
             <div id="editor-view" style="display: none;"></div>
 
+            <!-- profile view -->
+            <div id="profile-view" class="profile-page-view" style="display:none;"></div>
+
             <!-- collection view (hidden by default so deep links like #editor/
                  or #battle never flash it first; boot reveals it explicitly) -->
             <div id="collection-view" style="display:none;"></div>
+
+            <!-- community hub view -->
+            <div id="community-view" style="display:none;"></div>
+
+            <!-- community Fakemon detail view ("warp" page, mirrors share view) -->
+            <div id="community-detail-view" style="display:none;"></div>
+
+            <!-- one feed post and its comments: js/app/pages/PostPage.tsx -->
+            <div id="post-view" style="display:none;"></div>
+
+            <!-- private messages: js/app/pages/MessagesPage.tsx -->
+            <div id="messages-view" style="display:none;"></div>
+
+            <!-- policy pages: /privacy and /terms; js/app/pages/LegalPage.tsx -->
+            <div id="legal-view" style="display:none;"></div>
+
+            <!-- full search results (/search?q=...) -->
+            <div id="search-view" style="display:none;"></div>
+
 
             <!-- settings, as its own page rather than a modal -->
             <div id="settings-view" style="display:none;"></div>
@@ -169,6 +206,9 @@
     <div class="toast-container" id="toast-container"></div>
     <!-- first-visit tips for each section: js/app/shell/Onboarding.tsx -->
     <div id="onboarding-root"></div>
+    <div id="cookie-notice-root"></div>
+
+
 
 <script type="module" src="js/core/app.ts"></script>
 <!-- boot guard: the module above imports npm packages by name, which only a
