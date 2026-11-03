@@ -228,7 +228,9 @@ async function writeCloudBackup(parts: {mons: Record<string, any>[], moves: Reco
         folders: [...(state.folders || []).filter(f => !isRegion(f)), ...regions],
         custom_moves: moves,
         custom_abilities: abilities,
-        custom_items: items
+        custom_items: items,
+        // the flags people made up for their moves: always, like the folders (small, no quota)
+        custom_move_flags: state.customMoveFlags || []
     }, { onConflict: 'user_id' });
 
     if (error) {
@@ -350,9 +352,14 @@ async function restoreParts(parts: {mons: Record<string, any>[], moves: Record<s
     const folders = mergeById(regions.merged,
         (cloudModal.row?.folders || []).filter(f => f && !isRegion(f) && !knownFolders.has(String(f.id))));
 
+    // made-up move flags: only the missing ones, by key, so a renamed flag here keeps its name
+    const haveFlags = new Set((state.customMoveFlags || []).map(f => f?.key));
+    const newFlags = (Array.isArray(cloudModal.row?.custom_move_flags) ? cloudModal.row.custom_move_flags : [])
+        .filter(f => f && typeof f.key === 'string' && f.label && !haveFlags.has(f.key));
+
     const added = mons.added + moves.added + abilities.added + items.added + regions.added;
     const replaced = mons.replaced + moves.replaced + abilities.replaced + items.replaced + regions.replaced;
-    if (!added && !replaced && !folders.added) {
+    if (!added && !replaced && !folders.added && !newFlags.length) {
         api.showToast?.('Nothing changed: everything you picked already matches this device.', 'info');
         return false;
     }
@@ -362,6 +369,7 @@ async function restoreParts(parts: {mons: Record<string, any>[], moves: Record<s
     state.customMoves = moves.merged;
     state.customAbilities = abilities.merged;
     state.customItems = items.merged;
+    if (newFlags.length) state.customMoveFlags = [...(state.customMoveFlags || []), ...newFlags];
 
     await api.saveToStorage?.();
     api.renderCollection?.();
