@@ -10,6 +10,7 @@ import { artworkBlob, frameCount, maskedArtwork, artworkDataUri, isMaskedArtwork
 import { confirmDialog } from '../core/confirm-dialog.ts';
 import { cloudLimits, refreshCloudLimits, asCap } from './cloud-save.ts';
 import { cleanArtSets } from '../editor/art-sets.ts';
+import { dbCall, limiter } from '../core/net.ts';
 
 // ==================== live roles ====================
 // roles are db-driven so staff can edit them from the admin panel. cache
@@ -648,15 +649,16 @@ async function fetchCommunityFeed(options: Record<string, any> = {}) {
     cs.loading = true;
     try {
         const client = await api.getClient();
-        const { data, error } = await client
+        // a time limit, and a new try when there was no answer (js/core/net.ts)
+        const data: any[] | null = await dbCall(signal => client
             .from('published_mons')
             // no thumbnail here any more: a thumbnail is an image, and an
             // image in this response is an image in the network panel. Cards
             // ask community_mon_artwork() for a masked one instead.
             .select('id, user_id, published_at, activity_at, view_count, source_fakemon_id, author_name, author_avatar_url, author_role, author_badges, family_snapshots, evolution_stage, fakemon_data->>name, fakemon_data->>species, fakemon_data->>number, fakemon_data->>type1, fakemon_data->>type2, fakemon_data->>artScaling, customTypes:fakemon_data->customTypes, stats:fakemon_data->stats')
             .order('activity_at', { ascending: false })
-            .limit(100);
-        if (error) throw error;
+            .limit(100)
+            .abortSignal(signal));
         cs.mons = await attachLiveAuthorInfo((data || []).map(unflattenSlimMonRow));
         // fill in cached artwork before the grid renders so return visits paint
         // from disk with no requests. awaited: it's a local read; painting
@@ -1173,6 +1175,8 @@ function queueArtwork(id) {
 // response and the whole request times out, blanking every card in it
 const ARTWORK_BATCH = 12;
 const FULL_ARTWORK_BATCH = 4;
+// a fast scroll queues many batches: three at a time, the rest wait in order
+const artworkSlots = limiter(3);
 
 async function flushArtworkQueue() {
     artworkFlush = null;
@@ -1189,10 +1193,10 @@ async function flushArtworkQueue() {
         // in the response as readable base64. The RPC returns it encrypted and
         // picks the stored thumbnail over the full image the way the cards
         // used to themselves.
-        const { data, error } = await client.rpc('community_mon_artwork', {
+        // a time limit, and a new try when there was no answer (js/core/net.ts)
+        const data: any[] | null = await artworkSlots(() => dbCall(signal => client.rpc('community_mon_artwork', {
             p_ids: full ? ids.map(k => k.slice(FULL_PREFIX.length)) : ids, p_full: full
-        });
-        if (error) throw error;
+        }).abortSignal(signal)));
         for (const row of data || []) {
             const art = maskedArtwork(row.image);
             const key = keyFor(row.mon_id);

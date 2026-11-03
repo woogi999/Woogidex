@@ -9,6 +9,7 @@
 // used to rank, never sent anywhere.
 
 import { log } from '../core/log.ts';
+import { dbCall } from '../core/net.ts';
 import { state, api } from '../core/app.ts';
 import { notify } from '../app/store.ts';
 import { navigateRoute, routeUrl } from '../core/router.ts';
@@ -277,11 +278,11 @@ export async function fetchFeed(tab: FeedTab = 'foryou', { force = false, older 
     try {
         const client = await api.getClient();
         const before = older && t.items.length ? chronological(t.items).at(-1)!.created_at : null;
-        const { data, error } = await client.rpc('community_feed', {
+        // a time limit, and a new try when there was no answer (js/core/net.ts)
+        const data: any[] | null = await dbCall(signal => client.rpc('community_feed', {
             p_before: before, p_limit: older ? 40 : 120, p_following_only: false
-        });
-        if (error) throw error;
-        const rows = await prepareFeedRows(data);
+        }).abortSignal(signal));
+        const rows = await prepareFeedRows(data || []);
         if (older) {
             const known = new Set(t.items.map(i => `${i.kind}:${i.id}`));
             const fresh = rows.filter(r => !known.has(`${r.kind}:${r.id}`));
@@ -314,8 +315,7 @@ async function fetchGuestFeed(t: any, { force = false, older = false }: { force?
     try {
         const client = await api.getClient();
         const before = older && t.items.length ? chronological(t.items).at(-1)!.created_at : null;
-        const { data, error } = await client.rpc('guest_feed', { p_before: before, p_limit: older ? 30 : 60 });
-        if (error) throw error;
+        const data: any[] | null = await dbCall(signal => client.rpc('guest_feed', { p_before: before, p_limit: older ? 30 : 60 }).abortSignal(signal));
         const rows = (data || []).map(shapeItem);
         if (older) {
             const known = new Set(t.items.map((i: FeedItem) => `${i.kind}:${i.id}`));

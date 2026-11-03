@@ -232,6 +232,7 @@ export function woogidexConfig({ react, loadEnv, inputs = {}, supabase }) {
                     // releases instead of invalidating with every code change
                     manualChunks(id) {
                         if (id.includes('node_modules/@supabase')) return 'supabase';
+                        if (id.includes('node_modules/effect/')) return 'effect';
                     }
                 }
             }

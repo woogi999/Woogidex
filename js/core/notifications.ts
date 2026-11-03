@@ -1,4 +1,5 @@
 import { log } from './log.ts';
+import { dbCall } from './net.ts';
 import { state, api } from './app.ts';
 import { notify } from '../app/store.ts';
 
@@ -64,13 +65,15 @@ async function fetchNotifications(options: Record<string, any> = {}) {
             // ns.items left alone; opening the panel refreshes it
             return;
         }
-        const { data, error } = await client
+        // one new try at most: the poll asks again soon anyway (js/core/net.ts)
+        const userId = state.user.id;
+        const data: any[] | null = await dbCall(signal => client
             .from('notifications')
             .select(NOTIFICATION_COLUMNS)
-            .eq('user_id', state.user.id)
+            .eq('user_id', userId)
             .order('created_at', { ascending: false })
-            .limit(50);
-        if (error) throw error;
+            .limit(50)
+            .abortSignal(signal), { retries: 1 });
         ns.items = data || [];
         ns.unreadCount = ns.items.filter(n => !n.read).length;
         ns.fetchFailed = false;

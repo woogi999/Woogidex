@@ -2,8 +2,11 @@
 // CDN, so the browser re-downloaded them every visit. This uses Cache Storage
 // to keep a copy and only refetches once it's older than `maxAgeMs`. See
 // stamped() for why age is tracked in our own header rather than `Date`.
-// Falls back to a plain fetch where Cache Storage is unavailable, and to a
-// stale copy rather than failing when the network is down.
+// Falls back to the network alone where Cache Storage is unavailable, and to a
+// stale copy rather than failing when the network is down. The network part
+// has a time limit and retries (js/core/net.ts).
+
+import { fetchWithRetry } from './net.ts';
 
 const DAY = 86400000;
 
@@ -14,13 +17,13 @@ export async function cachedFetch(url, { cacheName = 'woogidex-http-v1', maxAgeM
     } catch {
         cache = null;                // storage blocked; just use the network
     }
-    if (!cache) return fetch(url);
+    if (!cache) return fetchWithRetry(url);
 
     const hit = await cache.match(url).catch(() => null);
     if (hit && !isStale(hit, maxAgeMs)) return hit;
 
     try {
-        const res = await fetch(url);
+        const res = await fetchWithRetry(url);
         // put() rejects on opaque/partial responses; don't fail the request over it
         if (res.ok) await cache.put(url, await stamped(res.clone())).catch(() => {});
         return res;
