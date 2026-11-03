@@ -12,6 +12,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { api } from '../../../core/app.ts';
 import { Icon } from '../Icon.tsx';
 import { setPreviewArtIndex, setPreviewArtSet, type ArtImage, type ArtKind } from '../../../editor/art-sets.ts';
+import { ArtViewer, artFrames } from './ArtViewer.tsx';
 
 export interface BoardModel {
     name: string; species: string; type1: string; type2: string; number: string;
@@ -77,9 +78,14 @@ function BoardArt({ m, renderArt, onToggleShiny }: { m: BoardModel; renderArt?: 
     const [backSide, setBackSide] = useState(false);
     useEffect(() => { setBackSide(false); }, [set?.id]);
     const hasBothSides = kind === 'sprites' && !!pick('front') && !!pick('back');
+    // the art viewer (./ArtViewer.tsx): open on the picture that shows
+    const [viewing, setViewing] = useState<number | null>(null);
     const side = kind !== 'sprites' ? '' : (backSide && pick('back')) || !pick('front') ? 'back' : 'front';
     let shown: ArtImage[] = [];
     let body: ReactNode;
+    const frames = artFrames(m.gallery);
+    // the viewer's picture for what the board shows (its shiny goes with its normal one)
+    const openAt = (img: ArtImage) => Math.max(0, frames.findIndex(f => f.image === img || f.shiny === img));
     if (!set) {
         body = <img className="no-art-placeholder" src="assets/no_art_placeholder.png" alt="No artwork" />;
     } else if (kind === 'sprites') {
@@ -126,8 +132,14 @@ function BoardArt({ m, renderArt, onToggleShiny }: { m: BoardModel; renderArt?: 
                         )}
                     </div>
                 )}
-                {/* keyed by what shows, so a switch replays the crossfade (css/pokedex-board.css) */}
-                <div key={`${set?.id}:${shiny}:${index}:${side}`} className="board-artwork-image" data-scaling={set?.scaling || m.artScaling}>{body}</div>
+                {/* keyed by what shows, so a switch replays the crossfade (css/pokedex-board.css).
+                    A click opens the art viewer. */}
+                {set && shown.length
+                    ? <div key={`${set.id}:${shiny}:${index}:${side}`} className="board-artwork-image is-viewable" data-scaling={set.scaling || m.artScaling}
+                        role="button" tabIndex={0} aria-label={`View ${m.name}'s artwork larger`} title="View larger"
+                        onClick={() => setViewing(openAt(shown[0]))}
+                        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setViewing(openAt(shown[0])); } }}>{body}</div>
+                    : <div key={`${set?.id}:${shiny}:${index}:${side}`} className="board-artwork-image" data-scaling={set?.scaling || m.artScaling}>{body}</div>}
             </div>
             {kind === 'concept' && set && set.images.length > 1 && (
                 <div className="board-art-thumbs" role="group" aria-label="Concept art">
@@ -149,6 +161,10 @@ function BoardArt({ m, renderArt, onToggleShiny }: { m: BoardModel; renderArt?: 
             )}
             <ArtCredits images={shown} />
             {shown.filter(i => i.description).map(i => <p key={i.slot + i.src.length} className="board-artwork-description">{i.description}</p>)}
+            {viewing !== null && (
+                <ArtViewer name={m.name} frames={frames} start={viewing} startShiny={shiny} onClose={() => setViewing(null)}
+                    draw={(src, alt) => (renderArt ? renderArt(src, alt) : <img src={src} alt={alt} draggable={false} />)} />
+            )}
         </div>
     );
 }
