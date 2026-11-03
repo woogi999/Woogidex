@@ -8,6 +8,7 @@ import { Avatar } from './Avatar.tsx';
 import { BadgeRow } from './Badge.tsx';
 import { ReactionSummary } from './comments.tsx';
 import { Icon } from './Icon.tsx';
+import { SortTh, nextSort } from './SortHeader.tsx';
 import { Link, insideControl, monPath } from './Link.tsx';
 import { ShieldedArt } from './ShieldedArt.tsx';
 import { TypeBadges } from './profile.tsx';
@@ -168,19 +169,11 @@ function TableHead({ prefs }: { prefs: FeedProps['prefs'] }) {
     return (
         <thead>
             <tr>
-                {TABLE_COLUMNS.map(([label, cls, key, high]) => {
-                    const on = !!key && prefs.sortBy === key;
-                    return (
-                        <th key={cls + label} className={cls} scope="col" aria-sort={on ? (prefs.sortOrder === 'asc' ? 'ascending' : 'descending') : undefined}>
-                            {key
-                                ? <button type="button" className={`table-sort${on ? ' active' : ''}`}
-                                    onClick={() => api.changeCommunitySort(key, on ? (prefs.sortOrder === 'asc' ? 'desc' : 'asc') : high ? 'desc' : 'asc')}>
-                                    {label}{on && <Icon name={prefs.sortOrder === 'asc' ? 'arrow-up' : 'arrow-down'} size={11} />}
-                                </button>
-                                : label}
-                        </th>
-                    );
-                })}
+                {TABLE_COLUMNS.map(([label, cls, key, high]) => (
+                    // a click sorts, a second flips, a third goes back to newest activity first
+                    <SortTh key={cls + label} className={cls} label={label} sortKey={key} sort={{ key: prefs.sortBy, order: prefs.sortOrder }}
+                        onSort={k => { const next = nextSort({ key: prefs.sortBy, order: prefs.sortOrder }, k, high ? 'desc' : 'asc'); api.changeCommunitySort(next?.key || 'activity', next?.order || 'desc'); }} />
+                ))}
             </tr>
         </thead>
     );

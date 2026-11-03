@@ -627,8 +627,13 @@ const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 8640000
         const SORT_OPTIONS = {
             fakemon: [['created', 'Date Added'], ['name', 'Name'], ['number', 'Pokédex Number'], ['bst', 'BST'], ['updated', 'Last Updated'],
                 ['hp', 'HP'], ['atk', 'Attack'], ['def', 'Defense'], ['spa', 'Sp. Atk'], ['spd', 'Sp. Def'], ['spe', 'Speed']],
-            library: [['name', 'Name'], ['created', 'Date Added'], ['updated', 'Last Updated']]
+            library: [['name', 'Name'], ['created', 'Date Added'], ['updated', 'Last Updated']],
+            // custom moves also sort by the table's move columns
+            moves: [['name', 'Name'], ['created', 'Date Added'], ['updated', 'Last Updated'],
+                ['type', 'Type'], ['category', 'Category'], ['power', 'Power'], ['accuracy', 'Accuracy'], ['pp', 'PP']]
         };
+        const sortOptionsFor = view => SORT_OPTIONS[view === 'fakemon' ? 'fakemon' : view === 'moves' ? 'moves' : 'library'];
+        const ALL_SORTS = ['created', 'name', 'number', 'bst', 'updated', ...STAT_SORTS, 'type', 'category', 'power', 'accuracy', 'pp'];
 
         function getCollectionSortPrefs() {
             const fallback = { by: 'created', order: 'desc' };
@@ -636,7 +641,7 @@ const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 8640000
                 const saved = JSON.parse(localStorage.getItem(COLLECTION_SORT_KEY) || 'null');
                 if (!saved) return fallback;
                 return {
-                    by: ['created','name','number','bst','updated', ...STAT_SORTS].includes(saved.by) ? saved.by : fallback.by,
+                    by: ALL_SORTS.includes(saved.by) ? saved.by : fallback.by,
                     order: saved.order === 'asc' ? 'asc' : 'desc'
                 };
             } catch { return fallback; }
@@ -645,7 +650,7 @@ const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 8640000
         /** The sort a tab uses: the saved one, or its first option when the tab has no such sort. */
         function collectionSortFor(view) {
             const prefs = getCollectionSortPrefs();
-            const options = SORT_OPTIONS[view === 'fakemon' ? 'fakemon' : 'library'];
+            const options = sortOptionsFor(view);
             return { by: options.some(([v]) => v === prefs.by) ? prefs.by : options[0][0], order: prefs.order, options };
         }
 
@@ -688,6 +693,24 @@ const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 8640000
         function getFakemonBST(f) {
             if (!f.stats) return 0;
             return (f.stats.hp || 0) + (f.stats.atk || 0) + (f.stats.def || 0) + (f.stats.spa || 0) + (f.stats.spd || 0) + (f.stats.spe || 0);
+        }
+
+        // a custom move's table columns, as values to sort by ("—" accuracy sorts last)
+        const MOVE_SORTS = {
+            type: m => String(m.type || 'Normal'),
+            category: m => String(m.category || 'Status'),
+            power: m => Number(m.basePower) || 0,
+            accuracy: m => typeof m.accuracy === 'number' ? m.accuracy : -1,
+            pp: m => Number(m.pp) || 0
+        };
+        function sortByColumn(list, value, order) {
+            const dir = order === 'asc' ? 1 : -1;
+            const sorted = [...list].sort((a, b) => {
+                const x = value(a), y = value(b);
+                const c = typeof x === 'number' ? x - y : String(x).localeCompare(String(y));
+                return c * dir || String(a.name || '').localeCompare(String(b.name || ''));
+            });
+            return [...sorted.filter(item => item.pinned), ...sorted.filter(item => !item.pinned)];
         }
 
         function sortLibraryList(list, sortMode) {
@@ -763,7 +786,9 @@ const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 8640000
                 });
                 if (api.getActiveRegionId?.()) entries = entries.filter(item => api.entryInActiveRegion(item));
                 if (!search) entries = atFolderLevel(entries, kind);
-                entries = sortLibraryList(entries, sort.by === 'name' ? (sort.order === 'asc' ? 'name-asc' : 'name-desc') : sort.order === 'asc' ? 'oldest' : 'newest');
+                entries = MOVE_SORTS[sort.by]
+                    ? sortByColumn(entries, MOVE_SORTS[sort.by], sort.order)
+                    : sortLibraryList(entries, sort.by === 'name' ? (sort.order === 'asc' ? 'name-asc' : 'name-desc') : sort.order === 'asc' ? 'oldest' : 'newest');
             }
             return { kind, search, folders: folders.map(folder => ({ folder, count: count(folder) })), entries };
         }

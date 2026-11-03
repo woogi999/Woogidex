@@ -7,6 +7,7 @@
 import type { ReactNode } from 'react';
 import { api, state } from '../../../core/app.ts';
 import { Icon } from '../Icon.tsx';
+import { SortTh, nextSort } from '../SortHeader.tsx';
 import { ThumbImg } from '../ThumbImg.tsx';
 import { statusOf } from '../../../features/notebook.ts';
 import { isCut } from '../../../features/clipboard.ts';
@@ -36,8 +37,9 @@ export const COLUMNS: Record<CollectionTab, Column[]> = {
         ...STATS.map(([key, label]) => ({ label, cls: 'col-stat', sort: key, high: true })), { label: 'BST', cls: 'col-stat col-bst', sort: 'bst', high: true }
     ],
     moves: [
-        { label: '', cls: 'col-icon' }, { label: 'Name', cls: 'col-name', sort: 'name' }, { label: 'Type', cls: 'col-types' },
-        { label: 'Cat.', cls: 'col-cat' }, { label: 'Power', cls: 'col-stat' }, { label: 'Acc.', cls: 'col-stat' }, { label: 'PP', cls: 'col-stat' },
+        { label: '', cls: 'col-icon' }, { label: 'Name', cls: 'col-name', sort: 'name' }, { label: 'Type', cls: 'col-types', sort: 'type' },
+        { label: 'Cat.', cls: 'col-cat', sort: 'category' }, { label: 'Power', cls: 'col-stat', sort: 'power', high: true },
+        { label: 'Acc.', cls: 'col-stat', sort: 'accuracy', high: true }, { label: 'PP', cls: 'col-stat', sort: 'pp', high: true },
         { label: 'Description', cls: 'col-desc' }
     ],
     abilities: [{ label: '', cls: 'col-icon' }, { label: 'Name', cls: 'col-name', sort: 'name' }, { label: 'Description', cls: 'col-desc' }],
@@ -51,20 +53,18 @@ export const COLUMNS: Record<CollectionTab, Column[]> = {
     ]
 };
 
-function Head({ col }: { col: Column }) {
+function Head({ col, kind }: { col: Column; kind: CollectionTab }) {
     const sort = api.collectionUI().sort;
-    const sortable = col.sort && sort.options.some(([key]: [string, string]) => key === col.sort);
-    const on = sortable && sort.by === col.sort;
-    return (
-        <th className={col.cls} scope="col" aria-sort={on ? (sort.order === 'asc' ? 'ascending' : 'descending') : undefined}>
-            {sortable
-                ? <button type="button" className={`table-sort${on ? ' active' : ''}`}
-                    onClick={() => api.changeCollectionSort(col.sort, on ? (sort.order === 'asc' ? 'desc' : 'asc') : col.high ? 'desc' : 'asc')}>
-                    {col.label}{on && <Icon name={sort.order === 'asc' ? 'arrow-up' : 'arrow-down'} size={11} />}
-                </button>
-                : col.label}
-        </th>
-    );
+    const sortable = !!col.sort && sort.options.some(([key]: [string, string]) => key === col.sort);
+    // a click sorts, a second flips, a third goes back to the tab's own order
+    const onSort = (key: string) => {
+        const next = nextSort({ key: sort.by, order: sort.order }, key, col.high ? 'desc' : 'asc');
+        if (next) api.changeCollectionSort(next.key, next.order);
+        else if (kind === 'fakemon') api.changeCollectionSort('created', 'desc');
+        else api.changeCollectionSort('name', 'asc');
+    };
+    return <SortTh className={col.cls} label={col.label} sortKey={sortable ? col.sort : undefined}
+        sort={{ key: sort.by, order: sort.order }} onSort={onSort} />;
 }
 
 /** A tab's table. Its rows come as children; id="collection-grid" (the main listing's) keeps the page's anchors working. */
@@ -72,7 +72,7 @@ export function DexTable({ kind, children, id = 'collection-grid' }: { kind: Col
     return (
         <div className="dex-table-wrap" id={id || undefined}>
             <table className={`dex-table dex-table-${kind}`}>
-                <thead><tr>{COLUMNS[kind].map((col, i) => <Head key={i} col={col} />)}</tr></thead>
+                <thead><tr>{COLUMNS[kind].map((col, i) => <Head key={i} col={col} kind={kind} />)}</tr></thead>
                 <tbody>{children}</tbody>
             </table>
         </div>
