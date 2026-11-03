@@ -226,6 +226,71 @@
     .editor-tabs .tab.active::after { left: 0; right: 0; }
     .editor-sheet-body { padding: var(--sp-4) 12px calc(var(--sp-6) + env(safe-area-inset-bottom, 0px)); }
     .form-group label { font-size: 12.5px; }
+
+    /* ==================== dialogs: a sheet from the bottom ====================
+       every centred dialog rises from the bottom edge instead, full width.
+       The "Are you sure?" box stays in the middle: it is small and it must
+       not be mistaken for a menu */
+    .modal-overlay:not(.as-sheet):not(.confirm-dialog-overlay) { align-items: flex-end; padding: 0; }
+    .modal-overlay:not(.as-sheet):not(.confirm-dialog-overlay) .modal {
+        width: 100%; max-width: none; max-height: 92vh;
+        padding: var(--sp-4) var(--sp-4) calc(var(--sp-5) + env(safe-area-inset-bottom, 0px));
+        border-width: 1px 0 0; border-radius: var(--sheet-r) var(--sheet-r) 0 0;
+        box-shadow: 0 -12px 40px rgba(0, 0, 0, .14);
+        transform: translateY(24px);
+    }
+    .modal-overlay:not(.as-sheet):not(.confirm-dialog-overlay).active .modal { transform: none; }
+    #react-dialogs .modal-overlay:not(.as-sheet):not(.confirm-dialog-overlay).active .modal { animation: sheet-up .3s var(--ease-out) both; }
+    .modal-overlay:not(.as-sheet):not(.confirm-dialog-overlay) .modal::before {
+        content: ""; display: block; width: 36px; height: 4px; margin: -6px auto 10px;
+        border-radius: 2px; background: var(--border-strong);
+    }
+    .modal-header h3 { font-size: 16px; }
+
+    /* ==================== notifications: the whole screen under the top bar ==================== */
+    .header .notifications-panel {
+        position: fixed; top: var(--header-h); left: 0; right: 0;
+        bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px));
+        width: auto; max-width: none; max-height: none;
+        border: 0; border-top: 1px solid var(--border-light); border-radius: 0;
+        box-shadow: none;
+    }
+    .notifications-panel-header { padding: 12px 16px; font-size: 16px; }
+
+    /* ==================== toasts: above the tab bar, the full width ==================== */
+    .toast-container {
+        left: 12px; right: 12px;
+        bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + 10px);
+    }
+    .toast { min-width: 0; width: 100%; }
+    body.editor-sheet-open .toast-container { bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+
+    /* ==================== search: rows on the page, not in a box ==================== */
+    .search-list { border: 0; border-radius: 0; background: transparent; }
+    .search-list .gs-item.search-row { padding: 10px 2px; }
+    .search-row .gs-thumb { width: 44px; height: 44px; flex-basis: 44px; }
+    .search-row .gs-title { font-size: 14.5px; }
+    .search-hashtag-jump { border-color: transparent; background: var(--bg-panel); }
+    .search-section-head h2 { font-size: 15px; }
+
+    /* ==================== the type and category pickers: soft fills like the other fields ==================== */
+    .type-dropdown-trigger, .cat-dropdown-trigger { min-height: 40px; border-color: transparent; background: var(--bg-panel); }
+
+    /* ==================== Browse Moves: the filters two by two ==================== */
+    .move-browser-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    /* the dialog gives some filters a fixed desktop width in its markup */
+    .move-browser-filters > * { width: auto !important; min-width: 0 !important; }
+    .move-browser-filters .mb-filter-name { grid-column: 1 / -1; }
+    .move-browser-filters .mb-filter-name, .move-browser-filters .mb-filter-select { height: 40px; border-color: transparent; background: var(--bg-panel); }
+    .move-browser-filters:has(.mb-range-label) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .move-browser-filters:has(.mb-range-label) > .btn { grid-column: 1 / -1; }
+    .mb-range-label { flex-direction: column; align-items: stretch; gap: 4px; }
+    .mb-range-label input { width: 100%; height: 40px; border-color: transparent; background: var(--bg-panel); }
+    .move-browser-results { max-height: none; grid-template-columns: minmax(0, 1fr); }
+
+    /* ==================== My Collection's sort: the field takes the room, the order button stays square ==================== */
+    #collection-sort-by { flex: 1 1 auto; min-width: 0; }
+    #collection-sort-order { flex: 0 0 40px; width: 40px; }
 }
 
 /* text fields at 16px on touch phones: a smaller one makes iPhone Safari
