@@ -3,6 +3,10 @@
 // header's box searches (js/features/search.ts) and runs the picked result.
 // The right-click menu opens it too (js/app/components/ContextMenu.tsx), with
 // the selected text already typed in.
+//
+// Text that starts with "/" is a quick command instead (js/features/commands.ts):
+// "/" alone lists them, and a command's result shows as you type. The "/" key
+// opens the box with the "/" already typed.
 
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
@@ -14,6 +18,9 @@ import { COMMUNITY_DROPDOWN_LIMIT, PEOPLE_DROPDOWN_LIMIT, communityResults, loca
 import { Icon } from '../components/Icon.tsx';
 import { SearchRow } from '../components/SearchRow.tsx';
 import { MOD_KEY, setQuickSearch } from '../components/ContextMenu.tsx';
+import { api } from '../../core/app.ts';
+import { parseCommand, runInput, suggest } from '../../features/commands.ts';
+import type { Result, Row } from '../../features/commands-model.ts';
 
 const LIMIT = 6;
 const COMMUNITY_DEBOUNCE_MS = 250;
@@ -105,6 +112,92 @@ function Palette({ seed, onClose }: { seed: string; onClose: () => void }) {
 
     useEffect(() => { setActive(0); }, [query]);
 
+    // ---- quick commands ----
+    const isCommand = query.startsWith('/');
+    const commandList = isCommand ? suggest(query) : [];
+    const [result, setResult] = useState<{ input: string; out: Result | null; busy: boolean }>({ input: '', out: null, busy: false });
+    useEffect(() => {
+        if (!isCommand || commandList.length && !/\s/.test(query)) return;
+        let live = true;
+        setResult(r => ({ ...r, busy: true }));
+        const timer = setTimeout(() => {
+            runInput(query).then(out => { if (live) setResult({ input: query, out, busy: false }); })
+                .catch(err => { log.error('COMMANDS', 'Command failed', err); if (live) setResult({ input: query, out: { error: 'That command failed. Try again.' }, busy: false }); });
+        }, 200);
+        return () => { live = false; clearTimeout(timer); };
+    }, [query]);
+
+    /** A result row: a move or ability opens its popup, a Pokémon shows its data. */
+    function openRow(row: Row) {
+        if (row.kind === 'move') close(() => api.showMoveDetail?.(row.title));
+        else if (row.kind === 'ability') close(() => api.showAbilityDetail?.(row.title));
+        else if (row.kind === 'mon') setText(`/${row.title.startsWith('Weaknesses of ') ? 'weakness' : 'dt'} ${row.title.replace(/^Weaknesses of /, '').replace(/ \(yours\)$/, '')}`);
+    }
+
+    if (isCommand) {
+        const out = result.input === query ? result.out : null;
+        const rows = commandList.length && !/\s/.test(query) ? [] : (out?.rows || []);
+        const pick = (i: number) => {
+            if (commandList.length && !/\s/.test(query)) { const c = commandList[i]; if (c) setText(`/${c.name} `); return; }
+            if (rows[i]) openRow(rows[i]);
+        };
+        const count = commandList.length && !/\s/.test(query) ? commandList.length : rows.length;
+        const sel = Math.min(active, Math.max(0, count - 1));
+        const onCmdKey = (e: React.KeyboardEvent) => {
+            if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                if (count) setActive((sel + (e.key === 'ArrowDown' ? 1 : -1) + count) % count);
+            } else if (e.key === 'Enter' || (e.key === 'Tab' && commandList.length)) { e.preventDefault(); pick(sel); }
+            else if (e.key === 'Escape') { e.preventDefault(); close(); }
+        };
+        return (
+            <div ref={layer} className="qs-layer" onMouseDown={e => { if (e.target === e.currentTarget) close(); }}>
+                <div ref={panel} className="qs-panel" role="dialog" aria-modal="true" aria-label="Quick commands" onKeyDown={onCmdKey}>
+                    <div className="qs-field">
+                        <Icon name="command-line" size={20} />
+                        <input ref={input} type="search" placeholder="/ms fire, physical" autoComplete="off" spellCheck={false}
+                            role="combobox" aria-expanded="true" aria-controls="qs-results" aria-autocomplete="list" aria-label="Quick command"
+                            aria-activedescendant={count ? `qs-opt-${sel}` : undefined}
+                            value={text} onChange={e => setText(e.target.value)} />
+                        <kbd className="qs-esc" onClick={() => close()}>Esc</kbd>
+                    </div>
+                    <div ref={list} className="qs-results" id="qs-results" role="listbox" aria-label="Commands" aria-live="polite">
+                        {commandList.length > 0 && !/\s/.test(query) ? (
+                            <>
+                                <div className="gs-group-label">Commands</div>
+                                {commandList.map((c, i) => (
+                                    <button key={c.name} type="button" id={`qs-opt-${i}`} role="option" aria-selected={i === sel}
+                                        className={`gs-item qs-cmd${i === sel ? ' is-active' : ''}`} onClick={() => pick(i)}>
+                                        <span className="gs-text"><span className="gs-title">/{c.name}</span><span className="gs-sub">{c.help} <code>{c.usage}</code></span></span>
+                                    </button>
+                                ))}
+                            </>
+                        ) : (
+                            <>
+                                {result.busy && !out && <div className="gs-status">Working…</div>}
+                                {out?.error && <div className="gs-status qs-cmd-error" role="alert">{out.error}</div>}
+                                {out?.head && <div className="gs-group-label">{out.head}</div>}
+                                {(out?.lines || []).map((l, i) => <p key={i} className="qs-cmd-line">{l}</p>)}
+                                {rows.map((r, i) => (
+                                    <button key={`${r.title}-${i}`} type="button" id={`qs-opt-${i}`} role="option" aria-selected={i === sel}
+                                        className={`gs-item${i === sel ? ' is-active' : ''}`} onClick={() => pick(i)}>
+                                        <span className="gs-text"><span className="gs-title">{r.title}</span>{r.sub && <span className="gs-sub">{r.sub}</span>}</span>
+                                    </button>
+                                ))}
+                                {!parseCommand(query) && <div className="gs-empty">Type a command, like /dt garchomp.</div>}
+                            </>
+                        )}
+                    </div>
+                    <div className="qs-foot">
+                        <span><kbd>↑</kbd><kbd>↓</kbd> to move</span>
+                        <span><kbd>Enter</kbd> to {commandList.length && !/\s/.test(query) ? 'pick' : 'open'}</span>
+                        <button type="button" className="link-btn" onClick={() => setText('')}>Search instead</button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
     let groups: Group[];
     let status = '';
     if (!query) groups = [['Go to', quickResults()]];
@@ -154,7 +247,7 @@ function Palette({ seed, onClose }: { seed: string; onClose: () => void }) {
             <div ref={panel} className="qs-panel" role="dialog" aria-modal="true" aria-label="Quick search" onKeyDown={onKeyDown}>
                 <div className="qs-field">
                     <Icon name="magnifying-glass" size={20} />
-                    <input ref={input} type="search" placeholder="Search Fakémon, pages, people…" autoComplete="off" spellCheck={false}
+                    <input ref={input} type="search" placeholder="Search Fakémon, pages, people… or type / for commands" autoComplete="off" spellCheck={false}
                         role="combobox" aria-expanded="true" aria-controls="qs-results" aria-autocomplete="list" aria-label="Quick search"
                         aria-activedescendant={flat.length ? `qs-opt-${current}` : undefined}
                         value={text} onChange={e => setText(e.target.value)} />

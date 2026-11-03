@@ -248,6 +248,10 @@ body.quick-search-open { overflow: hidden; }
     font: 700 10.5px var(--font-sans); color: var(--text-secondary);
 }
 .qs-esc { cursor: pointer; }
+/* quick commands (js/app/shell/QuickSearch.tsx) */
+.qs-cmd .gs-sub code { font: 600 11px var(--font-mono, monospace); color: var(--text-secondary); margin-left: 4px; }
+.qs-cmd-line { padding: 3px 12px; font-size: 13px; line-height: 1.45; color: var(--text-primary); }
+.qs-cmd-error { color: var(--danger); }
 .qs-results { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 6px; }
 .qs-foot { display: flex; align-items: center; gap: 14px; padding: 8px 14px; border-top: 1px solid var(--border-light); font-size: 11.5px; color: var(--text-muted); }
 .qs-foot span { display: inline-flex; align-items: center; gap: 4px; }

@@ -198,6 +198,8 @@ let pageItems: () => MenuItem[] = () => [];
 let quickSearch: ((text?: string) => void) | null = null;
 /** The host's quick search (Ctrl+K), if it has one; the menu offers it then. */
 export function setQuickSearch(fn: ((text?: string) => void) | null) { quickSearch = fn; }
+/** Opens quick search with this text typed in. False when there is no quick search (Core alone). */
+export function openQuickSearch(text = ''): boolean { if (!quickSearch) return false; quickSearch(text); return true; }
 /** What the page menu offers besides the browser basics; the app sets it at boot. */
 export function setPageMenuItems(fn: () => MenuItem[]) { pageItems = fn; }
 
@@ -235,7 +237,8 @@ function menuFor(target: Element): MenuSpec | null {
             { label: 'Forward', icon: 'arrow-right', run: () => history.forward() },
             { label: 'Reload', icon: 'arrow-path', run: () => location.reload() },
             'sep',
-            ...(quickSearch ? [{ label: 'Quick search', icon: 'magnifying-glass', hint: `${MOD_KEY}+K`, run: () => quickSearch?.() }] : []),
+            ...(quickSearch ? [{ label: 'Quick search', icon: 'magnifying-glass', hint: `${MOD_KEY}+K`, run: () => quickSearch?.() },
+                { label: 'Quick commands', icon: 'command-line', hint: '/', run: () => quickSearch?.('/') }] : []),
             ...extra,
             { label: 'Copy page link', icon: 'link', run: () => copy(location.href) }
         ]

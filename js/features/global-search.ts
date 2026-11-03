@@ -9,6 +9,7 @@
 import { api } from '../core/app.ts';
 import { navigateRoute } from '../core/router.ts';
 import { notify } from '../app/store.ts';
+import { openQuickSearch } from '../app/components/ContextMenu.tsx';
 
 // Whether the box is open (on phones it folds into an icon), plus counters
 // the box watches: a bump to focusSeq focuses it, to clearSeq empties it.
@@ -57,13 +58,14 @@ function openSearchPage(query: string = '', options: Record<string, any> = {}) {
     navigateRoute(`search${q ? `?q=${encodeURIComponent(q)}` : ''}`);
 }
 
-// "/" jumps to search from anywhere that isn't already a text field
+// "/" opens the quick commands (js/app/shell/QuickSearch.tsx) from anywhere
+// that isn't already a text field; the header's search box without them
 document.addEventListener('keydown', (event) => {
     if (event.key !== '/' || event.ctrlKey || event.metaKey || event.altKey) return;
     const t = event.target as Element | null;
     if (t?.closest?.('input, textarea, select, [contenteditable="true"]')) return;
     event.preventDefault();
-    openGlobalSearch();
+    if (!openQuickSearch('/')) openGlobalSearch();
 });
 
 export { openGlobalSearch, closeGlobalSearch, openSearchPage };
