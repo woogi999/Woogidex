@@ -70,11 +70,11 @@ function Byline({ item, verb, to }: { item: FeedItem; verb?: string; to?: string
     return (
         <div className="feed-byline">
             <Link to={`profile/${item.user_id}`} className="feed-byline-avatar" aria-label={`${item.author_name || 'Creator'}'s profile`}>
-                <Avatar userId={item.user_id} url={item.author_avatar_url} name={item.author_name} className="feed-avatar" />
+                <Avatar userId={item.user_id} url={item.author_avatar_url} name={item.author_name || item.author_username} className="feed-avatar" />
             </Link>
             <div className="feed-byline-text">
                 <span className="feed-byline-name">
-                    <Link to={`profile/${item.user_id}`} className="community-author-link" data-user-id={item.user_id}>{item.author_name || 'Someone'}</Link>
+                    <Link to={`profile/${item.user_id}`} className="community-author-link" data-user-id={item.user_id}>{item.author_name || item.author_username || 'Someone'}</Link>
                     <BadgeRow badgeKeys={item.author_badges} size={13} />
                     {/* a post in a group: "Name > Group", like Facebook */}
                     {item.group && (
@@ -233,7 +233,7 @@ export function PostMons({ mons }: { mons: any[] }) {
 export function RepostEmbed({ item }: { item: any }) {
     if (!item || item.missing) return <div className="repost-embed is-missing"><Icon name="no-symbol" size={16} /> This is no longer available.</div>;
     if (item.kind === 'event') return <EventEmbed item={item} />;
-    const name = item.author_name || 'Someone';
+    const name = item.author_name || item.author_username || 'Someone';
     if (item.kind === 'mon') {
         const mon = item.fakemon_data || {};
         return (
@@ -387,7 +387,7 @@ function RepostedCard({ item }: { item: FeedItem }) {
         <div className="reposted">
             <div className="reposted-by">
                 <Icon name="arrow-path-rounded-square" size={15} />
-                <Link to={`profile/${item.user_id}`} className="link-btn">{mine ? 'You' : item.author_name || 'Someone'}</Link>
+                <Link to={`profile/${item.user_id}`} className="link-btn">{mine ? 'You' : item.author_name || item.author_username || 'Someone'}</Link>
                 <span>reposted · {timeAgo(item.created_at)}</span>
             </div>
             {original.kind === 'mon' ? <MonFeedCard item={original} />

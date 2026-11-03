@@ -1,5 +1,5 @@
 // The "What's New" pop-up (js/features/whats-new.ts): the newest update post
-// from the Woogidex account, with links to the post and to every update.
+// from the Woogidex account, all of it, with a link to every update.
 
 import { registerDialog, type DialogProps } from '../dialogs.tsx';
 import { Modal } from '../components/Modal.tsx';
@@ -18,11 +18,9 @@ function WhatsNewDialog({ item, close }: DialogProps<{ item: FeedItem }>) {
             <p className="whats-new-date"><Icon name="sparkles" size={14} />{day(item.created_at)}</p>
             <div className="whats-new-body">
                 <RichText text={item.body || ''} />
-                {item.truncated && <p className="whats-new-more">There is more in the full post.</p>}
             </div>
             <div className="whats-new-actions">
                 <Link to="updates" className="btn btn-secondary" onClick={close}>Every update</Link>
-                <Link to={`post/${encodeURIComponent(item.id)}`} className="btn btn-secondary" onClick={close}>Open the post</Link>
                 <button type="button" className="btn btn-primary" onClick={close}>Got it</button>
             </div>
         </Modal>
