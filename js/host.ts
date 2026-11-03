@@ -44,6 +44,7 @@ import { PostPage } from './app/pages/PostPage.tsx';
 import { MessagesPage } from './app/pages/MessagesPage.tsx';
 import { NotificationsPage } from './app/pages/NotificationsPage.tsx';
 import { maybeShowWhatsNew, openWhatsNew } from './features/whats-new.ts';
+import { resumeAddAccount } from './features/accounts.ts';
 import { LandingPage } from './app/pages/LandingPage.tsx';
 import { registerAccountSettings } from './app/pages/SettingsAccount.tsx';
 import { registerAboutSettings } from './app/pages/SettingsAbout.tsx';
@@ -132,6 +133,8 @@ export function installHost(): void {
     // the newest update post, in a pop-up once (js/features/whats-new.ts)
     Object.assign(api, { openWhatsNew });
     ext.ready.push(maybeShowWhatsNew);
+    // "Add another account" reloads the page signed out: then open the sign-in
+    ext.ready.push(resumeAddAccount);
 
     // ---- settings ----
     registerAccountSettings();

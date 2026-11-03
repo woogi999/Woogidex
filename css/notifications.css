@@ -167,3 +167,18 @@
     .whats-new-actions .btn { flex: 1 1 auto; }
 }
 .notif-signin { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-3); padding: var(--sp-5) 0; color: var(--text-secondary); font-size: 14px; }
+
+/* ==================== switch account (js/features/accounts.ts) ==================== */
+.header-accounts { display: flex; flex-direction: column; }
+.header-account-row { display: flex; align-items: center; gap: 2px; }
+.header-account-row .header-account-switch { flex: 1 1 auto; min-width: 0; }
+.header-account-avatar {
+    width: 28px; height: 28px; flex: 0 0 28px; border-radius: 50%; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; background: var(--accent); color: #fff; font-size: 12px; font-weight: 800;
+}
+.header-account-avatar img { width: 100%; height: 100%; object-fit: cover; }
+.header-account-forget {
+    flex: 0 0 auto; width: 28px; height: 28px; display: grid; place-items: center;
+    border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer;
+}
+.header-account-forget:hover { background: var(--bg-panel); color: var(--text-primary); }

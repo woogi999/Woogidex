@@ -26,6 +26,15 @@ export function apiUrl(path: string): string {
 // one it always had, from the page's host. Else everyone is signed out.
 const SESSION_KEY = `sb-${pageHost.split('.')[0] || 'woogidex'}-auth-token`;
 
+/**
+ * Drops this browser's copy of the session without telling the server, so
+ * its refresh token stays good for a later switch back (js/features/accounts.ts).
+ * A sign-out, by contrast, ends the session on the server too.
+ */
+export function forgetLocalSession() {
+    try { localStorage.removeItem(SESSION_KEY); } catch { /* storage blocked */ }
+}
+
 let supabase: any = null;
 
 const FETCH_TIMEOUT_MS = 30000;

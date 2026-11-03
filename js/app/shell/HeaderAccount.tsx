@@ -12,6 +12,7 @@ import { useClickAway } from '../components/editor/fields.tsx';
 import { NotificationItem, NotificationSkeleton, WhatsNewRow } from '../components/NotificationList.tsx';
 import { usePhone } from '../hooks.ts';
 import { whatsNewView } from '../../features/whats-new.ts';
+import { addAccount, forgetAccount, logOutOfThisAccount, savedAccounts, switchAccount } from '../../features/accounts.ts';
 import { countLabel } from './Header.tsx';
 
 /** A Sign In button beside the account menu, signed out. */
@@ -94,16 +95,41 @@ export function AccountButton() {
     return <Avatar userId={user.id} url={user.avatarUrl} name={displayName()} className="header-avatar-img" />;
 }
 
+/** The other accounts in this browser, to switch to (js/features/accounts.ts). */
+function SavedAccountRows({ close }: { close: () => void }) {
+    const others = savedAccounts();
+    if (!others.length) return null;
+    return (
+        <div className="header-accounts" role="group" aria-label="Switch account">
+            {others.map(a => (
+                <div key={a.id} className="header-account-row">
+                    <button type="button" className="header-profile-popover-item header-account-switch" onClick={() => { close(); switchAccount(a.id); }}
+                        title={`Switch to @${a.username}`}>
+                        <span className="header-account-avatar"><Avatar userId={a.id} url={a.avatar} name={a.name} className="header-avatar-img" /></span>
+                        <span className="header-profile-popover-copy"><strong>{a.name}</strong><small>@{a.username} · Switch</small></span>
+                    </button>
+                    <button type="button" className="header-account-forget" onClick={() => forgetAccount(a.id)} aria-label={`Forget @${a.username} on this device`} title="Forget on this device">
+                        <Icon name="x" size={14} />
+                    </button>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 /** The top of the account menu: who you are, or a Sign In button. */
 export function AccountMenuTop({ close }: { close: () => void }) {
     const user = state.user;
     const then = (fn: () => void) => () => { close(); fn(); };
     if (!user) {
         return (
-            <div className="header-profile-popover-mobile-signin">
-                <button type="button" className="btn btn-primary header-profile-popover-signin" onClick={then(() => api.openAuthModal('signin'))}>Sign In</button>
-                <div className="header-profile-popover-divider" />
-            </div>
+            <>
+                <SavedAccountRows close={close} />
+                <div className="header-profile-popover-mobile-signin">
+                    <button type="button" className="btn btn-primary header-profile-popover-signin" onClick={then(() => api.openAuthModal('signin'))}>Sign In</button>
+                    <div className="header-profile-popover-divider" />
+                </div>
+            </>
         );
     }
     const name = displayName();
@@ -116,6 +142,8 @@ export function AccountMenuTop({ close }: { close: () => void }) {
                     <small>{user.username ? '@' + user.username : 'Edit profile'}</small>
                 </span>
             </Link>
+            <SavedAccountRows close={close} />
+            <button type="button" className="header-profile-popover-item" onClick={then(() => addAccount())}><Icon name="user-plus" /><span>Add another account</span></button>
             <div className="header-profile-popover-divider" />
             <Link to={ownProfilePath(user)} className="header-profile-popover-item" onClick={close}><Icon name="user" /><span>View Profile</span></Link>
         </>
@@ -135,7 +163,10 @@ export function AccountMenuBottom({ close }: { close: () => void }) {
             {state.user && (
                 <>
                     <div className="header-profile-popover-divider" />
-                    <button type="button" className="header-profile-popover-item header-profile-popover-danger" onClick={then(() => api.handleSignOutClick())}><Icon name="log-out" /><span>Sign Out</span></button>
+                    {/* with other accounts saved here, signing out moves on to the next one */}
+                    {savedAccounts().length
+                        ? <button type="button" className="header-profile-popover-item header-profile-popover-danger" onClick={then(() => logOutOfThisAccount())}><Icon name="log-out" /><span>Log out of @{state.user.username || 'this account'}</span></button>
+                        : <button type="button" className="header-profile-popover-item header-profile-popover-danger" onClick={then(() => api.handleSignOutClick())}><Icon name="log-out" /><span>Sign Out</span></button>}
                 </>
             )}
             <div className="header-profile-popover-legal">
