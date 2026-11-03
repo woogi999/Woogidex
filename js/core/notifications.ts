@@ -117,6 +117,8 @@ function notificationText(n) {
     if (n.type === 'mod_content_removed') return `removed your ${n.target_name === 'comment' ? 'comment' : 'post'} after a review. Reason:`;
     if (n.type === 'report_reviewed') return 'reviewed your report:';
     if (n.type === 'appeal_decided') return `${n.target_name === 'reversed' ? 'accepted' : 'turned down'} your appeal:`;
+    // from the site itself (run_event_scheduled_announcements), when an event's results show
+    if (n.type === 'event_results') return `has the results of ${n.target_name || 'an event'}. Take a look!`;
     if (n.type === 'mod_comment_deleted') return 'removed one of your comments';
     if (n.type === 'profile_comment') return 'commented on your profile';
     if (n.type === 'follow') return 'started following you';
@@ -329,7 +331,7 @@ function notificationPath(n): string {
         case 'mon_comment': return `community/${encodeURIComponent(target)}`;
         case 'profile_comment': return `profile/${encodeURIComponent(target)}`;
         case 'post_comment': return `post/${encodeURIComponent(target)}`;
-        case 'event_entry_removed': case 'event_announcement': return event();
+        case 'event_entry_removed': case 'event_announcement': case 'event_results': return event();
         case 'event_edit_request': case 'event_feedback': return event('/enter');
         // straight to where the announcement gets written
         case 'event_results_private': case 'mod_event_unpublished': return event('/dashboard');
@@ -363,6 +365,7 @@ export const NOTIFICATION_KINDS: Array<[string, string, string]> = [
     ['repost', 'Reposts and shares', 'When someone reposts or shares your Fakémon or posts.'],
     ['mention', 'Mentions', 'When someone @mentions you in a post, a comment, their bio or the art credits of a Fakémon they publish.'],
     ['comment_reply', 'Replies', 'When someone replies to one of your comments.'],
+    ['event_results', 'Event results', 'When an event you entered or follow shows its results.'],
     ['event_announcement', 'Event announcements', 'When an event you follow posts an announcement. Entering an event follows it.'],
     ['badge_granted', 'New badges', 'When you are given a badge. A new role always tells you.']
 ];
