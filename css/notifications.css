@@ -124,3 +124,46 @@
         .header-profile-popover-danger svg { color: var(--danger); }
 
 
+/* ==================== grouped rows, the pinned What's New row, the page ====================
+   js/app/components/NotificationList.tsx, js/app/pages/NotificationsPage.tsx */
+.notification-item { color: inherit; text-decoration: none; font: inherit; }
+.notifications-panel-tools { display: flex; align-items: center; gap: 2px; }
+.notifications-panel-tools a.notifications-mark-all-btn { text-decoration: none; }
+/* the reaction sits on the corner of the person's picture */
+.notification-avatar-wrap { position: relative; flex: 0 0 auto; display: inline-flex; }
+.notification-reaction {
+    position: absolute; right: -4px; bottom: -4px;
+    width: 20px; height: 20px; display: grid; place-items: center;
+    border-radius: 50%; background: var(--bg-card); box-shadow: 0 0 0 1px var(--border-light);
+}
+.notification-reaction .reaction-heart { color: #e0245e; }
+.notification-whats-new-icon { display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+
+.notif-page { max-width: 680px; margin: 0 auto; }
+.notif-page-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.notif-tabs { margin-bottom: 0; }
+.notif-tab-count {
+    margin-left: 6px; padding: 1px 6px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--accent); font-size: 11px; font-variant-numeric: tabular-nums;
+}
+.notif-page-list { display: flex; flex-direction: column; }
+.notif-page-list .notification-item { padding: 12px 4px; border-bottom-color: var(--border-light); border-radius: 0; }
+.notif-page-list .notification-item.unread { background: transparent; }
+.notif-page-list .notification-item.unread .notification-text { font-weight: 600; }
+.notif-page-list .notification-avatar { width: 40px; height: 40px; }
+.notif-page-list .notification-text { font-size: 14px; }
+.notif-page-list .notification-time { font-size: 12px; }
+.notif-page-list .notification-dot { top: 50%; right: 6px; transform: translateY(-50%); }
+
+/* ==================== What's New (js/app/dialogs/whatsNew.tsx) ==================== */
+.modal.whats-new { max-width: 560px; }
+.whats-new-date { display: flex; align-items: center; gap: 6px; margin: -6px 0 var(--sp-3); font-size: 12.5px; font-weight: 600; color: var(--accent); }
+.whats-new-body { max-height: min(56vh, 520px); overflow-y: auto; padding-right: 4px; font-size: 14.5px; line-height: 1.6; color: var(--text-primary); }
+.whats-new-more { margin-top: var(--sp-2); font-size: 13px; color: var(--text-muted); }
+.whats-new-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: var(--sp-4); }
+.whats-new-actions a.btn { text-decoration: none; }
+@media (max-width: 760px) {
+    .whats-new-body { max-height: 58vh; }
+    .whats-new-actions .btn { flex: 1 1 auto; }
+}
+.notif-signin { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-3); padding: var(--sp-5) 0; color: var(--text-secondary); font-size: 14px; }

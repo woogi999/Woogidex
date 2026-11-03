@@ -33,6 +33,7 @@ import './app/dialogs/cloudBackup.tsx';
 import './app/dialogs/auth.tsx';
 import './app/dialogs/feedback.tsx';
 import './app/dialogs/safety.tsx';
+import './app/dialogs/whatsNew.tsx';
 import { LegalPage } from './app/pages/LegalPage.tsx';
 import { MovePage } from './app/pages/MovePage.tsx';
 import { SearchPage } from './app/pages/SearchPage.tsx';
@@ -41,6 +42,8 @@ import { CommunityPage } from './app/pages/CommunityPage.tsx';
 import { CommunityDetailPage } from './app/pages/CommunityDetailPage.tsx';
 import { PostPage } from './app/pages/PostPage.tsx';
 import { MessagesPage } from './app/pages/MessagesPage.tsx';
+import { NotificationsPage } from './app/pages/NotificationsPage.tsx';
+import { maybeShowWhatsNew, openWhatsNew } from './features/whats-new.ts';
 import { LandingPage } from './app/pages/LandingPage.tsx';
 import { registerAccountSettings } from './app/pages/SettingsAccount.tsx';
 import { registerAboutSettings } from './app/pages/SettingsAbout.tsx';
@@ -68,6 +71,7 @@ export function installHost(): void {
     registerPage({ view: 'community-detail-view', Page: CommunityDetailPage, lazy: true });
     registerPage({ view: 'post-view', Page: PostPage, lazy: true });
     registerPage({ view: 'messages-view', Page: MessagesPage, lazy: true });
+    registerPage({ view: 'notifications-view', Page: NotificationsPage, lazy: true });
 
     // ---- routes ----
     // a page that shows the server's data waits (briefly) for sign-in at boot
@@ -82,6 +86,17 @@ export function installHost(): void {
     registerRoute('post', { needsAccount: true, open: async param => !!param && await api.openPost?.(param, { preserveRoute: true }) === true });
     registerRoute('groups', { needsAccount: true, open: async param => { await api.openGroups?.(param); return true; } });
     registerRoute('messages', { needsAccount: true, open: async param => await api.handleMessagesRoute?.(param) === true });
+    // every notification, with tabs (the bell's panel shows the newest)
+    registerRoute('notifications', {
+        needsAccount: true,
+        open: async () => {
+            // signed out, the page itself asks you to sign in
+            api.closeNotificationsPanel?.();
+            api.activateTopLevelView?.('notifications-view');
+            api.setPageTitle?.('Notifications');
+            return true;
+        }
+    });
     registerRoute('profile', {
         needsAccount: true, skeleton: () => api.renderProfileLoading?.(),
         open: async param => {
@@ -114,6 +129,9 @@ export function installHost(): void {
     ext.accountMenuTop.push(AccountMenuTop);
     ext.accountMenuItems.push(FeedbackMenuItem);
     ext.accountMenuBottom.push(AccountMenuBottom);
+    // the newest update post, in a pop-up once (js/features/whats-new.ts)
+    Object.assign(api, { openWhatsNew });
+    ext.ready.push(maybeShowWhatsNew);
 
     // ---- settings ----
     registerAccountSettings();

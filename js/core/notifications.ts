@@ -131,6 +131,10 @@ function notificationText(n) {
     // from the site itself: run_event_scheduled_announcements, when a private contest ends
     if (n.type === 'event_results_private') return `reminds you that ${n.target_name || 'your contest'} has ended. Its entries are private, so post an announcement with the winners:`;
     if (n.type === 'mention') return `mentioned you in ${n.target_name || 'a post'}`;
+    // from the triggers on reactions (the preview is the reaction's name)
+    if (n.type === 'mon_reaction') return `reacted to ${n.target_name || 'your Fakémon'}`;
+    if (n.type === 'post_reaction') return 'reacted to your post';
+    if (n.type === 'comment_reaction') return 'reacted to your comment';
     if (n.type === 'comment_reply') return 'replied to your comment';
     if (n.type === 'mod_post_deleted') return 'removed one of your posts';
     if (n.type === 'mod_profile_edited') return `${n.target_name === 'bio' ? 'cleared your profile bio' : 'reset your display name'}${n.preview ? '. Reason:' : ''}`;
@@ -139,22 +143,64 @@ function notificationText(n) {
     return `commented on ${n.target_name || 'your Fakemon'}`;
 }
 
+/** The tabs of the notifications page: what each kind counts as. */
+export type NotificationTab = 'all' | 'mentions' | 'likes' | 'follows' | 'updates';
+const REACTION_TYPES = new Set(['mon_reaction', 'post_reaction', 'comment_reaction']);
+function tabOf(type: string): NotificationTab | null {
+    if (type === 'mention' || type === 'comment_reply') return 'mentions';
+    if (REACTION_TYPES.has(type)) return 'likes';
+    if (type === 'follow') return 'follows';
+    // what the site itself tells you: badges, roles, reviews, events
+    if (/^(mod_|event_|badge_|role_|report_|appeal_)/.test(type) || type === 'mon_deleted' || type === 'contest_submission_deleted') return 'updates';
+    return null;
+}
+
+// these come in bunches: "Ana and 4 others reacted to Emberpup"
+const GROUPED = new Set([...REACTION_TYPES, 'follow']);
+const GROUP_WINDOW_MS = 7 * 24 * 3600 * 1000;
+
+export interface NotificationRow {
+    id: string; ids: string[]; read: boolean; type: string; tab: NotificationTab | null;
+    actorName: string; actorId: string; actorAvatar: string; others: number;
+    text: string; preview: string; reaction: string; time: string; path: string;
+}
+
+/** The rows, newest first: reactions and follows on the same thing within a week share one row. */
+function notificationRows(items: any[]): NotificationRow[] {
+    const rows: NotificationRow[] = [];
+    const byKey = new Map<string, { row: NotificationRow; actors: Set<string>; at: number }>();
+    for (const n of items) {
+        const at = new Date(n.created_at).getTime();
+        const key = GROUPED.has(n.type) ? `${n.type}|${n.target_id || ''}` : '';
+        const group = key ? byKey.get(key) : undefined;
+        if (group && group.at - at < GROUP_WINDOW_MS) {
+            group.row.ids.push(String(n.id));
+            if (!n.read) group.row.read = false;
+            if (!group.actors.has(n.actor_id)) { group.actors.add(n.actor_id); group.row.others++; }
+            continue;
+        }
+        const reaction = REACTION_TYPES.has(n.type) ? String(n.preview || '') : '';
+        const row: NotificationRow = {
+            id: String(n.id), ids: [String(n.id)], read: !!n.read, type: n.type, tab: tabOf(n.type),
+            actorName: n.actor_name || 'Someone', actorId: n.actor_id || '', actorAvatar: n.actor_avatar_url || '', others: 0,
+            text: notificationText(n), preview: reaction ? '' : (n.preview || ''), reaction, time: timeAgo(n.created_at), path: notificationPath(n)
+        };
+        rows.push(row);
+        if (key) byKey.set(key, { row, actors: new Set([n.actor_id]), at });
+    }
+    return rows;
+}
+
 /**
- * Everything the header's bell shows. signedIn false hides it; loading with
- * no rows yet shows skeletons.
+ * Everything the header's bell and the notifications page show. signedIn
+ * false hides it; loading with no rows yet shows skeletons.
  */
-function notificationsView(): {
-    signedIn: boolean; open: boolean; unread: number; loading: boolean;
-    items: Array<{ id: string; read: boolean; actorName: string; actorId: string; actorAvatar: string; text: string; preview: string; time: string; path: string }>;
-} {
+function notificationsView(): { signedIn: boolean; open: boolean; unread: number; loading: boolean; items: NotificationRow[] } {
     const ns = ensureNotificationState();
     return {
         signedIn: !!state.user, open: !!ns.open, unread: ns.unreadCount || 0,
         loading: !!ns.loading && !ns.items.length,
-        items: ns.items.map(n => ({
-            id: String(n.id), read: !!n.read, actorName: n.actor_name || 'Someone', actorId: n.actor_id || '', actorAvatar: n.actor_avatar_url || '',
-            text: notificationText(n), preview: n.preview || '', time: timeAgo(n.created_at), path: notificationPath(n)
-        }))
+        items: notificationRows(ns.items)
     };
 }
 
@@ -288,14 +334,15 @@ function notificationPath(n): string {
         // straight to where the announcement gets written
         case 'event_results_private': case 'mod_event_unpublished': return event('/dashboard');
         // where it was, or what was reposted
-        case 'mention': case 'comment_reply': case 'repost': return tagged();
+        case 'mention': case 'comment_reply': case 'repost':
+        case 'mon_reaction': case 'post_reaction': case 'comment_reaction': return tagged();
     }
     return '';
 }
 
-/** A notification was clicked: it is read, and the panel closes. Its link does the rest. */
-function onNotificationClick(id) {
-    markNotificationRead(id);
+/** A notification was clicked: it is read (a grouped row: all of it), and the panel closes. Its link does the rest. */
+function onNotificationClick(ids: string | string[]) {
+    for (const id of Array.isArray(ids) ? ids : [ids]) markNotificationRead(id);
     closeNotificationsPanel();
 }
 
@@ -310,8 +357,11 @@ export const NOTIFICATION_KINDS: Array<[string, string, string]> = [
     ['mon_comment', 'Comments on your Fakémon', 'When someone comments on a Fakémon you published.'],
     ['post_comment', 'Comments on your posts', 'When someone comments on something you posted.'],
     ['profile_comment', 'Posts on your wall', 'When someone writes on your profile.'],
+    ['mon_reaction', 'Reactions to your Fakémon', 'When someone reacts to a Fakémon you published. One a person a day.'],
+    ['post_reaction', 'Reactions to your posts', 'When someone reacts to something you posted. One a person a day.'],
+    ['comment_reaction', 'Reactions to your comments', 'When someone reacts to one of your comments. One a person a day.'],
     ['repost', 'Reposts and shares', 'When someone reposts or shares your Fakémon or posts.'],
-    ['mention', 'Mentions', 'When someone @mentions you in a post or comment.'],
+    ['mention', 'Mentions', 'When someone @mentions you in a post, a comment, their bio or the art credits of a Fakémon they publish.'],
     ['comment_reply', 'Replies', 'When someone replies to one of your comments.'],
     ['event_announcement', 'Event announcements', 'When an event you follow posts an announcement. Entering an event follows it.'],
     ['badge_granted', 'New badges', 'When you are given a badge. A new role always tells you.']

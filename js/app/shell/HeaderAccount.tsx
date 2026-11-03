@@ -9,6 +9,9 @@ import { BadgeRow } from '../components/Badge.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { Link, profilePath } from '../components/Link.tsx';
 import { useClickAway } from '../components/editor/fields.tsx';
+import { NotificationItem, NotificationSkeleton, WhatsNewRow } from '../components/NotificationList.tsx';
+import { usePhone } from '../hooks.ts';
+import { whatsNewView } from '../../features/whats-new.ts';
 import { countLabel } from './Header.tsx';
 
 /** A Sign In button beside the account menu, signed out. */
@@ -33,47 +36,42 @@ export function MessagesButton() {
 
 export function Notifications() {
     const v = notificationsView();
+    const phone = usePhone();
     const ref = useClickAway(v.open, () => api.closeNotificationsPanel());
     if (!v.signedIn) return null;
+    // the badge also counts a "What's New" you have not opened
+    const unread = v.unread + (whatsNewView()?.unseen ? 1 : 0);
+    const badge = unread > 0 && <span className="notifications-badge">{countLabel(unread)}</span>;
+    // a phone opens the whole page, like an app's notifications tab
+    if (phone) {
+        const active = document.body.dataset.page === 'notifications-view';
+        return (
+            <Link to="notifications" className={`notifications-bell-btn${active ? ' active' : ''}`} aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'} title="Notifications">
+                <Icon name="bell" size={20} />{badge}
+            </Link>
+        );
+    }
     return (
         <div className="notifications-wrap" ref={ref}>
             <button className="notifications-bell-btn" type="button" onClick={() => api.toggleNotificationsPanel()} aria-label="Notifications" title="Notifications" aria-expanded={v.open}>
-                <Icon name="bell" size={20} />
-                {v.unread > 0 && <span className="notifications-badge">{countLabel(v.unread)}</span>}
+                <Icon name="bell" size={20} />{badge}
             </button>
             {v.open && (
                 <div className="notifications-panel">
                     <div className="notifications-panel-header">
                         <span>Notifications</span>
-                        <button className="notifications-mark-all-btn" type="button" onClick={() => api.markAllNotificationsRead()}>Mark all read</button>
+                        <span className="notifications-panel-tools">
+                            <button className="notifications-mark-all-btn" type="button" onClick={() => api.markAllNotificationsRead()}>Mark all read</button>
+                            <Link to="notifications" className="notifications-mark-all-btn" onClick={() => api.closeNotificationsPanel()}>See all</Link>
+                        </span>
                     </div>
                     <div className="notifications-list">
+                        <WhatsNewRow onOpen={() => api.closeNotificationsPanel()} />
                         {v.loading
-                            // mirrors .notification-item so real rows replace it without a jump
-                            ? Array.from({ length: 4 }, (_, i) => (
-                                <div className="notification-item skel-card" key={i}>
-                                    <span className="notification-avatar skel skel-circle" />
-                                    <span className="notification-body"><span className="notification-text skel skel-text" /><span className="notification-time skel skel-text" /></span>
-                                </div>
-                            ))
+                            ? <NotificationSkeleton />
                             : !v.items.length
                                 ? <div className="notifications-empty">You're all caught up - no notifications yet.</div>
-                                : v.items.map(n => {
-                                    // a link when it leads somewhere, else a button that only marks it read
-                                    const Row: any = n.path ? Link : 'button';
-                                    const target = n.path ? { to: n.path } : { type: 'button' };
-                                    return (
-                                    <Row key={n.id} className={`notification-item${n.read ? '' : ' unread'}`} {...target} onClick={() => api.onNotificationClick(n.id)}>
-                                        <Avatar userId={n.actorId} url={n.actorAvatar} name={n.actorName} className="notification-avatar" />
-                                        <span className="notification-body">
-                                            <span className="notification-text"><strong>{n.actorName}</strong> {n.text}</span>
-                                            {n.preview && <span className="notification-preview">“{n.preview}”</span>}
-                                            <span className="notification-time">{n.time}</span>
-                                        </span>
-                                        {!n.read && <span className="notification-dot" aria-hidden="true" />}
-                                    </Row>
-                                    );
-                                })}
+                                : v.items.map(n => <NotificationItem key={n.id} n={n} />)}
                     </div>
                 </div>
             )}
