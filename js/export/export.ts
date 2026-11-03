@@ -68,7 +68,9 @@ import { cleanArtSets } from '../editor/art-sets.ts';
                 folders,
                 customMoves: lists.customMoves,
                 customAbilities: lists.customAbilities,
-                customItems: lists.customItems
+                customItems: lists.customItems,
+                // the made-up flags the custom moves carry (js/features/move-flags.ts)
+                customMoveFlags: state.customMoveFlags || []
             };
 
             const stem = lists.region ? `${lists.slug}-region` : 'fakemon-collection';
@@ -223,6 +225,16 @@ import { cleanArtSets } from '../editor/art-sets.ts';
                         existing.add(String(copy.name).trim().toLowerCase());
                     });
                 };
+
+                // made-up flags: by key, so a move's flag finds its name; one here already stays as it is
+                const importedFlags = isBundle && Array.isArray(parsed.customMoveFlags) ? parsed.customMoveFlags : [];
+                if (importedFlags.length) {
+                    if (mode === 'replace') state.customMoveFlags = [];
+                    const have = new Set((state.customMoveFlags || []).map(f => f.key));
+                    const fresh = importedFlags.filter(f => f && typeof f.key === 'string' && /^x_[a-z0-9_]{1,24}$/.test(f.key) && f.label && !have.has(f.key))
+                        .map(f => ({ id: String(f.id || `mf_${now.toString(36)}${Math.random().toString(36).slice(2, 6)}`), key: f.key, label: String(f.label).slice(0, 32), desc: String(f.desc || '').slice(0, 140), color: String(f.color || ''), createdAt: Number(f.createdAt) || now }));
+                    state.customMoveFlags = [...(state.customMoveFlags || []), ...fresh];
+                }
 
                 mergeLibrary('customMoves', importedMoves, 'move');
                 mergeLibrary('customAbilities', importedAbilities, 'ability');

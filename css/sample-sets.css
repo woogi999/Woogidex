@@ -270,36 +270,34 @@
         /* sample set move inputs */
 
         /* custom move modal */
-        .flag-checkboxes {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 8px;
-        }
-        .flag-checkboxes label {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 12px;
-            background: var(--bg-panel);
-            border: 1px solid var(--border);
-            border-radius: 5px;
-            font-size: 13px;
-            font-weight: 600;
-            color: var(--text-primary);
-            cursor: pointer;
-            transition: var(--t-ui);
-            text-transform: none;
-            letter-spacing: normal;
-        }
-        .flag-checkboxes label:hover {
-            border-color: var(--text-secondary);
-        }
-        .flag-checkboxes input[type="checkbox"] {
-            width: 16px;
-            height: 16px;
-            accent-color: #333;
-            cursor: pointer;
-        }
+        /* the flag picker (js/app/components/editor/FlagPicker.tsx): a list, no boxes */
+        .flag-picker { display: flex; flex-direction: column; gap: 8px; }
+        .flag-picker-bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+        .flag-picker-search { flex: 1 1 180px; display: flex; align-items: center; gap: 6px; padding: 0 10px; background: var(--bg-panel); border-radius: var(--ctl-r); color: var(--text-secondary); }
+        /* .flag-picker in front: the dialog's form styles would win otherwise */
+        .flag-picker .flag-picker-search input { flex: 1; width: auto; min-width: 0; height: auto; margin: 0; border: 0; background: transparent; padding: 8px 0; color: var(--text-primary); font: inherit; font-size: 13px; outline: none; box-shadow: none; }
+        .flag-picker .flag-picker-bar select { width: auto; flex: 0 0 auto; height: auto; margin: 0; padding: 7px 8px; border-radius: var(--ctl-r); border: 0; background: var(--bg-panel); color: var(--text-primary); font: inherit; font-size: 13px; }
+        .flag-picker-count { font-size: 12px; color: var(--text-muted); }
+        .flag-list { list-style: none; display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 2px 12px; max-height: 320px; overflow-y: auto; }
+        .flag-row { display: flex; align-items: flex-start; gap: 4px; border-radius: var(--ctl-r); }
+        .flag-row:hover { background: var(--bg-panel); }
+        .flag-toggle { flex: 1; min-width: 0; display: flex; align-items: flex-start; gap: 10px; padding: 8px; border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; border-radius: var(--ctl-r); }
+        .flag-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+        .flag-check { flex: 0 0 auto; width: 18px; height: 18px; margin-top: 1px; display: grid; place-items: center; border-radius: 5px; border: 1.5px solid var(--border); color: #fff; transition: var(--t-ui); }
+        .flag-row.is-on .flag-check { background: var(--accent); border-color: var(--accent); }
+        .flag-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .flag-name { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: 13px; font-weight: 700; color: var(--text-primary); }
+        .flag-dot { width: 8px; height: 8px; border-radius: 50%; }
+        .flag-tag, .flag-used { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+        .flag-desc { font-size: 12px; line-height: 1.35; color: var(--text-secondary); }
+        .flag-tools { display: flex; gap: 4px; padding: 6px 6px 0 0; }
+        .flag-empty { grid-column: 1 / -1; font-size: 13px; color: var(--text-muted); padding: 8px; }
+        .flag-form { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 8px; padding: 10px 0; }
+        .flag-picker .flag-form input[type="text"] { padding: 8px 10px; border-radius: var(--ctl-r); border: 1px solid var(--border); background: var(--bg-input, transparent); color: var(--text-primary); font: inherit; font-size: 13px; }
+        .flag-colors { display: flex; gap: 6px; }
+        .flag-color { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+        .flag-color.is-on { border-color: var(--text-primary); }
+        .flag-form-actions { display: flex; justify-content: flex-end; gap: 8px; }
         .custom-move-list {
             display: flex;
             flex-direction: column;

@@ -9,6 +9,7 @@ import type { StatBlock } from '../app/types.ts';
 import { blankForm, clampBaseStat, eggGroupsText, form, formFromFakemon, genderRatioText, heightDisplay, setForm, STAT_KEYS, weightDisplay } from './draft.ts';
 import { notify, notifySync } from '../app/store.ts';
 import { flushSync } from 'react-dom';
+import { customFlags } from '../features/move-flags.ts';
 import { artSetTitle, setScaling, cleanArtSets, editorArtSets, MAIN_ART_SET } from './art-sets.ts';
 // PokeAPI never rewrites a species entry, so a month is conservative.
 const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 86400000 };
@@ -511,6 +512,8 @@ function resetEditor() {
             if (flags.bypasssub) labels.push('Bypass Substitute');
             if (isStatus && flags.reflectable) labels.push('Cannot be Bounced');
             if (isStatus && flags.snatch) labels.push('Unsnatchable');
+            // flags people made up (x_<name>) show under their own names
+            for (const f of customFlags()) if (flags[f.key]) labels.push(f.label);
             return labels;
         }
 

@@ -5,7 +5,6 @@
 
 import { useState, type ReactNode } from 'react';
 import { api, state } from '../../core/app.ts';
-import { MOVE_FLAG_OPTIONS } from '../../editor/learnset-model.ts';
 import { registerDialog, type DialogProps } from '../dialogs.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { Icon } from '../components/Icon.tsx';
@@ -13,6 +12,7 @@ import { RegionAssign } from '../components/RegionAssign.tsx';
 import { ArtField } from '../components/ArtField.tsx';
 import { TypeDropdown, useClickAway } from '../components/editor/fields.tsx';
 import { CategoryBadge } from '../components/MoveCategory.tsx';
+import { FlagPicker } from '../components/editor/FlagPicker.tsx';
 import { NAME_MAX } from '../../core/data.ts';
 
 type Kind = 'move' | 'ability' | 'item';
@@ -235,14 +235,7 @@ function CustomMoveDialog({ index, libraryId, sheet, close }: DialogProps<{ inde
             {num('priority', 'Priority', -7, 5)}
             <div className="form-group">
                 <label>Flags</label>
-                <div className="flag-checkboxes">
-                    {/* only a status move can be bounced back or snatched */}
-                    {(MOVE_FLAG_OPTIONS as Array<[string, string]>).filter(([flag]) => statusOnly || (flag !== 'reflectable' && flag !== 'snatch')).map(([flag, label]) => (
-                        <label key={flag}>
-                            <input type="checkbox" checked={!!draft.flags[flag]} onChange={e => set({ flags: { ...draft.flags, [flag]: e.target.checked } })} /> {label}
-                        </label>
-                    ))}
-                </div>
+                <FlagPicker value={draft.flags} onChange={flags => set({ flags })} statusOnly={statusOnly} />
             </div>
             <div className="form-group">
                 <label htmlFor="custom-move-desc">Description</label>
