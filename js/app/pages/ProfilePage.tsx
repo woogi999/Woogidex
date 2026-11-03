@@ -23,6 +23,7 @@ import { LazyArt } from '../components/community.tsx';
 import { ShieldedArt } from '../components/ShieldedArt.tsx';
 import { useStore } from '../store.ts';
 import { useSlide, useSwipeTabs } from '../hooks.ts';
+import { RichText } from '../components/EmojiInput.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { openDialog, registerDialog, type DialogProps } from '../dialogs.tsx';
 import { NAME_MAX } from '../../core/data.ts';
@@ -266,20 +267,9 @@ function FakemonTab({ profile, isOwn }: { profile: any; isOwn: boolean }) {
     );
 }
 
+/** How many you have published. There is no cap, only a speed limit (js/features/community.ts). */
 function UploadsMeter({ used }: { used: number }) {
-    // the real limits for this account load once (renderCommunityUploads in community.ts)
-    useEffect(() => { api.renderCommunityUploads?.(); }, []);
-    const { max, cooldownSeconds } = api.publishLimits();
-    const cadence: string = api.describeCooldown(cooldownSeconds);
-    const hint = `${cadence ? `You can publish ${cadence}. ` : ''}Unpublishing one frees a slot.`;
-    if (max === Infinity) return <span className="profile-uploads" title={hint}>{used} published · no limit</span>;
-    const pct = max > 0 ? Math.min(100, Math.round((used / max) * 100)) : 100;
-    return (
-        <span className={`profile-uploads${used >= max ? ' is-full' : pct >= 80 ? ' is-high' : ''}`} title={hint}>
-            <span className="profile-uploads-track"><span style={{ width: `${pct}%` }} /></span>
-            {used} of {max} uploads
-        </span>
-    );
+    return <span className="profile-uploads" title="No limit on uploads. Publishing many in a row asks you to slow down for a bit.">{used} published</span>;
 }
 
 function PrivatePart() {
@@ -318,7 +308,7 @@ function Intro({ profile, isOwn, details = true }: { profile: any; isOwn: boolea
     return (
         <section className="panel profile2-card">
             <h3>Intro</h3>
-            {!details ? <p className="profile2-bio is-empty">Details are private.</p> : profile.bio ? <p className="profile2-bio">{profile.bio}</p> : <p className="profile2-bio is-empty">{isOwn ? 'Add a bio so people know what you make.' : 'No bio yet.'}</p>}
+            {!details ? <p className="profile2-bio is-empty">Details are private.</p> : profile.bio ? <RichText text={profile.bio} className="profile2-bio" /> : <p className="profile2-bio is-empty">{isOwn ? 'Add a bio so people know what you make.' : 'No bio yet.'}</p>}
             <ul className="profile2-facts">
                 {details && profile.location && <li><Icon name="map-pin" size={16} /> {profile.location}</li>}
                 {details && site && <li><Icon name="link" size={16} /> {/^https?:\/\//i.test(site) ? <a href={site} target="_blank" rel="noopener noreferrer nofollow ugc">{siteLabel}</a> : siteLabel}</li>}

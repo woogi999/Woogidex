@@ -13,6 +13,7 @@ import { api } from '../../../core/app.ts';
 import { Icon } from '../Icon.tsx';
 import { setPreviewArtIndex, setPreviewArtSet, type ArtImage, type ArtKind } from '../../../editor/art-sets.ts';
 import { ArtViewer, artFrames } from './ArtViewer.tsx';
+import { Link, profilePath } from '../Link.tsx';
 
 export interface BoardModel {
     name: string; species: string; type1: string; type2: string; number: string;
@@ -38,14 +39,26 @@ export interface BoardModel {
 const STAT_ROWS: Array<[keyof BoardModel['stats'], string]> = [['hp', 'HP'], ['atk', 'Atk'], ['def', 'Def'], ['spa', 'SpA'], ['spd', 'SpD'], ['spe', 'Spe']];
 const CATEGORY_TITLE: Record<string, string> = { physical: 'Physical', special: 'Special', status: 'Status' };
 
-/** One credit, with a URL in it made a link. */
+/** One credit: a URL in it is a link (it shows its own address), an @name links to that profile. */
 function CreditText({ credit }: { credit: string }) {
-    const m = credit.match(/(https?:\/\/[^\s]+)/i);
-    if (!m) return <>{credit}</>;
-    const url = m[1];
-    // the words around the link stay text; the link shows its own address
-    const label = url.replace(/^https?:\/\//i, '').replace(/\/$/, '');
-    return <>{credit.slice(0, m.index)}<a href={url} target="_blank" rel="noopener noreferrer">{label}</a>{credit.slice(m.index! + url.length)}</>;
+    const parts: ReactNode[] = [];
+    // the same @name rule the server's mentions use (mentioned_names)
+    const re = /(https?:\/\/[^\s]+)|(^|[^A-Za-z0-9_@/])@([A-Za-z0-9_]{3,20})/gi;
+    let at = 0, m: RegExpExecArray | null;
+    while ((m = re.exec(credit))) {
+        if (m[1]) {
+            parts.push(credit.slice(at, m.index));
+            const label = m[1].replace(/^https?:\/\//i, '').replace(/\/$/, '');
+            parts.push(<a key={m.index} href={m[1]} target="_blank" rel="noopener noreferrer">{label}</a>);
+        } else {
+            const start = m.index + m[2].length;
+            parts.push(credit.slice(at, start));
+            parts.push(<Link key={m.index} to={profilePath(m[3])} className="board-credit-mention">@{m[3]}</Link>);
+        }
+        at = re.lastIndex;
+    }
+    parts.push(credit.slice(at));
+    return <>{parts}</>;
 }
 
 /** The credits of what is on screen, each one time. */

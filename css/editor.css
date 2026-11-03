@@ -574,3 +574,14 @@
 .art-scaling-options button.active { background: var(--bg-card); box-shadow: var(--shadow-sm), 0 0 0 1px var(--border-light); }
 .art-scaling-options button.active strong { color: var(--accent); }
 .art-scaling-options button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* ---- art credits (CreditInput in js/app/components/editor/ArtworkSection.tsx):
+   one line that offers @names; the smiley picker is left out here ---- */
+.art-credit-input { position: relative; min-width: 0; flex: 1 1 auto; }
+.art-credit-input .emoji-input-tools { display: none; }
+.art-credit-input textarea {
+    width: 100%; height: var(--ctl-h-sm); min-height: 0; padding: 5px 8px; resize: none; overflow: hidden;
+    font-size: 12.5px; line-height: 1.5; white-space: nowrap;
+}
+.art-credit-input .mention-autocomplete { z-index: 30; }
+.art-credit-all-label { display: block; margin-bottom: 4px; font-size: 12px; font-weight: 600; color: var(--text-secondary); }

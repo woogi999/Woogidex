@@ -8,7 +8,7 @@ import { getCommunityDexNumber } from './community-feed-model.ts';
 import { getCachedArt, getCachedArtBatch, putCachedArt, dropCachedArt } from '../core/art-cache.ts';
 import { artworkBlob, frameCount, maskedArtwork, artworkDataUri, isMaskedArtwork } from '../core/art-shield.ts';
 import { confirmDialog } from '../core/confirm-dialog.ts';
-import { cloudLimits, refreshCloudLimits, asCap } from './cloud-save.ts';
+import { refreshCloudLimits } from './cloud-save.ts';
 import { cleanArtSets } from '../editor/art-sets.ts';
 import { dbCall, limiter } from '../core/net.ts';
 
@@ -273,22 +273,28 @@ function monTextForScreening(payload) {
     return parts.filter(Boolean).join(' ');
 }
 
-// The server resolves each account's cap and cooldown (site defaults plus
-// badges; -1 = unlimited) in my_limits(); published_mons_enforce_cooldown()
-// is the real enforcement.
-function publishLimits() {
-    const limits = cloudLimits();
-    return {
-        max: asCap(limits.communityUploads),
-        cooldownSeconds: asCap(limits.publishCooldownSeconds)
-    };
+// No upload cap: publishing has a speed limit instead (a short burst, then
+// a few an hour, then a day's total; smaller for new accounts). The server
+// enforces it (posting_wait in published_mons_enforce_cooldown); the site
+// asks first with my_posting_wait so the wait shows before a big upload.
+
+/** "a minute", "about 7 minutes", "about 2 hours": the server's wait_text. */
+export function waitText(seconds: number): string {
+    if (seconds < 90) return 'a minute';
+    if (seconds < 5400) return `about ${Math.ceil(seconds / 60)} minutes`;
+    return `about ${Math.round(seconds / 3600)} hours`;
 }
 
-function describeCooldown(seconds) {
-    if (!(seconds > 0) || seconds === Infinity) return '';
-    if (seconds % 3600 === 0) { const h = seconds / 3600; return h === 1 ? 'once an hour' : `once every ${h} hours`; }
-    if (seconds % 60 === 0) { const m = seconds / 60; return m === 1 ? 'once a minute' : `once every ${m} minutes`; }
-    return `once every ${seconds} seconds`;
+/** Seconds to wait before the next publish or post (0: go ahead; unknown counts as 0, the server still checks). */
+async function postingWait(kind: 'publish' | 'post'): Promise<number> {
+    try {
+        const client = await api.getClient();
+        const { data, error } = await client.rpc('my_posting_wait', { p_kind: kind });
+        if (error) throw error;
+        return Math.max(0, Number(data) || 0);
+    } catch {
+        return 0;
+    }
 }
 
 async function publishSnapshot(mon, rulesChecked = false, open = false) {
@@ -305,33 +311,12 @@ async function publishSnapshot(mon, rulesChecked = false, open = false) {
     }
     const client = await api.getClient();
 
-    // client-side pre-check for a friendly message and to avoid serializing a
-    // full artwork payload the server will refuse anyway. Real enforcement is
-    // published_mons_enforce_cooldown() in Postgres; one request covers both
-    // the count ceiling and the cooldown.
-    const { data: recent, count: publishedCount, error: recentError } = await client
-        .from('published_mons')
-        .select('published_at', { count: 'exact' })
-        .eq('user_id', state.user!.id)
-        .order('published_at', { ascending: false })
-        .limit(1);
-    await refreshCloudLimits();
-    const { max, cooldownSeconds } = publishLimits();
-    if (!recentError) {
-        if ((publishedCount ?? 0) >= max) {
-            api.showToast?.(`You have reached the limit of ${max} community uploads. Delete one of your listings to publish something new.`, 'warning');
-            return;
-        }
-        const latest = recent?.[0];
-        if (latest && cooldownSeconds > 0 && cooldownSeconds !== Infinity) {
-            const elapsedMs = Date.now() - new Date(latest.published_at).getTime();
-            const cooldownMs = cooldownSeconds * 1000;
-            if (elapsedMs < cooldownMs) {
-                const remainingMin = Math.ceil((cooldownMs - elapsedMs) / 60000);
-                api.showToast?.(`You can publish again in ${remainingMin} minute${remainingMin === 1 ? '' : 's'}.`, 'warning');
-                return;
-            }
-        }
+    // a friendly pre-check, so a big artwork payload is not sent only to be
+    // refused: the speed limit (published_mons_enforce_cooldown is the real one)
+    const wait = await postingWait('publish');
+    if (wait > 0) {
+        api.showToast?.(`Slow down a little! You can publish again in ${waitText(wait)}.`, 'warning');
+        return;
     }
 
     // bundle the whole evolution family into one post/row, other stages as
@@ -1620,6 +1605,6 @@ export {
     requestCardArtwork,
     showCommunityLanding, browseCommunityFakemon, renderCommunityLanding,
     showCommunityPanel, switchCommunityPanel, communityPanelPath, renderCommunityUploads, openCommunityPublishModal, openCommunityUpdateModalFor,
-    exportOpenCommunityMon, addOpenCommunityMonToCollection, setOpenCommunityMon, signInForTeaser, canTakeOpenCommunityMon, communityState, publishLimits, describeCooldown,
+    exportOpenCommunityMon, addOpenCommunityMonToCollection, setOpenCommunityMon, signInForTeaser, canTakeOpenCommunityMon, communityState, postingWait,
     attachLiveAuthorInfo, ensureCommunityState,
 };

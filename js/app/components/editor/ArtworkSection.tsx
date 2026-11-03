@@ -13,6 +13,7 @@ import {
 } from '../../../editor/art-sets.ts';
 import { Icon } from '../Icon.tsx';
 import { CommitInput } from '../CommitInput.tsx';
+import { EmojiInput } from '../EmojiInput.tsx';
 import { useClickAway } from './fields.tsx';
 import { Presence } from '../Presence.tsx';
 import { removeBackgroundThen } from '../../dialogs/removeBackground.tsx';
@@ -24,6 +25,23 @@ function CommitTextarea({ value, onCommit, ...rest }: Omit<TextareaHTMLAttribute
     const [draft, setDraft] = useState(value);
     useEffect(() => { setDraft(value); }, [value]);
     return <textarea {...rest} value={draft} onChange={e => setDraft(e.target.value)} onBlur={() => { if (draft !== value) onCommit(draft); }} />;
+}
+
+/**
+ * A credit: one line, with "@na" offering people to tag (EmojiInput's
+ * mention list). Hands its text over when focus leaves it or on Enter. The
+ * people tagged hear about it only when the Fakémon is published (a
+ * database trigger on published_mons).
+ */
+function CreditInput({ value, onCommit, label, placeholder = 'Credit, e.g. Art by @name' }: { value: string; onCommit: (v: string) => void; label: string; placeholder?: string }) {
+    const [draft, setDraft] = useState(value);
+    useEffect(() => { setDraft(value); }, [value]);
+    const commit = () => { if (draft !== value) onCommit(draft); };
+    return (
+        <div className="art-credit-input" onBlur={e => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) commit(); }}>
+            <EmojiInput singleLine rows={1} value={draft} onChange={setDraft} onSubmit={commit} maxLength={200} placeholder={placeholder} ariaLabel={label} />
+        </div>
+    );
 }
 
 /** Handlers that make an element take a dropped image file. */
@@ -74,8 +92,7 @@ function SlotTile({ set, label, slot, image, index, pixel, size }: {
             </div>
             <Presence show={!!image}>
                 {image && <div className="art-slot-fields">
-                    <CommitInput type="text" className="art-slot-credit" maxLength={200} placeholder="Credit, e.g. Art by @name"
-                        aria-label={`${label} credit`} value={image.credit || ''} onCommit={v => setArtImageText(set.id, slot, 'credit', v, index)} />
+                    <CreditInput label={`${label} credit`} value={image.credit || ''} onCommit={v => setArtImageText(set.id, slot, 'credit', v, index)} />
                     <CommitTextarea className="art-slot-description" rows={2} maxLength={MAX_DESCRIPTION} placeholder="Description (optional)"
                         aria-label={`${label} description`} value={image.description || ''} onCommit={v => setArtImageText(set.id, slot, 'description', v, index)} />
                 </div>}
@@ -132,10 +149,12 @@ function CreditAll({ set }: { set: ArtSet }) {
     return (
         <Presence show={set.images.length >= 2 && missing > 0} className="art-credit-all-wrap">
         <div className="art-credit-all">
-            <label htmlFor={`credit-all-${set.id}`}>Credit all {missing} uncredited</label>
+            <span className="art-credit-all-label">Credit all {missing} uncredited</span>
             <div>
-                <input id={`credit-all-${set.id}`} type="text" maxLength={200} value={text} placeholder="Art by @name"
-                    onChange={e => setText(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') apply(); }} />
+                <div className="art-credit-input">
+                    <EmojiInput singleLine rows={1} value={text} onChange={setText} onSubmit={() => { if (text.trim()) apply(); }} maxLength={200}
+                        placeholder="Art by @name" ariaLabel={`Credit all ${missing} uncredited`} />
+                </div>
                 <button className="btn btn-secondary btn-sm" type="button" disabled={!text.trim()} onClick={apply}>Apply</button>
             </div>
         </div>

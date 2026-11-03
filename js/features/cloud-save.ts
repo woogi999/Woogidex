@@ -764,10 +764,6 @@ export function cloudMeters(overrideItems: number|null = null, regions: number|n
     if (regions !== null && asCap(limits.cloudRegions) !== 0) {
         out.push({ label: 'Cloud backup regions', used: regions, max: asCap(limits.cloudRegions), hint: 'Regions count separately from items.' });
     }
-    if (cs.publishedCount !== null) {
-        out.push({ label: 'Community uploads', used: cs.publishedCount, max: asCap(limits.communityUploads),
-            hint: 'Listings you have live on the Community Hub. Deleting one frees a slot.' });
-    }
     return out;
 }
 

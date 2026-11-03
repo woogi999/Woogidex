@@ -382,3 +382,6 @@ html:has(> body.art-viewer-open) { overflow: clip; }
     .art-viewer-content { padding: 2% 8px; }
     .art-viewer-nav { top: auto; bottom: 8px; transform: none; }
 }
+/* an @name in an art credit: a link to that person's profile */
+.board-credit-mention { color: var(--accent); font-weight: 600; text-decoration: none; }
+.board-credit-mention:hover { text-decoration: underline; }
