@@ -15,7 +15,7 @@ const compiler = {
     },
     condition(name, c, p) {
         if (name === 'moveTypeIs') return `${c.moveVar}.type === '${p.type}'`;
-        if (name === 'targetsAnother') return p.left === 'self' ? `${c.selfVar} !== ${c.foeVar}` : `${c.foeVar} !== ${c.selfVar}`;
+        if (name === 'targetsAnother') return `${c.foeVar} !== ${c.selfVar}`;
         return '';
     },
     trigger(key, params) {

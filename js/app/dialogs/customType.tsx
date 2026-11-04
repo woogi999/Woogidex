@@ -17,6 +17,7 @@ import { Modal } from '../components/Modal.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { RegionAssign } from '../components/RegionAssign.tsx';
 import { ArtField } from '../components/ArtField.tsx';
+import { TemplateNote } from '../components/editor/TemplateNote.tsx';
 import { cssPx } from '../../core/ui-scale.ts';
 
 type Stop = { color: string; pos: number };
@@ -288,8 +289,14 @@ function MatchupBoards({ draft, entry, setDraft, selfStyle }: { draft: Draft; en
 
 // ---- the dialog ----
 
-function CustomTypeDialog({ entry, close }: DialogProps<{ entry: any }>) {
-    const [draft, setDraftState] = useState<Draft>(() => customTypeDraft(entry));
+
+function CustomTypeDialog({ entry, seed, close }: DialogProps<{ entry: any; seed?: any }>) {
+    const [draft, setDraftState] = useState<Draft>(() => {
+        const start = customTypeDraft(entry);
+        if (!seed) return start;
+        const { from: _from, ...fields } = seed;
+        return { ...start, ...fields };
+    });
     const setDraft = (fn: (d: Draft) => Draft) => setDraftState(fn);
     const [regionIds, setRegionIds] = useState<string[]>(() => entry ? entryRegionIds(entry) : [api.defaultRegionForNewFakemon?.()].filter(Boolean));
     const vanillaOf = draft.vanillaOf;
@@ -310,13 +317,14 @@ function CustomTypeDialog({ entry, close }: DialogProps<{ entry: any }>) {
     const remove = async () => { if (await deleteCustomType(entry)) close(); };
 
     return (
-        <Modal onClose={close} className="custom-type-modal" labelledBy="custom-type-modal-title">
+        <Modal onClose={close} className="custom-type-modal library-editor" labelledBy="custom-type-modal-title">
             <div className="modal-header">
                 <h3 id="custom-type-modal-title">{title}</h3>
                 {/* a region's version belongs to that region by definition */}
                 {!vanillaOf && <RegionAssign value={regionIds} onChange={setRegionIds} />}
                 <button className="modal-close" type="button" onClick={close} aria-label="Close"><Icon name="x" size={20} /></button>
             </div>
+            <TemplateNote seed={seed} />
             <div className="custom-type-top">
                 <div className="form-group">
                     <label htmlFor="custom-type-name">Name</label>

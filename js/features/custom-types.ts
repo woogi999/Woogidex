@@ -336,6 +336,7 @@ function refreshTypeMenus() {
 export function openCustomTypeEditor(id = '', entry: any = null) {
     // a region's version of a main-game type arrives as an unsaved entry (editVanillaType)
     const editing = entry || (id ? allEntries().find(t => t.id === id) || null : null);
+    if (!editing) { openDialog('library-new', { kind: 'types' }); return; }
     openDialog('custom-type', { entry: editing });
 }
 
@@ -515,7 +516,7 @@ export async function deleteCustomType(editing): Promise<boolean> {
 }
 
 // a main-game type as it is, in the shape of a region's version of it
-function vanillaTypeEntry(name, regionId) {
+export function vanillaTypeEntry(name, regionId) {
     const offense: Record<string, any> = {}, defense: Record<string, any> = {};
     for (const other of allMatchupTypes()) {
         offense[other] = matchup(name, other);

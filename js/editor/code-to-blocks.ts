@@ -507,8 +507,12 @@ function recognizeCondition(test: string, c: Ctx): { condition: string; condPara
     if ((m = /^([\w$]+)\.hasItem\(["'](\w+)["']\)$/.exec(t)) && who(c, m[1])) return tryIt('hasItem', { target: who(c, m[1]), item: m[2] });
     if ((m = /^([\w$]+)\.volatiles\[["'](\w+)["']\]$/.exec(t)) && who(c, m[1])) return tryIt('hasVolatileEffect', { target: who(c, m[1]), id: m[2] });
     if ((m = /^!([\w$]+)\.volatiles\[["'](\w+)["']\]$/.exec(t)) && who(c, m[1])) return tryIt('lacksVolatileEffect', { target: who(c, m[1]), id: m[2] });
-    if ((m = /^([\w$]+) !== ([\w$]+)$/.exec(t)) && who(c, m[1]) && who(c, m[2]) && who(c, m[1]) !== who(c, m[2])) return tryIt('targetsAnother', { left: who(c, m[1]) });
-    if ((m = /^([\w$]+) === ([\w$]+)$/.exec(t)) && who(c, m[1]) && who(c, m[2]) && who(c, m[1]) !== who(c, m[2])) return tryIt('targetsItself', { left: who(c, m[1]) });
+    // a !== b and b !== a say the same thing, so one block covers both orders
+    if ((m = /^([\w$]+) (!==|===) ([\w$]+)$/.exec(t)) && who(c, m[1]) && who(c, m[3]) && who(c, m[1]) !== who(c, m[3])) {
+        const condition = m[2] === '!==' ? 'targetsAnother' : 'targetsItself';
+        const compiled = c.compiler.condition(condition, c, {});
+        if (sameCode(compiled, t) || sameCode(compiled, `${m[3]} ${m[2]} ${m[1]}`)) return { condition, condParams: {} };
+    }
     if ((m = /^([\w$]+)\.fainted$/.exec(t)) && m[1] === c.foeVar) return tryIt('targetIsFainted', {});
     if ((m = /^([\w$]+)\.(isActive|fainted|isGrounded\(\)|hurtThisTurn|hp|status|terastallized|transformed|useItem\(\)|eatItem\(\))$/.exec(t)) && who(c, m[1])) return tryIt('pokemonIs', { target: who(c, m[1]), what: m[2] });
     if ((m = /^!([\w$]+)\.(isActive|fainted|isGrounded\(\)|hurtThisTurn|hp|status|terastallized|transformed|useItem\(\)|eatItem\(\))$/.exec(t)) && who(c, m[1])) return tryIt('pokemonIsNot', { target: who(c, m[1]), what: m[2] });
@@ -559,7 +563,7 @@ function placeEvents(events: any[]) {
     events.forEach(ev => {
         const count = (list: any[]): number => list.reduce((n, b) => n + 1 + count(b.then || []) + count(b.else || []), 0);
         const col = columns[1] < columns[0] ? 1 : 0;
-        ev.pos = { x: 24 + col * 400, y: columns[col] };
+        ev.pos = { x: 24 + col * 660, y: columns[col] };
         columns[col] += 110 + 58 * count(ev.body);
     });
 }

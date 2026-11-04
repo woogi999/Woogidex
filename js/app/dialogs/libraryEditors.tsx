@@ -12,6 +12,7 @@ import { CategoryBadge } from '../components/MoveCategory.tsx';
 import { FlagPicker } from '../components/editor/FlagPicker.tsx';
 import { BattleEffect } from '../components/editor/BattleEffect.tsx';
 import { MultihitField } from '../components/editor/MultihitField.tsx';
+import { TemplateNote } from '../components/editor/TemplateNote.tsx';
 import { NAME_MAX } from '../../core/data.ts';
 
 /** The editor's header: title, "Add to region", close. */
@@ -63,18 +64,19 @@ function saving(run: () => string, close: () => void) {
 
 // ---- abilities ----
 
-function CustomAbilityDialog({ id, close }: DialogProps<{ id: string }>) {
+function CustomAbilityDialog({ id, seed, close }: DialogProps<{ id: string; seed?: any }>) {
     const entry = id ? (state.customAbilities || []).find(x => x.id === id) : null;
-    const [name, setName] = useState(entry?.name || '');
-    const [desc, setDesc] = useState(entry?.desc || '');
-    const [code, setCode] = useState(entry?.rawCode || '');
+    const [name, setName] = useState(entry?.name || seed?.name || '');
+    const [desc, setDesc] = useState(entry?.desc || seed?.desc || '');
+    const [code, setCode] = useState(entry?.rawCode || seed?.rawCode || '');
     const [regionIds, setRegionIds] = useState<string[]>(() => entry ? api.entryRegionIds(entry) : [api.defaultRegionForNewFakemon?.()].filter(Boolean));
-    const run = () => api.saveCustomAbility({ id, name, desc, rawCode: code, regionIds });
+    const run = () => api.saveCustomAbility({ id, name, desc, rawCode: code, regionIds, blocks: seed?.blocks });
     const save = saving(run, close);
     const openBlocks = blocksOpener(run, () => id || byName(state.customAbilities, name), api.openAbilityBlockEditor, close);
     return (
         <Modal onClose={close} className="library-editor library-editor-ability">
-            <Head title={entry ? 'Edit Custom Ability' : 'Create Custom Ability'} regionIds={regionIds} setRegionIds={setRegionIds} close={close} />
+            <Head title={entry ? 'Edit Custom Ability' : 'New Custom Ability'} regionIds={regionIds} setRegionIds={setRegionIds} close={close} />
+            <TemplateNote seed={seed} />
             <div className="form-group">
                 <label htmlFor="custom-ability-name">Ability Name</label>
                 <input type="text" id="custom-ability-name" maxLength={NAME_MAX} placeholder="e.g., Solar Heart" autoFocus value={name} onChange={e => setName(e.target.value)} />
@@ -83,7 +85,7 @@ function CustomAbilityDialog({ id, close }: DialogProps<{ id: string }>) {
                 <label htmlFor="custom-ability-desc">Description</label>
                 <textarea id="custom-ability-desc" rows={4} placeholder="Describe what this ability does..." value={desc} onChange={e => setDesc(e.target.value)} />
             </div>
-            <BattleEffect kind="ability" blocks={entry?.blocks} code={code} setCode={setCode} openBlocks={openBlocks} />
+            <BattleEffect kind="ability" blocks={entry?.blocks ?? seed?.blocks} code={code} setCode={setCode} openBlocks={openBlocks} />
             <Actions close={close} save={save} label="Save Ability" />
         </Modal>
     );
@@ -114,20 +116,21 @@ function ItemArtwork({ value, onChange }: { value: string; onChange: (url: strin
     );
 }
 
-function CustomItemDialog({ id, sampleSetTarget, close }: DialogProps<{ id: string; sampleSetTarget?: { setIndex: number } | null }>) {
+function CustomItemDialog({ id, seed, sampleSetTarget, close }: DialogProps<{ id: string; seed?: any; sampleSetTarget?: { setIndex: number } | null }>) {
     const entry = id ? (state.customItems || []).find(x => x.id === id) : null;
-    const [name, setName] = useState(entry?.name || '');
-    const [desc, setDesc] = useState(entry?.desc || '');
-    const [art, setArt] = useState(entry?.artwork || '');
-    const [mega, setMega] = useState(entry?.isMegaStone === true);
-    const [code, setCode] = useState(entry?.rawCode || '');
+    const [name, setName] = useState(entry?.name || seed?.name || '');
+    const [desc, setDesc] = useState(entry?.desc || seed?.desc || '');
+    const [art, setArt] = useState(entry?.artwork || seed?.artwork || '');
+    const [mega, setMega] = useState(entry ? entry.isMegaStone === true : !!seed?.isMegaStone);
+    const [code, setCode] = useState(entry?.rawCode || seed?.rawCode || '');
     const [regionIds, setRegionIds] = useState<string[]>(() => entry ? api.entryRegionIds(entry) : [api.defaultRegionForNewFakemon?.()].filter(Boolean));
-    const run = () => api.saveCustomItem({ id, name, desc, artwork: art, isMegaStone: mega, rawCode: code, regionIds, sampleSetTarget });
+    const run = () => api.saveCustomItem({ id, name, desc, artwork: art, isMegaStone: mega, rawCode: code, regionIds, sampleSetTarget, blocks: seed?.blocks });
     const save = saving(run, close);
     const openBlocks = blocksOpener(run, () => id || byName(state.customItems, name), api.openItemBlockEditor, close);
     return (
         <Modal onClose={close} className="library-editor library-editor-item">
-            <Head title={entry ? 'Edit Custom Item' : 'Create Custom Item'} regionIds={regionIds} setRegionIds={setRegionIds} close={close} />
+            <Head title={entry ? 'Edit Custom Item' : 'New Custom Item'} regionIds={regionIds} setRegionIds={setRegionIds} close={close} />
+            <TemplateNote seed={seed} />
             <div className="form-group">
                 <label htmlFor="custom-item-name">Item Name</label>
                 <input type="text" id="custom-item-name" maxLength={NAME_MAX} placeholder="e.g., Moonlit Charm" autoFocus value={name} onChange={e => setName(e.target.value)} />
@@ -147,7 +150,7 @@ function CustomItemDialog({ id, sampleSetTarget, close }: DialogProps<{ id: stri
                     <span>Mark this item as a Mega Stone for evolution and item pickers.</span>
                 </span>
             </label>
-            <BattleEffect kind="item" blocks={entry?.blocks} code={code} setCode={setCode} openBlocks={openBlocks} />
+            <BattleEffect kind="item" blocks={entry?.blocks ?? seed?.blocks} code={code} setCode={setCode} openBlocks={openBlocks} />
             <Actions close={close} save={save} label="Save Item" />
         </Modal>
     );
@@ -174,15 +177,22 @@ function CategoryPicker({ value, onPick }: { value: string; onPick: (c: string) 
     );
 }
 
-function CustomMoveDialog({ index, libraryId, close }: DialogProps<{ index: number | null; libraryId: string }>) {
-    const [draft, setDraft] = useState(() => api.customMoveDraft(index, libraryId));
+const MOVE_TARGETS: Array<[string, string]> = [
+    ['normal', 'One Pokémon next to it'], ['self', 'Itself'], ['allAdjacentFoes', 'All foes next to it'], ['allAdjacent', 'Everyone next to it'],
+    ['any', 'Any one Pokémon'], ['randomNormal', 'A random foe'], ['adjacentAlly', 'An ally next to it'], ['adjacentAllyOrSelf', 'Itself or an ally'],
+    ['allySide', 'Its own side of the field'], ['foeSide', 'The foe\'s side of the field'], ['allyTeam', 'Its whole team'], ['allies', 'Itself and its allies'],
+    ['all', 'The whole field'], ['adjacentFoe', 'One foe next to it'], ['scripted', 'Set by the move itself']
+];
+
+function CustomMoveDialog({ index, libraryId, seed, close }: DialogProps<{ index: number | null; libraryId: string; seed?: any }>) {
+    const [draft, setDraft] = useState(() => ({ ...api.customMoveDraft(index, libraryId), ...seed }));
     const set = (patch: object) => setDraft((d: any) => ({ ...d, ...patch }));
     const editing = !!libraryId || index != null;
     const statusOnly = draft.category === 'Status';
     const run = () => api.saveCustomMoveEntry({ index, libraryId, draft });
     const save = saving(run, close);
     const openBlocks = blocksOpener(run, () => libraryId || byName(state.customMoves, draft.name), api.openMoveBlockEditor, close);
-    const blocks = libraryId ? (state.customMoves || []).find((m: any) => m.id === libraryId)?.blocks : null;
+    const blocks = libraryId ? (state.customMoves || []).find((m: any) => m.id === libraryId)?.blocks : seed?.blocks;
     const num = (key: string, label: string, min: number, max: number) => (
         <div className="form-group">
             <label>{label}</label>
@@ -191,7 +201,8 @@ function CustomMoveDialog({ index, libraryId, close }: DialogProps<{ index: numb
     );
     return (
         <Modal onClose={close} className="library-editor library-editor-move">
-            <Head title={editing ? 'Edit Custom Move' : 'Create Custom Move'} regionIds={draft.regionIds} setRegionIds={regionIds => set({ regionIds })} close={close} />
+            <Head title={editing ? 'Edit Custom Move' : 'New Custom Move'} regionIds={draft.regionIds} setRegionIds={regionIds => set({ regionIds })} close={close} />
+            <TemplateNote seed={seed} />
             <div className="form-group">
                 <label htmlFor="custom-move-name">Move Name</label>
                 <input type="text" id="custom-move-name" maxLength={NAME_MAX} placeholder="e.g., Ember Fang" autoFocus value={draft.name} onChange={e => set({ name: e.target.value })} />
@@ -211,12 +222,21 @@ function CustomMoveDialog({ index, libraryId, close }: DialogProps<{ index: numb
                 {num('accuracy', 'Accuracy', 0, 100)}
                 {num('pp', 'PP', 1, 64)}
             </div>
+            <p className="lib-hint">An accuracy of 0 means it never misses.</p>
             {!statusOnly && <MultihitField value={draft.multihit} basePower={draft.basePower} onChange={multihit => set({ multihit })} />}
-            {num('priority', 'Priority', -7, 5)}
-            <div className="form-group">
-                <label>Flags</label>
-                <FlagPicker value={draft.flags} onChange={flags => set({ flags })} statusOnly={statusOnly} />
+            <div className="form-row">
+                {num('priority', 'Priority', -7, 5)}
+                <div className="form-group">
+                    <label htmlFor="custom-move-target">It hits</label>
+                    <select id="custom-move-target" value={draft.target} onChange={e => set({ target: e.target.value })}>
+                        {MOVE_TARGETS.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+                    </select>
+                </div>
             </div>
+            <details className="lib-details">
+                <summary><Icon name="chevron-right" size={14} className="lib-details-mark" />Flags<span className="lib-details-count">{Object.entries(draft.flags).filter(([k, on]) => on && k !== 'multihit').length || 'None'} on</span></summary>
+                <FlagPicker value={draft.flags} onChange={flags => set({ flags })} statusOnly={statusOnly} />
+            </details>
             <div className="form-group">
                 <label htmlFor="custom-move-desc">Description</label>
                 <textarea id="custom-move-desc" rows={3} placeholder="Describe what this move does..." value={draft.desc} onChange={e => set({ desc: e.target.value })} />

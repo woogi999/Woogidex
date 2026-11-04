@@ -16,6 +16,7 @@ import { Modal } from '../components/Modal.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { RegionAssign } from '../components/RegionAssign.tsx';
 import { BattleEffect } from '../components/editor/BattleEffect.tsx';
+import { TemplateNote } from '../components/editor/TemplateNote.tsx';
 
 const DURATION_HELP: Record<ConditionKind, string> = {
     status: 'Turns before it wears off by itself. 0 means it stays until something cures it, like Burn.',
@@ -23,8 +24,8 @@ const DURATION_HELP: Record<ConditionKind, string> = {
     terrain: 'Turns it lasts once a move or ability starts it. The main-game terrains last 5.'
 };
 
-function CustomConditionDialog({ entry, kind, close }: DialogProps<{ entry: any; kind: ConditionKind }>) {
-    const [draft, setDraft] = useState<ConditionDraft>(() => conditionDraft(entry, kind));
+function CustomConditionDialog({ entry, kind, seed, close }: DialogProps<{ entry: any; kind: ConditionKind; seed?: any }>) {
+    const [draft, setDraft] = useState<ConditionDraft>(() => ({ ...conditionDraft(entry, kind), ...seed, kind: seed?.kind || entry?.kind || kind }));
     const [regionIds, setRegionIds] = useState<string[]>(() => entry ? entryRegionIds(entry) : [api.defaultRegionForNewFakemon?.()].filter(Boolean));
     const set = (patch: Partial<ConditionDraft>) => setDraft(d => ({ ...d, ...patch }));
     const noun = CONDITION_KINDS.find(k => k[0] === draft.kind)![2];
@@ -48,12 +49,13 @@ function CustomConditionDialog({ entry, kind, close }: DialogProps<{ entry: any;
     };
 
     return (
-        <Modal onClose={close} className="custom-type-modal custom-condition-modal" labelledBy="custom-condition-title">
+        <Modal onClose={close} className="custom-type-modal custom-condition-modal library-editor" labelledBy="custom-condition-title">
             <div className="modal-header">
                 <h3 id="custom-condition-title">{title}</h3>
                 {!vanillaOf && <RegionAssign value={regionIds} onChange={setRegionIds} />}
                 <button className="modal-close" type="button" onClick={close} aria-label="Close"><Icon name="x" size={20} /></button>
             </div>
+            <TemplateNote seed={seed} />
             {!entry && (
                 <div className="form-group">
                     <label>What it is</label>
@@ -104,7 +106,7 @@ function CustomConditionDialog({ entry, kind, close }: DialogProps<{ entry: any;
                 </div>
                 <p className="custom-type-help">{DURATION_HELP[draft.kind]}</p>
             </div>
-            <BattleEffect kind="condition" blocks={saved ? entry.blocks : null} code={draft.rawCode} setCode={rawCode => set({ rawCode })} openBlocks={code} />
+            <BattleEffect kind="condition" blocks={saved ? entry.blocks : seed?.blocks} code={draft.rawCode} setCode={rawCode => set({ rawCode })} openBlocks={code} />
             <div className="region-modal-actions custom-type-actions">
                 {saved && (
                     <button className="btn btn-secondary region-delete-btn" type="button" onClick={remove}>

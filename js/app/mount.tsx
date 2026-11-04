@@ -6,6 +6,7 @@ import { lazy, Suspense, type ComponentType } from 'react';
 import { mountIsland } from './island.tsx';
 import './dialogs/roll.tsx';
 import './dialogs/confirm.tsx';
+import './dialogs/newEntry.tsx';
 import './dialogs/battlePaused.tsx';
 import './dialogs/cropImage.tsx';
 import { NotFoundPage } from './pages/NotFoundPage.tsx';

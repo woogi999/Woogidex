@@ -152,7 +152,7 @@ function EventBlock({ block, index, tables }: { block: Block; index: number; tab
             <div className="ab-c-head ab-hat">
                 <Icon name={def.icon || 'bolt'} size={16} />
                 <span className="ab-block-text">
-                    <strong>When</strong> {String(def.label).charAt(0).toLowerCase() + String(def.label).slice(1)}
+                    {def.dataOnly ? <strong>{def.label}</strong> : <><strong>When</strong> {String(def.label).charAt(0).toLowerCase() + String(def.label).slice(1)}</>}
                     {defs.map(p => (
                         <span key={p.key} className="ab-param">
                             {/* only labelled when there is more than one, so two bare dropdowns are told apart */}

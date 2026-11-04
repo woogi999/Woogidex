@@ -289,6 +289,10 @@
         content: ""; display: block; width: 36px; height: 4px; margin: -6px auto 12px;
         border-radius: 2px; background: var(--border-strong);
     }
+    /* the library editors draw their own edges, so their buttons sit flush with the bottom */
+    .modal-overlay:not(.confirm-dialog-overlay) .modal.library-editor { padding: 10px 0 0; }
+    .modal.library-editor > .library-editor-actions, .modal.library-editor > .custom-type-actions { padding-bottom: calc(var(--sp-3) + env(safe-area-inset-bottom, 0px)); }
+    .cond-kind button { padding: 0 6px; font-size: 12px; }
     .modal-header { margin-bottom: var(--sp-4); }
     .modal-header h3 { font-size: 15.5px; }
 

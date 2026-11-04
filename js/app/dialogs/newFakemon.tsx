@@ -9,6 +9,7 @@ import { registerDialog, type DialogProps } from '../dialogs.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { useStore } from '../store.ts';
 import { NAME_MAX } from '../../core/data.ts';
+import { StartOption, StartStep } from './newEntry.tsx';
 
 function NewFakemonDialog({ close }: DialogProps) {
     const [name, setName] = useState('');
@@ -18,16 +19,11 @@ function NewFakemonDialog({ close }: DialogProps) {
         api.startNewFakemonEditor(clean, null);
     };
     return (
-        <Modal onClose={close} title="New Fakemon" className="new-fakemon-modal" labelledBy="new-fakemon-title">
-            <div className="form-group" style={{ marginBottom: 18 }}>
-                <label htmlFor="new-fakemon-name">Enter your Fakemon's name</label>
-                <input id="new-fakemon-name" type="text" maxLength={NAME_MAX} placeholder="e.g., Flareon" autoComplete="off" autoFocus value={name}
-                    onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); create(); } }} />
-            </div>
-            <div className="new-fakemon-actions">
-                <button className="btn btn-primary new-fakemon-choice" type="button" onClick={create}>Create Fakemon</button>
-                <button className="btn btn-secondary new-fakemon-choice" type="button" onClick={() => api.openPokemonTemplateChooser(name)}>Use Existing Pokemon as Template</button>
-            </div>
+        <Modal onClose={close} title="New Fakemon" className="start-modal new-fakemon-modal" labelledBy="new-fakemon-title">
+            <StartStep id="new-fakemon-name" label="Name" placeholder="e.g., Flareon" maxLength={NAME_MAX} name={name} setName={setName} onEnter={create}>
+                <StartOption icon="plus" title="Start blank" note="An empty Fakemon. You fill in everything." primary onClick={create} />
+                <StartOption icon="document-duplicate" title="Use a Pokemon as a template" note="Copies its stats, typing, abilities, size and learnset." onClick={() => api.openPokemonTemplateChooser(name)} />
+            </StartStep>
         </Modal>
     );
 }

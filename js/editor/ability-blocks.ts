@@ -1642,7 +1642,7 @@ Object.assign(TRIGGERS, {
         es: () => ({ adder: '# Woogidex: getting a move ready', args: 'user, move', selfVar: 'user', foeVar: 'nil', moveVar: 'move', preamble: '', footer: null as any })
     },
     sdHook: {
-        label: 'When Showdown runs __ with __', icon: 'code-bracket', kinds: ['ability', 'item', 'move', 'condition'],
+        label: 'Showdown runs a hook', icon: 'code-bracket', kinds: ['ability', 'item', 'move', 'condition'],
         params: [
             { key: 'hook', label: 'Hook', type: 'text', default: 'onStart' },
             { key: 'args', label: 'Values', type: 'text', default: 'pokemon' }
@@ -1660,7 +1660,7 @@ Object.assign(TRIGGERS, {
 
 Object.assign(CONDITIONS, {
     codeCondition: {
-        label: 'this code is true: __', params: [{ key: 'code', type: 'text', default: 'true' }],
+        label: 'this code is true: __', params: [{ key: 'code', type: 'code', default: 'true' }],
         sd: (_c, p) => String(p.code || 'true'),
         es: (_c, p) => `false # Showdown only: ${String(p.code || 'true').replace(/\n/g, ' ')}`
     },
@@ -1689,13 +1689,13 @@ Object.assign(CONDITIONS, {
         es: (c, p) => `!${p.target === 'foe' ? c.foeVar : c.selfVar}.effects[PBEffects::${safeEffectId(p.id).toUpperCase()}]`
     },
     targetsAnother: {
-        label: 'the move is aimed at another Pokémon', params: [{ key: 'left', type: 'select', options: TARGETS, default: 'foe' }],
-        sd: (c, p) => p.left === 'self' ? `${c.selfVar} !== ${c.foeVar}` : `${c.foeVar} !== ${c.selfVar}`,
+        label: 'the move is aimed at another Pokémon', params: [] as any[],
+        sd: (c) => `${c.foeVar} !== ${c.selfVar}`,
         es: (c) => `${c.foeVar} != ${c.selfVar}`
     },
     targetsItself: {
-        label: 'the move is aimed at its own user', params: [{ key: 'left', type: 'select', options: TARGETS, default: 'foe' }],
-        sd: (c, p) => p.left === 'self' ? `${c.selfVar} === ${c.foeVar}` : `${c.foeVar} === ${c.selfVar}`,
+        label: 'the move is aimed at its own user', params: [] as any[],
+        sd: (c) => `${c.foeVar} === ${c.selfVar}`,
         es: (c) => `${c.foeVar} == ${c.selfVar}`
     },
     pokemonIs: {
@@ -1775,12 +1775,12 @@ Object.assign(ACTIONS, {
         es: (c, p) => [`# set ${safeProperty(p.field)} on ${c.moveVar || 'move'}`]
     },
     battleLog: {
-        label: 'Add to the battle log: __', category: 'Other / Output', params: [{ key: 'args', type: 'text', default: '"-message", "Hello"' }],
+        label: 'Add to the battle log: __', category: 'Other / Output', params: [{ key: 'args', type: 'code', default: '"-message", "Hello"' }],
         sd: (_c, p) => [`this.add(${String(p.args || '"-message"')});`],
         es: (_c, p) => SD_ONLY([`this.add(${String(p.args || '')});`])
     },
     battleHint: {
-        label: 'Show a hint: __', category: 'Other / Output', params: [{ key: 'args', type: 'text', default: '"Hello"' }],
+        label: 'Show a hint: __', category: 'Other / Output', params: [{ key: 'args', type: 'code', default: '"Hello"' }],
         sd: (_c, p) => [`this.hint(${String(p.args || '""')});`],
         es: (_c, p) => SD_ONLY([`this.hint(${String(p.args || '')});`])
     },
@@ -2324,6 +2324,7 @@ let abDragId: any = null;
 let abDragGrabOffset: any = null; // where the cursor grabbed the currently-dragged block, relative to its top-left
 let abPreviewTab: 'sd' | 'es' = 'sd';
 let abOpenSnapshot = '';       // the program as it was when the editor opened, to tell unsaved changes apart
+let abPendingRawCode = '';     // code a preset brought that no block holds; it joins the entry on Save
 
 // opens the ability block editor as its own full page/view rather than a
 // small modal; the ability library modal is closed first and reopened once
@@ -2366,6 +2367,7 @@ function openAbilityBlockEditor(customAbilityId, kind: 'ability' | 'move' | 'ite
     getAbilityRootEvents().forEach(ev => normalizeAbilityIfBranches(ev.body));
     abPreviewTab = 'sd';
     abOpenSnapshot = JSON.stringify(abState);
+    abPendingRawCode = '';
 
     // the block editor is a dialog that slides down over the page you are on
     // (js/app/pages/AbilityBlockEditorPage.tsx); the dialog it came from
@@ -2435,6 +2437,8 @@ function saveAbilityBlockEditor() {
     const entry = abEntry();
     if (!entry) return;
     entry.blocks = JSON.parse(JSON.stringify(normalizeAbilityBlocks(abState, abKind === 'condition' ? 'condStart' : 'switchIn')));
+    if (abPendingRawCode) entry.rawCode = entry.rawCode ? `${entry.rawCode},\n${abPendingRawCode}` : abPendingRawCode;
+    abPendingRawCode = '';
     if (abKind !== 'condition') api.settleVanillaCopy?.({ move: 'moves', item: 'items' }[abKind] || 'abilities', entry);
     api.saveToStorage?.();
     api.showToast?.(`${abKindInfo().Noun} battle code saved!`, 'success');
@@ -3005,7 +3009,13 @@ function abilityBlockPreview() {
     const libAbility = abEntry();
     const previewAbility = { name: libAbility?.name || `Custom${abKindInfo().Noun}`, desc: libAbility?.desc || '', blocks: abState };
     let sd, es;
-    try { sd = (abKind === 'condition' ? compileShowdownCondition({ ...libAbility, blocks: abState }) : compileShowdownAbility(previewAbility)) || '// Add some blocks to see generated code.'; }
+    const previewEntry = { ...libAbility, ...previewAbility };
+    try {
+        sd = (abKind === 'condition' ? compileShowdownCondition({ ...libAbility, blocks: abState })
+            : abKind === 'move' ? compileShowdownMove(previewEntry)
+                : abKind === 'item' ? compileShowdownItem(previewEntry)
+                    : compileShowdownAbility(previewAbility)) || '// Add some blocks to see generated code.';
+    }
     catch (e: any) { sd = '// Could not generate preview: ' + e.message; }
     try { es = compileEssentialsAbility(previewAbility) || '# Add some blocks to see generated code.'; }
     catch (e: any) { es = '# Could not generate preview: ' + e.message; }
@@ -3061,8 +3071,7 @@ function applyBlocksToBoard(blocks: any, rawCode = '') {
     if (!abState) return;
     abState = normalizeAbilityBlocks(blocks, abKind === 'condition' ? 'condStart' : 'switchIn');
     getAbilityRootEvents().forEach(ev => normalizeAbilityIfBranches(ev.body));
-    const entry = abEntry();
-    if (entry && rawCode) entry.rawCode = entry.rawCode ? `${entry.rawCode},\n${rawCode}` : rawCode;
+    abPendingRawCode = rawCode;
     renderAbilityBlockEditor();
 }
 

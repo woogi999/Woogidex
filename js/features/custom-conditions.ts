@@ -145,10 +145,11 @@ export function conditionLabel(kind: ConditionKind, value: string): string {
 // The sheet is js/app/dialogs/customCondition.tsx. It edits a draft and
 // hands it back to saveConditionDraft().
 
-export interface ConditionDraft { kind: ConditionKind; name: string; color: string; desc: string; duration: number; rawCode: string; vanillaOf: string | null }
+export interface ConditionDraft { kind: ConditionKind; name: string; color: string; desc: string; duration: number; rawCode: string; vanillaOf: string | null; blocks?: any }
 
 export function openCustomConditionEditor(id = '', kind: ConditionKind = 'status', entry: any = null) {
     const editing = entry || (id ? allEntries().find(c => c.id === id) || null : null);
+    if (!editing) { openDialog('library-new', { kind: 'conditions', conditionKind: kind }); return; }
     openDialog('custom-condition', { entry: editing, kind: editing?.kind || kind });
 }
 
@@ -185,7 +186,8 @@ export function saveConditionDraft(entry: any, d: ConditionDraft, regionIds: str
     Object.assign(target, {
         kind, color: d.color, desc: d.desc.trim().slice(0, 300), duration, rawCode: api.repairRawCode?.(d.rawCode || '', 'ability') ?? d.rawCode, updatedAt: Date.now(),
         name: d.vanillaOf ? VANILLA_CONDITIONS[kind].find(v => v.id === d.vanillaOf)?.name || name : name,
-        vanillaOf: d.vanillaOf || null
+        vanillaOf: d.vanillaOf || null,
+        ...(d.blocks ? { blocks: d.blocks } : {})
     });
     // a region's version belongs to the region it was made in
     if (d.vanillaOf) setEntryRegionIds(target, [entry?.regionId || getActiveRegionId()].filter(Boolean));

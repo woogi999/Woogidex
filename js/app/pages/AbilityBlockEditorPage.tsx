@@ -12,6 +12,8 @@ import { Icon } from '../components/Icon.tsx';
 import { AbilityPalette } from '../components/blocks/AbilityPalette.tsx';
 import { BlockBoard } from '../components/blocks/BlockBoard.tsx';
 import { useStore } from '../store.ts';
+import { openDialog } from '../dialogs.tsx';
+import '../dialogs/blockPreset.tsx';
 
 const CODE_KEY = 'woogidex-block-editor-code';
 
@@ -54,6 +56,9 @@ export function AbilityBlockEditorPage() {
                         {v.dirty && <span className="ab-unsaved">Not saved</span>}
                     </div>
                     <div className="ab-modal-actions">
+                        {v.kind && <button type="button" className="btn btn-secondary btn-sm" onClick={() => openDialog('block-preset', { kind: v.kind, hasBlocks: !empty })}>
+                            <Icon name="document-duplicate" size={15} /><span>Presets</span>
+                        </button>}
                         <button type="button" className={`btn btn-secondary btn-sm ab-code-toggle${codeOpen ? ' is-on' : ''}`} aria-pressed={codeOpen} onClick={toggleCode}>
                             <Icon name="code-bracket" size={15} /><span>Code</span>
                         </button>

@@ -1034,6 +1034,8 @@ import { form } from './draft.ts';
             return /(?:the user|user)\s+(?:switches|switches out)|switch(?:es)? out the user/.test(text);
         }
 
+        const MOVE_TARGET_IDS = new Set(['normal', 'self', 'any', 'randomNormal', 'allAdjacentFoes', 'allAdjacent', 'adjacentAlly', 'adjacentAllyOrSelf', 'adjacentFoe', 'allySide', 'foeSide', 'allyTeam', 'allies', 'all', 'scripted']);
+
         function getMoveEditorFlags(move) {
             const flags = isCustomMove(move)
                 ? { ...(move.flags || {}) }
@@ -2024,12 +2026,13 @@ import { form } from './draft.ts';
         }
 
         function openCustomAbilityChooser() {
-            if (!getCustomAbilityLibrary().length) { openCustomAbilityLibraryModal(); return; }
+            if (!getCustomAbilityLibrary().length) { openDialog('library-new', { kind: 'abilities' }); return; }
             openDialog('custom-entity-chooser', { kind: 'ability' });
         }
 
         function openCustomAbilityLibraryModal(id = '') {
-            openDialog('custom-ability', { id: id || '' });
+            if (!id) { openDialog('library-new', { kind: 'abilities' }); return; }
+            openDialog('custom-ability', { id });
         }
 
         /**
@@ -2037,7 +2040,7 @@ import { form } from './draft.ts';
          * the editor, when there's room.
          * @returns a problem to show, or '' once it's saved
          */
-        function saveCustomAbility({ id = '', name = '', desc = '', rawCode = '', regionIds = [] }: { id?: any; name?: any; desc?: any; rawCode?: any; regionIds?: any }): string {
+        function saveCustomAbility({ id = '', name = '', desc = '', rawCode = '', regionIds = [], blocks = null }: { id?: any; name?: any; desc?: any; rawCode?: any; regionIds?: any; blocks?: any }): string {
             name = String(name).trim();
             if (!name) return 'Please enter an ability name!';
             desc = String(desc).trim();
@@ -2053,7 +2056,7 @@ import { form } from './draft.ts';
                 }));
             } else {
                 id = 'ca_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-                const created = { id, name, desc, rawCode };
+                const created = { id, name, desc, rawCode, ...(blocks ? { blocks } : {}) };
                 api.setEntryRegionIds?.(created, regionIds);
                 state.customAbilities.push(created);
                 if (state.abilities.length < 4 && editorIsOpen()) {
@@ -2085,14 +2088,15 @@ function getCustomItemLibrary() { return Array.isArray(state.customItems) ? stat
 
 /** The item editor; sampleSetTarget: { setIndex } when made from a sample set's item box, which then gets it. */
 function openCustomItemModal(id = '', sampleSetTarget: any = null) {
-    openDialog('custom-item', { id: id || '', sampleSetTarget });
+    if (!id) { openDialog('library-new', { kind: 'items', sampleSetTarget }); return; }
+    openDialog('custom-item', { id, sampleSetTarget });
 }
 
 /**
  * Saves the item editor.
  * @returns a problem to show, or '' once it's saved
  */
-function saveCustomItem({ id = '', name = '', desc = '', artwork = '', isMegaStone = false, rawCode = '', regionIds = [], sampleSetTarget = null }: { id?: any; name?: any; desc?: any; artwork?: any; isMegaStone?: any; rawCode?: any; regionIds?: any; sampleSetTarget?: any }): string {
+function saveCustomItem({ id = '', name = '', desc = '', artwork = '', isMegaStone = false, rawCode = '', regionIds = [], sampleSetTarget = null, blocks = null }: { id?: any; name?: any; desc?: any; artwork?: any; isMegaStone?: any; rawCode?: any; regionIds?: any; sampleSetTarget?: any; blocks?: any }): string {
     name = String(name).trim();
     if (!name) return 'Please enter an item name!';
     desc = String(desc).trim();
@@ -2102,7 +2106,7 @@ function saveCustomItem({ id = '', name = '', desc = '', artwork = '', isMegaSto
     const isNew = !item;
     if (isNew) {
         id = 'ci_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
-        item = { id, name, desc, artwork, isMegaStone, rawCode, source: 'custom', custom: true };
+        item = { id, name, desc, artwork, isMegaStone, rawCode, source: 'custom', custom: true, ...(blocks ? { blocks } : {}) };
         state.customItems.push(item);
     } else {
         Object.assign(item, { name, desc, artwork, isMegaStone, rawCode, source: 'custom', custom: true });
@@ -2127,7 +2131,8 @@ function editCustomItemLibrary(id) { openCustomItemModal(id); }
         function openCustomMoveModal(index?) {
             log.debug('CUSTOM MOVE', 'Opening custom move editor', { index });
             const entry = index !== undefined && state.learnset[index] && isCustomMove(state.learnset[index]) ? state.learnset[index] : null;
-            openDialog('custom-move', { index: entry ? index : null, libraryId: '' });
+            if (!entry) { openDialog('library-new', { kind: 'moves' }); return; }
+            openDialog('custom-move', { index, libraryId: '' });
         }
 
         /** The move editor on a move in your library. */
@@ -2149,7 +2154,9 @@ function editCustomItemLibrary(id) { openCustomItemModal(id); }
             return {
                 name: m?.name || '', type: m?.type || 'Normal', category: m?.category || 'Status',
                 basePower: m?.basePower || 0,
-                accuracy: m ? ((m.accuracy === true || m.accuracy === undefined) ? 100 : (m.accuracy === false ? 0 : (m.accuracy ?? 100))) : 100,
+                // 0 in the editor means it never misses
+                accuracy: !m || m.accuracy === undefined ? 100 : (m.accuracy === true || m.accuracy === false ? 0 : (m.accuracy ?? 100)),
+                target: m?.target || 'normal',
                 pp: m?.pp || 10, priority: m?.priority || 0, desc: m?.desc || '', rawCode: m?.rawCode || '',
                 multihit: readMultihit(m),
                 flags: Object.fromEntries(Object.entries<any>(m?.flags || {}).filter(([, v]) => v).map(([k]) => [k, true])),
@@ -2182,8 +2189,10 @@ function editCustomItemLibrary(id) { openCustomItemModal(id); }
             const move = {
                 ...hitFields,
                 rawCode: repairRawCode(draft.rawCode, 'move'), name, type: draft.type || 'Normal', category,
-                basePower: parseInt(draft.basePower) || 0, accuracy: parseInt(draft.accuracy) || 100, pp: parseInt(draft.pp) || 10,
-                priority: parseInt(draft.priority) || 0, flags, desc: String(draft.desc || '').trim()
+                basePower: parseInt(draft.basePower) || 0, accuracy: parseInt(draft.accuracy) === 0 ? true : (parseInt(draft.accuracy) || 100), pp: parseInt(draft.pp) || 10,
+                priority: parseInt(draft.priority) || 0, flags, desc: String(draft.desc || '').trim(),
+                target: MOVE_TARGET_IDS.has(draft.target) ? draft.target : 'normal',
+                ...(draft.blocks ? { blocks: draft.blocks } : {})
             };
             const inherit = id => ({ source: 'custom', custom: true, customId: id, learnMethod: 'none', level: null as any });
             if (libraryId) {
@@ -2216,7 +2225,7 @@ function editCustomItemLibrary(id) { openCustomItemModal(id); }
         }
 
         function openCustomMoveChooser() {
-            if (!getCustomMoveLibrary().length) { openCustomMoveModal(); return; }
+            if (!getCustomMoveLibrary().length) { openDialog('library-new', { kind: 'moves' }); return; }
             openDialog('custom-entity-chooser', { kind: 'move' });
         }
         function addExistingCustomMove(id) {
@@ -2238,4 +2247,4 @@ function editCustomItemLibrary(id) { openCustomItemModal(id); }
         }
 
 
-export { addBrowserPicks, universalMoveChoices, learnsetSearch, cycleLearnsetSort, addMoveFromSearch, ensureLearnsets, openAbilityBrowserModal, getExportableMovesText, moveRecommendations, setMoveRecommendable, addRecommendedMoves, moveDetail, MOVE_BROWSER_FLAGS, moveMatchesFilters, moveBrowserResults, abilityBrowserResults, addAbilityFromBrowser, openCustomAbilityLibraryModal, saveCustomAbility, saveCustomItem, saveCustomMoveEntry, customMoveDraft, customEntityChoices, rawCodeReport, rawCodeHooks, repairRawCode, getNewMoveMethod, setNewMoveMethod, abilitySuggestions, moveSuggestions, addAbilityByName, addMoveByName, getEditingAbilityIndex, getLearnsetFilters, setLearnsetFilters, learnsetEntries, getLearnsetChartGroup, setLearnsetChartGroup, learnsetChartSegments, describeAbility, getAllBrowsableMoves, sortLearnsetEntries, resetEditingCustomAbilityIndex, getAbilityRole, fetchShowdownData, openMoveBrowserModal, addMoveFromBrowser, findClosestAbility, findClosestMove, findClosestMoveForImport, parseMoveImportText, stripCustomMoveMarker, normalizeMoveCategoryInput, normalizeMoveTypeInput, openMoveImportExportModal, importMovesFromText, addAbility, openCustomAbilityChooser, addExistingCustomAbility, editCustomAbilityLibrary, updateAbility, toggleCustomAbilityEdit, finishCustomAbilityEdit, removeAbility, moveAbility, renderAbilities, showAbilityDetail, getSdMoveByName, hydrateLearnsetEntry, rehydrateCurrentLearnsetFromShowdown, addLearnsetMove, removeLearnsetMove, updateMoveMethod, updateMoveLevel, sortLearnset, renderLearnset, clearLearnsetFilters, addUniversalMoves, getFakemonStats, getFakemonProfile, findSimilarPokemon, classifyLearnsetSource, buildSimilarMovePools, classifyMoveRole, generateMoveRecommendations, openRecommendMovesModal, generateLearnset, formatLearnMethodLabel, clearMoveset, showMoveDetail, updateCustomAbility, removeCustomAbility, renderCustomAbilities, openCustomMoveChooser, addExistingCustomMove, editCustomMoveLibrary, openCustomMoveModal, removeCustomMove, renderCustomMoves, getCustomItemLibrary, openCustomItemModal, editCustomItemLibrary, loadCompetitiveMoveUsefulness, escapeHtml, isCustomMove, openCustomMoveLibraryModal };
+export { getMoveEditorFlags, addBrowserPicks, universalMoveChoices, learnsetSearch, cycleLearnsetSort, addMoveFromSearch, ensureLearnsets, openAbilityBrowserModal, getExportableMovesText, moveRecommendations, setMoveRecommendable, addRecommendedMoves, moveDetail, MOVE_BROWSER_FLAGS, moveMatchesFilters, moveBrowserResults, abilityBrowserResults, addAbilityFromBrowser, openCustomAbilityLibraryModal, saveCustomAbility, saveCustomItem, saveCustomMoveEntry, customMoveDraft, customEntityChoices, rawCodeReport, rawCodeHooks, repairRawCode, getNewMoveMethod, setNewMoveMethod, abilitySuggestions, moveSuggestions, addAbilityByName, addMoveByName, getEditingAbilityIndex, getLearnsetFilters, setLearnsetFilters, learnsetEntries, getLearnsetChartGroup, setLearnsetChartGroup, learnsetChartSegments, describeAbility, getAllBrowsableMoves, sortLearnsetEntries, resetEditingCustomAbilityIndex, getAbilityRole, fetchShowdownData, openMoveBrowserModal, addMoveFromBrowser, findClosestAbility, findClosestMove, findClosestMoveForImport, parseMoveImportText, stripCustomMoveMarker, normalizeMoveCategoryInput, normalizeMoveTypeInput, openMoveImportExportModal, importMovesFromText, addAbility, openCustomAbilityChooser, addExistingCustomAbility, editCustomAbilityLibrary, updateAbility, toggleCustomAbilityEdit, finishCustomAbilityEdit, removeAbility, moveAbility, renderAbilities, showAbilityDetail, getSdMoveByName, hydrateLearnsetEntry, rehydrateCurrentLearnsetFromShowdown, addLearnsetMove, removeLearnsetMove, updateMoveMethod, updateMoveLevel, sortLearnset, renderLearnset, clearLearnsetFilters, addUniversalMoves, getFakemonStats, getFakemonProfile, findSimilarPokemon, classifyLearnsetSource, buildSimilarMovePools, classifyMoveRole, generateMoveRecommendations, openRecommendMovesModal, generateLearnset, formatLearnMethodLabel, clearMoveset, showMoveDetail, updateCustomAbility, removeCustomAbility, renderCustomAbilities, openCustomMoveChooser, addExistingCustomMove, editCustomMoveLibrary, openCustomMoveModal, removeCustomMove, renderCustomMoves, getCustomItemLibrary, openCustomItemModal, editCustomItemLibrary, loadCompetitiveMoveUsefulness, escapeHtml, isCustomMove, openCustomMoveLibraryModal };
