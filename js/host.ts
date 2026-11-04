@@ -32,6 +32,7 @@ import './app/dialogs/account.tsx';
 import './app/dialogs/cloudBackup.tsx';
 import './app/dialogs/auth.tsx';
 import './app/dialogs/feedback.tsx';
+import './app/dialogs/mfa.tsx';
 import './app/dialogs/safety.tsx';
 import './app/dialogs/whatsNew.tsx';
 import { LegalPage } from './app/pages/LegalPage.tsx';

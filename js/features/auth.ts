@@ -13,6 +13,7 @@ import { UserHoverCard } from '../app/components/profile.tsx';
 import { notify } from '../app/store.ts';
 import { closeDialog, openDialog } from '../app/dialogs.tsx';
 import { devicePrint } from '../core/fingerprint.ts';
+import { sessionNeedsCode } from './mfa.ts';
 
 // ==================== Supabase client ====================
 // loaded from CDN as an es module - no npm/bundler needed.
@@ -195,6 +196,21 @@ function canDeleteAnyContent() {
 // top-level - auth.ts and app.ts import each other, so touching state here
 // would throw before app.ts's `state` export initializes.
 
+// ==================== two-factor ====================
+// An account with an authenticator app is not signed in until its code is in
+// (js/features/mfa.ts; the database holds back its data until then, too).
+// Closing the code step signs the account out.
+let secondFactorOpen: Promise<boolean> | null = null;
+function requireSecondFactor(): Promise<boolean> {
+    secondFactorOpen ||= new Promise<boolean>(resolve => openDialog('mfa-code', { resolve }))
+        .then(async ok => {
+            if (!ok) { const client = await getClient(); await client.auth.signOut(); }
+            return ok;
+        })
+        .finally(() => { secondFactorOpen = null; });
+    return secondFactorOpen;
+}
+
 // ==================== init ====================
 // call once on boot; resolves once state.user is known.
 function initAuth() {
@@ -203,7 +219,9 @@ function initAuth() {
     state.authReady = false;
     authInitPromise = (async () => {
         const client = await getClient();
-        const { data: { session } } = await client.auth.getSession();
+        let { data: { session } } = await client.auth.getSession();
+        // a saved session from before the code was typed: ask for it now
+        if (sessionNeedsCode(session)) session = (await requireSecondFactor()) ? (await client.auth.getSession()).data.session : null;
         state.user = session?.user ? await attachProfile(mapUser(session.user)) : null;
         state.authReady = true;
         log.info('AUTH', 'Session restored', { loggedIn: !!state.user });
@@ -254,10 +272,18 @@ function initAuth() {
                 log.debug('AUTH', 'Auth state change ignored; same user', { event });
                 return;
             }
+            // two-factor on: not signed in until the code is in. The code step
+            // runs outside this callback, since a Supabase call awaited in here
+            // can wait on Supabase's own auth lock forever. Its success comes
+            // back here as MFA_CHALLENGE_VERIFIED.
+            if (sessionNeedsCode(session)) {
+                setTimeout(() => { requireSecondFactor(); }, 0);
+                return;
+            }
             state.user = session?.user ? await attachProfile(mapUser(session.user)) : null;
             updateAuthUI();
 
-            if (event === 'SIGNED_IN' && !wasLoggedIn) {
+            if ((event === 'SIGNED_IN' || event === 'MFA_CHALLENGE_VERIFIED') && !wasLoggedIn && state.user) {
                 if (!signupInProgress) api.showToast?.(`Signed in as ${publicName(state.user)}`, 'success');
                 // OAuth sign-ins never touch signUp()/signIn(), so this is
                 // their only recording point. The edge function dedupes

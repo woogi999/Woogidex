@@ -21,6 +21,7 @@ import { myPrivacy, setMyPrivacy } from '../../features/social.ts';
 import { GroupHead, Switch } from './SettingsPage.tsx';
 import { BusinessSettingsGroup } from '../components/business.tsx';
 import { HiddenCommentsGroup, HiddenWordsGroup, MyReportsGroup, StandingGroup } from './SettingsSafety.tsx';
+import { TwoFactorGroup } from './SettingsTwoFactor.tsx';
 
 const signedIn = () => !!state.user;
 
@@ -55,6 +56,7 @@ export function registerAccountSettings(): void {
                     { id: 'password', label: 'Password', desc: 'Change the password you use to sign in with your username or email.', control: () => <button type="button" className="btn btn-secondary btn-sm" onClick={() => api.openChangePasswordModal()}>Change Password</button> }
                 ]
             },
+            { id: 'two-factor', title: 'Two-factor sign-in', keywords: 'two factor 2fa mfa authenticator app code otp totp security sign in', render: () => <TwoFactorGroup /> },
             {
                 id: 'connected', title: 'Connected accounts', keywords: 'google discord sign in link provider',
                 render: () => <ConnectedAccounts className="st-group st-connected" heading={<GroupHead title="Connected accounts" />} />
