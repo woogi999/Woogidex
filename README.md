@@ -151,6 +151,14 @@ It runs only in `woogi999/Woogidex`, never in a fork or for a pull request. The 
 
 Still very much a **work in progress**. Things will probably break, things will probably get redesigned, and some systems (looking at you, battle sim) are still being actively fought with.
 
+## License
+
+The original source code and documentation in this repository are **all rights reserved** and are not licensed for reuse. The source is publicly viewable, but no permission is granted to copy, modify, distribute, or make derivative works from it. See [LICENSE](./LICENSE).
+
+This notice does not cover Pokémon-related material, Pokémon Showdown material, user-created content, third-party assets, or dependencies. Those remain subject to their respective owners' rights and license terms; this project does not grant rights to them.
+
+Earlier copies of this repository were distributed under CC0. This change does not revoke permissions already granted for copies distributed under CC0.
+
 ## Contributing
 
 Found something broken, or have an idea? Open an issue or a PR. CI type-checks, tests and builds every pull request.

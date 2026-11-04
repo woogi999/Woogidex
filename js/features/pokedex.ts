@@ -598,7 +598,7 @@ const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 8640000
         // libraries as rows, so those start as tables. The old list layout is
         // the table now.
         const COLLECTION_LAYOUT_KEY = 'woogidex.collection.layout.v2';
-        const DEFAULT_LAYOUTS = { fakemon: 'grid', moves: 'table', abilities: 'table', items: 'table', types: 'table' };
+        const DEFAULT_LAYOUTS = { fakemon: 'grid', moves: 'table', abilities: 'table', items: 'table', types: 'table', conditions: 'table' };
         function readLayouts() {
             try { return { ...DEFAULT_LAYOUTS, ...(JSON.parse(localStorage.getItem(COLLECTION_LAYOUT_KEY) || '{}') || {}) }; }
             catch { return { ...DEFAULT_LAYOUTS }; }

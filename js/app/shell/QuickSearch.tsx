@@ -73,7 +73,8 @@ function Palette({ seed, onClose }: { seed: string; onClose: () => void }) {
     // in: the page dims and the box drops into place
     useLayoutEffect(() => {
         input.current?.focus();
-        input.current?.select();
+        if (seed === '/') input.current?.setSelectionRange(seed.length, seed.length);
+        else input.current?.select();
         document.body.classList.add('quick-search-open');
         if (reducedMotion()) gsap.fromTo(layer.current, { opacity: 0 }, { opacity: 1, duration: 0.14 });
         else {

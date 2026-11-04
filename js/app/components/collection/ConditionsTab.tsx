@@ -55,14 +55,9 @@ function cardsFor(kind: ConditionKind, q: string): Card[] {
 
 export function ConditionsGrid({ layout, search }: { layout: 'grid' | 'table'; search: string }) {
     const q = search.trim().toLowerCase();
-    const { vanillaCards } = conditionsTabArgs();
     const sections = CONDITION_KINDS.map(([kind, label, one]) => ({ kind, label, one, cards: cardsFor(kind, q) }));
-    const any = sections.some(s => s.cards.length);
     return (
         <div id="collection-grid" className="cond-sections">
-            {!vanillaCards && !q && !any && (
-                <p className="cond-hint">Make your own status conditions, weather and terrains here. Open a region to change its main-game ones too.</p>
-            )}
             {sections.map(({ kind, label, one, cards }) => (q && !cards.length) ? null : (
                 <section key={kind} className="cond-section" aria-labelledby={`cond-${kind}`}>
                     <header className="shelf-head cond-head">
