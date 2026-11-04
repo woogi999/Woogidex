@@ -46,5 +46,10 @@ export function effectiveZoom(el: Element | null = document.documentElement): nu
     return zoom;
 }
 
+/** A window-pixel number (pointer, getBoundingClientRect) as a CSS length under the zoom of `el`. */
+export function cssPx(windowPx: number, el?: Element | null): number {
+    return windowPx / effectiveZoom(el);
+}
+
 // before the first paint, so the page never jumps size
 applyUiScale();

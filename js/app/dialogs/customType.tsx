@@ -17,6 +17,7 @@ import { Modal } from '../components/Modal.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { RegionAssign } from '../components/RegionAssign.tsx';
 import { ArtField } from '../components/ArtField.tsx';
+import { cssPx } from '../../core/ui-scale.ts';
 
 type Stop = { color: string; pos: number };
 type Gradient = { angle: number; stops: Stop[] };
@@ -261,7 +262,7 @@ function MatchupBoards({ draft, entry, setDraft, selfStyle }: { draft: Draft; en
             <div className="type-group-boards">{board('offense', offense)}{board('defense', defense)}</div>
             {dragging && createPortal(
                 <span className={`type-badge type-group-chip type-group-ghost ${dragging.self ? '' : `type-${dragging.name.toLowerCase()}`}`}
-                    style={{ left: dragging.x, top: dragging.y, ...(dragging.self ? selfStyle : {}) }}>{dragging.name}</span>,
+                    style={{ left: cssPx(dragging.x), top: cssPx(dragging.y), ...(dragging.self ? selfStyle : {}) }}>{dragging.name}</span>,
                 document.body
             )}
         </>

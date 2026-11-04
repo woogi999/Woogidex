@@ -8,6 +8,7 @@
 import { useEffect, useLayoutEffect, useReducer, useRef, useState } from 'react';
 import { api } from '../../../core/app.ts';
 import { Icon } from '../Icon.tsx';
+import { effectiveZoom } from '../../../core/ui-scale.ts';
 
 type Side = 'left' | 'right';
 type Point = { x: number; y: number };
@@ -58,20 +59,21 @@ export function EvolutionBoard() {
     useLayoutEffect(() => {
         const el = board.current;
         if (!el) return;
-        const br = el.getBoundingClientRect();
+        const br = el.getBoundingClientRect(), z = effectiveZoom(el);
         const next: Record<string, Point> = {};
         el.querySelectorAll<HTMLElement>('.evo-handle[data-node-id]').forEach(h => {
             const r = h.getBoundingClientRect();
-            next[handleKey(h.dataset.nodeId!, h.dataset.side as Side)] = { x: r.left - br.left + r.width / 2, y: r.top - br.top + r.height / 2 };
+            next[handleKey(h.dataset.nodeId!, h.dataset.side as Side)] = { x: (r.left - br.left + r.width / 2) / z, y: (r.top - br.top + r.height / 2) / z };
         });
         if (JSON.stringify(next) !== JSON.stringify(handles)) setHandles(next);
     });
 
     const pointOf = (node: any, side: Side): Point => handles[handleKey(node.id, side)]
         || { x: (node.x || 0) + (side === 'right' ? NODE_W : 0), y: (node.y || 0) + NODE_H / 2 };
+    // in the board's CSS pixels: pointer and rect numbers are window pixels (js/core/ui-scale.ts)
     const boardPoint = (e: { clientX: number; clientY: number }): Point => {
-        const r = board.current!.getBoundingClientRect();
-        return { x: e.clientX - r.left, y: e.clientY - r.top };
+        const r = board.current!.getBoundingClientRect(), z = effectiveZoom(board.current);
+        return { x: (e.clientX - r.left) / z, y: (e.clientY - r.top) / z };
     };
 
     /** Dragging a card around; only the dragged card and its wires move until it's let go. */
@@ -82,9 +84,9 @@ export function EvolutionBoard() {
         const ox = start.x - (node.x || 0), oy = start.y - (node.y || 0);
         const move = (ev: PointerEvent) => {
             const p = boardPoint(ev);
-            const rect = board.current!.getBoundingClientRect();
-            node.x = Math.max(4, Math.min(rect.width - NODE_W - 4, p.x - ox));
-            node.y = Math.max(4, Math.min(rect.height - NODE_H - 4, p.y - oy));
+            const b = board.current!;
+            node.x = Math.max(4, Math.min(b.clientWidth - NODE_W - 4, p.x - ox));
+            node.y = Math.max(4, Math.min(b.clientHeight - NODE_H - 4, p.y - oy));
             redraw();
         };
         const up = () => {

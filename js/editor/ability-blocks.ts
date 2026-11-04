@@ -2252,8 +2252,9 @@ function moveAbilityBlockPointer(event) {
     if (workspace) {
         const wr = workspace.getBoundingClientRect();
         block.pos = block.pos || { x: 12, y: 12 };
-        block.pos.x = Math.max(12, event.clientX - wr.left + workspace.scrollLeft - drag.grabX);
-        block.pos.y = Math.max(12, event.clientY - wr.top + workspace.scrollTop - drag.grabY);
+        // board positions are CSS pixels; the pointer, the rect and the grab point are window pixels
+        block.pos.x = Math.max(12, (event.clientX - wr.left - drag.grabX) / z + workspace.scrollLeft);
+        block.pos.y = Math.max(12, (event.clientY - wr.top - drag.grabY) / z + workspace.scrollTop);
     }
 
     highlightConnectionTargets(block, true);

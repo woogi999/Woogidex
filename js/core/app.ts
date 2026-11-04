@@ -2,7 +2,7 @@
 // so it can explain an empty shell instead of leaving it unexplained
 window.__woogidexBooted = true;
 import { log } from './log.ts';
-import './ui-scale.ts';
+import { effectiveZoom } from './ui-scale.ts';
 import { LANDING_PAGE } from './flags.ts';
 import { isLowEndDevice, prefersSavingData, whenIdle } from './device.ts';
 import { registerOfflineSupport } from './offline.ts';
@@ -77,9 +77,12 @@ function loadDarkMode() {
             const reduced = document.documentElement.classList.contains('reduce-motion')
                 || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
             if (!document.startViewTransition || reduced) { applyDarkMode(dark); return; }
-            const x = themeOrigin?.x ?? innerWidth / 2;
-            const y = themeOrigin?.y ?? innerHeight / 2;
-            const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+            // the circle is drawn in CSS pixels; the pointer and the window are window pixels
+            const z = effectiveZoom();
+            const w = innerWidth / z, h = innerHeight / z;
+            const x = themeOrigin ? themeOrigin.x / z : w / 2;
+            const y = themeOrigin ? themeOrigin.y / z : h / 2;
+            const radius = Math.hypot(Math.max(x, w - x), Math.max(y, h - y));
             const transition = document.startViewTransition(() => applyDarkMode(dark));
             transition.ready.then(() => {
                 document.documentElement.animate(

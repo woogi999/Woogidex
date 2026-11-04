@@ -10,6 +10,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { api } from '../../core/app.ts';
 import { currentTourSection, markTourSeen, tourSeen, TOURS, type TourKey, type TourStep } from '../../features/onboarding.ts';
 import { useStore } from '../store.ts';
+import { effectiveZoom } from '../../core/ui-scale.ts';
 
 const GAP = 14;
 const EDGE = 12;
@@ -141,7 +142,8 @@ function TipCard({ steps, index, onStep, onDone }: { steps: TourStep[]; index: n
     useLayoutEffect(() => {
         const box = card.current;
         if (!box) return;
-        setPlace(placeCard(rect, box.offsetWidth, box.offsetHeight));
+        const z = effectiveZoom(box);
+        setPlace(placeCard(rect, box.offsetWidth * z, box.offsetHeight * z));
     }, [rect?.top, rect?.left, rect?.width, rect?.height, hidden]);
 
     // the first tip takes focus so a keyboard can answer it; after Next or
@@ -166,14 +168,16 @@ function TipCard({ steps, index, onStep, onDone }: { steps: TourStep[]; index: n
 
     if (hidden) return null;
     const pad = 6;
+    // the rects are window pixels; top/left are CSS pixels under the interface size
+    const z = effectiveZoom();
     return (
         <>
             {rect
-                ? <div className="ob-spot" aria-hidden="true" style={{ top: rect.top - pad, left: rect.left - pad, width: rect.width + pad * 2, height: rect.height + pad * 2 }} />
+                ? <div className="ob-spot" aria-hidden="true" style={{ top: rect.top / z - pad, left: rect.left / z - pad, width: rect.width / z + pad * 2, height: rect.height / z + pad * 2 }} />
                 : <div className="ob-dim" aria-hidden="true" />}
             <div ref={card} className={`ob-card ob-${place?.side || 'center'}${place ? ' is-placed' : ''}`} role="dialog" aria-modal="false"
                 aria-labelledby="ob-title" aria-describedby="ob-body" tabIndex={-1}
-                style={{ top: place?.top ?? -9999, left: place?.left ?? -9999, ['--ax' as any]: `${place?.arrow || 0}px` }}>
+                style={{ top: place ? place.top / z : -9999, left: place ? place.left / z : -9999, ['--ax' as any]: `${(place?.arrow || 0) / z}px` }}>
                 <div className="ob-top">
                     <h2 className="ob-title" id="ob-title">{step.title}</h2>
                     <button type="button" className="ob-skip" onClick={onDone}>Skip tips</button>

@@ -10,6 +10,7 @@ import { createPortal } from 'react-dom';
 import { gsap } from 'gsap';
 import { Icon } from '../Icon.tsx';
 import { reducedMotion } from '../../../core/motion.ts';
+import { effectiveZoom } from '../../../core/ui-scale.ts';
 import type { ArtImage, ArtKind } from '../../../editor/art-sets.ts';
 
 type Gallery = Array<{ id: string; kind: ArtKind; title: string; scaling: 'pixel' | 'smooth'; images: ArtImage[] }>;
@@ -78,9 +79,11 @@ export function ArtViewer({ name, frames, start, startShiny, draw, onClose }: {
         const k = Math.min(MAX, Math.max(MIN, s)) / v.s;
         return clamp({ s: v.s * k, x: px - (px - v.x) * k, y: py - (py - v.y) * k });
     };
+    // pointer numbers are window pixels; the view is in the stage's CSS pixels (js/core/ui-scale.ts)
+    const zoom = () => effectiveZoom(stage.current);
     const fromCentre = (clientX: number, clientY: number) => {
-        const r = stage.current!.getBoundingClientRect();
-        return [clientX - (r.left + r.width / 2), clientY - (r.top + r.height / 2)] as const;
+        const r = stage.current!.getBoundingClientRect(), z = zoom();
+        return [(clientX - (r.left + r.width / 2)) / z, (clientY - (r.top + r.height / 2)) / z] as const;
     };
     const go = (step: number) => { if (many) { setAt(i => (i + step + frames.length) % frames.length); setView(FIT); } };
 
@@ -152,7 +155,8 @@ export function ArtViewer({ name, frames, start, startShiny, draw, onClose }: {
             const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
             setView(zoomAt(g.view, g.view.s * (dist / g.dist), g.mid[0], g.mid[1]));
         } else if (g.view.s > 1) {
-            setView(clamp({ ...g.view, x: g.view.x + (e.clientX - g.x), y: g.view.y + (e.clientY - g.y) }));
+            const z = zoom();
+            setView(clamp({ ...g.view, x: g.view.x + (e.clientX - g.x) / z, y: g.view.y + (e.clientY - g.y) / z }));
         }
     };
     const up = (e: React.PointerEvent) => {

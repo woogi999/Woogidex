@@ -8,6 +8,7 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { Icon } from '../Icon.tsx';
 import { INK_ID, MAX_DOODLE_CHARS, type Doodle } from '../../../features/notebook.ts';
+import { effectiveZoom } from '../../../core/ui-scale.ts';
 
 // the canvas keeps 2 pixels for each CSS pixel, so ink is sharp on any screen
 const SCALE = 2;
@@ -166,9 +167,11 @@ export function InkLayer({ ink, onInk, onTooBig, children }: {
     const last = useRef<{ x: number; y: number; w: number } | null>(null);
     const at = (x: number, y: number, pressure: number, pointerType: string) => {
         const r = canvas.current!.getBoundingClientRect();
+        // window pixels to the canvas's CSS pixels (js/core/ui-scale.ts)
+        const z = effectiveZoom(canvas.current);
         // a mouse reports no pressure; a pen goes from thin to thick
         const p = pointerType === 'pen' ? Math.max(0.15, pressure || 0.5) * 2 : 1;
-        return { x: (x - r.left) * SCALE, y: (y - r.top) * SCALE, w: WIDTH[tool] * SCALE * p };
+        return { x: (x - r.left) / z * SCALE, y: (y - r.top) / z * SCALE, w: WIDTH[tool] * SCALE * p };
     };
     const style = (c: CanvasRenderingContext2D) => {
         c.lineCap = 'round';

@@ -233,9 +233,10 @@ export function sheetIn(view: HTMLElement) {
 export function sheetResize(view: HTMLElement | null, change: () => void) {
     // a width tween runs layout every frame: a low-end device just switches
     if (!view || reducedMotion() || lowEnd()) { change(); return; }
-    const from = view.getBoundingClientRect().width;
+    // offsetWidth: the tween writes CSS pixels, and a rect is in window pixels
+    const from = view.offsetWidth;
     change();
-    const to = view.getBoundingClientRect().width;
+    const to = view.offsetWidth;
     if (Math.abs(to - from) < 1) return;
     gsap.killTweensOf(view);
     gsap.fromTo(view, { left: 'auto', width: from }, { width: to, duration: 0.42, ease: 'power3.inOut', clearProps: 'left,width' });

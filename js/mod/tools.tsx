@@ -16,6 +16,7 @@ import { closeDialog, openDialog, registerDialog, type DialogProps } from '../ap
 import { isActive, whenText } from '../features/moderation-model.ts';
 import type { ModTarget } from '../app/components/ModButton.tsx';
 import { SkeletonRows } from '../app/components/Skeleton.tsx';
+import { cssPx } from '../core/ui-scale.ts';
 
 type Perms = Record<string, boolean | number>;
 const perms = (): Perms => (state.user?.permissions || {}) as Perms;
@@ -107,11 +108,12 @@ function ModMenu({ close, target, at }: DialogProps<{ target: ModTarget; at: { x
     }, [target.userId]);
 
     // kept on screen, wherever it was opened from
-    const [pos, setPos] = useState({ left: at.x, top: at.y, ready: false });
+    const [pos, setPos] = useState({ left: cssPx(at.x), top: cssPx(at.y), ready: false });
     useLayoutEffect(() => {
         const r = box.current?.getBoundingClientRect();
         if (!r) return;
-        setPos({ left: Math.max(8, Math.min(at.x, window.innerWidth - r.width - 8)), top: Math.max(8, Math.min(at.y, window.innerHeight - r.height - 8)), ready: true });
+        // measured in window pixels, written in CSS pixels (js/core/ui-scale.ts)
+        setPos({ left: cssPx(Math.max(8, Math.min(at.x, window.innerWidth - r.width - 8))), top: cssPx(Math.max(8, Math.min(at.y, window.innerHeight - r.height - 8))), ready: true });
     }, [who, failed]);
 
     useEffect(() => {

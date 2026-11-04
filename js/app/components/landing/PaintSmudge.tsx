@@ -22,6 +22,7 @@
 
 import { useEffect, useRef, type RefObject } from 'react';
 import { artOpacityAt, sceneColorAt } from './LandingArt.tsx';
+import { effectiveZoom } from '../../../core/ui-scale.ts';
 
 type RGB = [number, number, number];
 
@@ -215,12 +216,15 @@ export function PaintSmudge({ root }: { root: RefObject<HTMLElement | null> }) {
         // a viewport-sized canvas that follows the scroll, a fraction of the pixels to
         // redraw and hand to the compositor each frame. Both draw in page coordinates.
         let cssW = 0, cssH = 0, vh = 0;
-        let hostTop = 0, scrolled = window.scrollY, wetTop = -1;
-        const measure = () => { hostTop = host.getBoundingClientRect().top + window.scrollY; scrolled = window.scrollY; };
+        let hostTop = 0, scrolled = 0, wetTop = -1;
+        // the canvases draw in CSS pixels; scrollY, rects, innerHeight and the pointer are
+        // window pixels, so they are divided by the interface size (js/core/ui-scale.ts)
+        const z = () => effectiveZoom(host);
+        const measure = () => { const k = z(); hostTop = (host.getBoundingClientRect().top + window.scrollY) / k; scrolled = window.scrollY / k; };
         const fit = () => {
-            const w = host.clientWidth, h = host.scrollHeight;
-            if (vh !== window.innerHeight) {
-                vh = window.innerHeight;
+            const w = host.clientWidth, h = host.scrollHeight, winH = window.innerHeight / z();
+            if (vh !== winH) {
+                vh = winH;
                 wet.width = Math.ceil(w * RES); wet.height = Math.ceil(vh * RES);
                 wet.style.width = `${w}px`; wet.style.height = `${vh}px`;
                 wetTop = -1; wetDirty = true;
@@ -342,7 +346,7 @@ export function PaintSmudge({ root }: { root: RefObject<HTMLElement | null> }) {
         const sizeWatch = new ResizeObserver(fit);
         sizeWatch.observe(host);
         window.addEventListener('resize', fit);
-        const onScroll = () => { scrolled = window.scrollY; if (live) kick(); };
+        const onScroll = () => { scrolled = window.scrollY / z(); if (live) kick(); };
         window.addEventListener('scroll', onScroll, { passive: true });
 
         // ---- the brush ----
@@ -449,14 +453,14 @@ export function PaintSmudge({ root }: { root: RefObject<HTMLElement | null> }) {
         const onMove = (e: PointerEvent) => {
             if (e.pointerType === 'touch' || document.body.dataset.page !== 'landing-view') return;
             if (pending) return;
-            const box = host.getBoundingClientRect();
-            hostTop = box.top + window.scrollY; scrolled = window.scrollY;
+            const box = host.getBoundingClientRect(), k = z();
+            hostTop = (box.top + window.scrollY) / k; scrolled = window.scrollY / k;
             if (!page) {
                 const bg = parseRgb(getComputedStyle(document.body).backgroundColor) || [255, 255, 255, 1];
                 page = [bg[0], bg[1], bg[2]];
             }
             pending = {
-                x: e.clientX - box.left, y: e.clientY - box.top,
+                x: (e.clientX - box.left) / k, y: (e.clientY - box.top) / k,
                 under: colorUnder(e.clientX, e.clientY, page),
                 // panels, the footer and controls sit over the paper; paint only goes on bare page
                 bare: !(e.target as Element)?.closest?.('.panel, .lp-foot, button, a, input'),

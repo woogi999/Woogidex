@@ -14,6 +14,7 @@ import { esc } from '../../core/html.ts';
 import { api } from '../../core/app.ts';
 import { Avatar } from './Avatar.tsx';
 import { Icon } from './Icon.tsx';
+import { effectiveZoom } from '../../core/ui-scale.ts';
 
 const RECENT_KEY = 'woogidex.emoji.recent.v1';
 
@@ -193,13 +194,15 @@ export function EmojiButton({ onPick, title = 'Emoji', className = '', children,
     const place = () => {
         const r = wrap.current?.getBoundingClientRect();
         if (!r) return;
+        // window pixels here; left/top are CSS pixels under the interface size
+        const z = effectiveZoom(wrap.current);
         const vw = window.innerWidth, vh = window.innerHeight;
-        const w = Math.min(PICKER_W, vw - 16);
-        const h = Math.min(PICKER_H, vh - 16);
+        const w = Math.min(PICKER_W * z, vw - 16);
+        const h = Math.min(PICKER_H * z, vh - 16);
         // above the button when there's room, otherwise below it
         const top = r.top - h - 6 >= 8 ? r.top - h - 6 : Math.min(r.bottom + 6, vh - h - 8);
         const left = Math.max(8, Math.min(r.left, vw - w - 8));
-        setPos({ left, top: Math.max(8, top) });
+        setPos({ left: left / z, top: Math.max(8, top) / z });
     };
 
     useEffect(() => {

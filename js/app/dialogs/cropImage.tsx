@@ -4,6 +4,7 @@ import { api } from '../../core/app.ts';
 import { Icon } from '../components/Icon.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { openDialog, registerDialog, type DialogProps } from '../dialogs.tsx';
+import { effectiveZoom } from '../../core/ui-scale.ts';
 
 // ==================== cropping a picture ====================
 // Drag to move, slider or wheel to zoom; the crop is baked into the file
@@ -31,7 +32,9 @@ function CropDialog({ close, file, aspect, onDone }: DialogProps<{ file: File; a
     const imgRef = useRef<HTMLImageElement>(null);
     useEffect(() => () => URL.revokeObjectURL(src), [src]);
 
-    const frameW = Math.min(480, window.innerWidth - 64);
+    // CSS pixels: the window's width and the pointer are window pixels (js/core/ui-scale.ts)
+    const z = effectiveZoom();
+    const frameW = Math.min(480, window.innerWidth / z - 64);
     const frameH = frameW / aspect;
     const base = natural ? Math.max(frameW / natural.w, frameH / natural.h) : 1;
     const scale = base * zoom;
@@ -56,7 +59,7 @@ function CropDialog({ close, file, aspect, onDone }: DialogProps<{ file: File; a
         setZoom(next);
     }
     const down = (e: ReactPointerEvent) => { (e.currentTarget as Element).setPointerCapture(e.pointerId); drag.current = { px: e.clientX, py: e.clientY, ...pos }; };
-    const move = (e: ReactPointerEvent) => { const d = drag.current; if (d) setPos(clamp({ x: d.x + e.clientX - d.px, y: d.y + e.clientY - d.py })); };
+    const move = (e: ReactPointerEvent) => { const d = drag.current; if (d) setPos(clamp({ x: d.x + (e.clientX - d.px) / z, y: d.y + (e.clientY - d.py) / z })); };
 
     async function save() {
         if (!natural || busy) return;

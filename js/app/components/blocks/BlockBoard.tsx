@@ -13,6 +13,7 @@ import {
     handleConnectionDragOver, handleConnectionDrop, handleWorkspaceDrop, moveAbilityBlock, removeAbilityBlock,
     startAbilityBlockMove, updateAbilityBlockParam, updateAbilityEventParam, updateAbilityIfCondParam, updateAbilityIfCondition
 } from '../../../editor/ability-blocks.ts';
+import { effectiveZoom } from '../../../core/ui-scale.ts';
 
 /** The AST node types are the editor's own; loosely typed here. */
 type Block = any;
@@ -248,12 +249,13 @@ function BoardConnections({ events }: { events: Block[] }) {
     useLayoutEffect(() => {
         const workspace = ref.current?.parentElement;
         if (!workspace) return;
-        const root = workspace.getBoundingClientRect();
+        // the svg draws in CSS pixels; rects are window pixels (js/core/ui-scale.ts)
+        const root = workspace.getBoundingClientRect(), z = effectiveZoom(workspace);
         const boxes = events.map(ev => {
             const el = workspace.querySelector(`.ab-block[data-id="${CSS.escape(ev.id)}"]`);
             if (!el) return null;
             const r = el.getBoundingClientRect();
-            return { x: r.left - root.left, y: r.top - root.top, width: r.width, height: r.height };
+            return { x: (r.left - root.left) / z, y: (r.top - root.top) / z, width: r.width / z, height: r.height / z };
         });
         setPaths(buildConnectorPaths(boxes));
     }, [signature]);

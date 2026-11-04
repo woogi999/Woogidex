@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { isLowEndDevice, prefersSavingData } from '../../../core/device.ts';
 import { useViewShown } from '../../store.ts';
+import { effectiveZoom } from '../../../core/ui-scale.ts';
 
 export const ART_LAYERS = ['sky', 'clouds', 'far', 'sea', 'fg'] as const;
 type ArtLayer = typeof ART_LAYERS[number];
@@ -113,12 +114,13 @@ let maskShape: { fadeTop: number; fadeBottom: number; curve: number } | null = n
 export function artOpacityAt(clientX: number, clientY: number): number {
     const band = document.querySelector<HTMLElement>('.lp-art');
     if (!band || !maskShape) return 0;
-    const r = band.getBoundingClientRect();
-    const x = clientX - r.left, y = clientY - r.top;
-    if (x < 0 || y < 0 || x > r.width || y > r.height) return 0;
-    const u = (x / r.width) * 2 - 1;
+    // the mask is in CSS pixels; the pointer and the rect are window pixels (js/core/ui-scale.ts)
+    const r = band.getBoundingClientRect(), z = effectiveZoom(band);
+    const x = (clientX - r.left) / z, y = (clientY - r.top) / z, w = r.width / z, h = r.height / z;
+    if (x < 0 || y < 0 || x > w || y > h) return 0;
+    const u = (x / w) * 2 - 1;
     const dip = maskShape.curve * (1 - u * u);
-    const t = Math.min((y - dip) / maskShape.fadeTop, (r.height - dip - y) / maskShape.fadeBottom);
+    const t = Math.min((y - dip) / maskShape.fadeTop, (h - dip - y) / maskShape.fadeBottom);
     return Math.max(0, Math.min(1, t));
 }
 
