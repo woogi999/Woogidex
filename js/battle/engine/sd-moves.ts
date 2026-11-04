@@ -55,6 +55,7 @@ export const DATA_FIELDS = [
     'sleepUsable',       // Snore, Sleep Talk
     'ohko',              // Fissure, Sheer Cold
     'multihit',          // the client keeps this, but the sim's is authoritative
+    'multiaccuracy',     // Triple Axel, Triple Kick, Population Bomb
     'drain', 'recoil', 'heal',
     'status', 'volatileStatus', 'boosts',
     'weather', 'terrain', 'sideCondition',

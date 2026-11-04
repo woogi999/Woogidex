@@ -11,6 +11,8 @@ import { FLAG_COLORS, allFlags, createCustomFlag, deleteCustomFlag, flagUsage, u
 type Sort = 'builtin' | 'az' | 'used';
 // only a status move can be bounced back or snatched
 const STATUS_ONLY = new Set(['reflectable', 'snatch']);
+// the move editor sets this one with its own Multi-hit field
+const HIDDEN = new Set(['multihit']);
 
 interface Props {
     value: Record<string, boolean>;
@@ -28,7 +30,7 @@ export function FlagPicker({ value, onChange, statusOnly }: Props) {
     const q = query.trim().toLowerCase();
 
     const flags = (() => {
-        const list = allFlags().filter(f => statusOnly || !STATUS_ONLY.has(f.key))
+        const list = allFlags().filter(f => !HIDDEN.has(f.key) && (statusOnly || !STATUS_ONLY.has(f.key)))
             .filter(f => !q || f.label.toLowerCase().includes(q) || f.desc.toLowerCase().includes(q) || f.key.includes(q));
         if (sort === 'az') list.sort((a, b) => a.label.localeCompare(b.label));
         else if (sort === 'used') list.sort((a, b) => (usage.get(b.key) || 0) - (usage.get(a.key) || 0) || a.label.localeCompare(b.label));
@@ -36,7 +38,7 @@ export function FlagPicker({ value, onChange, statusOnly }: Props) {
     })();
 
     const toggle = (key: string) => onChange({ ...value, [key]: !value[key] });
-    const on = Object.keys(value).filter(k => value[k]).length;
+    const on = Object.keys(value).filter(k => value[k] && !HIDDEN.has(k)).length;
 
     return (
         <div className="flag-picker">

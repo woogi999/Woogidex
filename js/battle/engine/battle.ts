@@ -1310,10 +1310,17 @@ export class Battle {
         const hits = move.multihit ? this._rollMultihit(move.multihit) : 1;
         let totalDealt = 0;
         let hitSubstitute = false;
+        let landed = 0;
         for (let i = 0; i < hits; i++) {
             if (target.fainted) break;
+            // Triple Axel and Population Bomb roll again for each later hit,
+            // and the first miss ends the move.
+            if (i > 0 && move.multiaccuracy && !this._accuracyCheck(user, target, move)) break;
+            landed = i + 1;
+            // move.hit is what a Showdown basePowerCallback reads (20 * move.hit).
+            const hitMove = hits > 1 ? { ...move, hit: i + 1 } : move;
             let damage = fixed, crit = false;
-            if (fixed === null) ({ damage, crit } = this._calcDamage(user, target, move, eff, fx));
+            if (fixed === null) ({ damage, crit } = this._calcDamage(user, target, hitMove, eff, fx));
             const sub = this._substituteFor(target, user, move);
             if (sub) hitSubstitute = true;
             const dealt = sub
@@ -1335,7 +1342,7 @@ export class Battle {
             // own reacts to it.
             if (!sub) this.runEvent('damagingHit', target, { move, damage: dealt, crit });
         }
-        if (hits > 1) this.add('-hitcount', this.ref(target), hits);
+        if (hits > 1) this.add('-hitcount', this.ref(target), landed);
 
         // Mainline ROUNDS drain, recoil and Struggle's self-damage; it does not
         // floor them (Showdown: clampIntRange(Math.round(...), 1)). Flooring
@@ -1641,6 +1648,8 @@ export class Battle {
         // Gyro Ball, Grass Knot, Electro Ball and the rest work their power out
         // from live battle state rather than carrying a fixed number.
         let power = move.basePower;
+        // A custom move's "Like Triple Axel" setting: base power x hit number.
+        if (move.multihitStyle === 'rising') power = move.basePower * (move.hit || 1);
         const computed = runMoveHook(fx, 'basePowerCallback',
             { battle: this, user, target, move }, undefined);
         if (Number.isFinite(computed)) power = Math.max(0, Math.trunc(computed));

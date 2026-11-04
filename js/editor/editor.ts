@@ -12,6 +12,7 @@ import { getFlagLabels, updateBulkComparison, updatePreview } from './editor-cor
 import { notify, notifySync } from '../app/store.ts';
 import { closeDialog, openDialog } from '../app/dialogs.tsx';
 import { abilityRole, prepareLearnset } from './learnset-model.ts';
+import { multihitFields, parseMultihitText, readMultihit } from '../features/multihit.ts';
 import { isFilterQuery, moveMatches, parseMoveQuery } from '../features/move-query.ts';
 import { addNoRecommend, noRecommendEverywhere, noRecommendHere, noRecommendSet, removeNoRecommend, type NoRecommendScope } from '../features/no-recommend.ts';
 
@@ -768,6 +769,7 @@ import { addNoRecommend, noRecommendEverywhere, noRecommendHere, noRecommendSet,
                     name,
                     type: normalizeMoveTypeInput(categoryType[1]),
                     category: normalizeMoveCategoryInput(categoryType[0]),
+                    ...parseMultihitText(details[1] || ''),
                     basePower: parseStat(stats[0], 0),
                     accuracy: acc,
                     pp,
@@ -2149,6 +2151,7 @@ function editCustomItemLibrary(id) { openCustomItemModal(id); }
                 basePower: m?.basePower || 0,
                 accuracy: m ? ((m.accuracy === true || m.accuracy === undefined) ? 100 : (m.accuracy === false ? 0 : (m.accuracy ?? 100))) : 100,
                 pp: m?.pp || 10, priority: m?.priority || 0, desc: m?.desc || '', rawCode: m?.rawCode || '',
+                multihit: readMultihit(m),
                 flags: Object.fromEntries(Object.entries<any>(m?.flags || {}).filter(([, v]) => v).map(([k]) => [k, true])),
                 regionIds: libMove ? api.entryRegionIds(libMove) : [api.defaultRegionForNewFakemon?.()].filter(Boolean)
             };
@@ -2170,9 +2173,14 @@ function editCustomItemLibrary(id) { openCustomItemModal(id); }
                 if (!on) return;
                 // only a status move can be bounced or snatched
                 if ((flag === 'snatch' || flag === 'reflectable') && category !== 'Status') return;
+                // the Multi-hit field sets this one, below
+                if (flag === 'multihit') return;
                 flags[flag] = 1;
             });
+            const hitFields = multihitFields(draft.multihit, category);
+            if (hitFields.multihit != null) flags.multihit = 1;
             const move = {
+                ...hitFields,
                 rawCode: repairRawCode(draft.rawCode, 'move'), name, type: draft.type || 'Normal', category,
                 basePower: parseInt(draft.basePower) || 0, accuracy: parseInt(draft.accuracy) || 100, pp: parseInt(draft.pp) || 10,
                 priority: parseInt(draft.priority) || 0, flags, desc: String(draft.desc || '').trim()

@@ -209,6 +209,8 @@ function normalizeCustomMove(m, fallbackId) {
         boosts: m.boosts || null,
         secondaries: Object.freeze(m.secondaries || []),
         multihit: m.multihit || null,
+        multihitStyle: m.multihitStyle || null,
+        multiaccuracy: m.multiaccuracy || false,
         // see SD_MOVE_FIELDS
         weather: m.weather || null,
         terrain: m.terrain || null,
@@ -240,7 +242,7 @@ export const SD_MOVE_FIELDS = [
     'name', 'type', 'category', 'basePower', 'accuracy', 'pp', 'priority',
     'flags', 'desc', 'shortDesc', 'target', 'critRatio', 'drain', 'recoil',
     'heal', 'status', 'volatileStatus', 'boosts', 'secondaries', 'secondary',
-    'multihit',
+    'multihit', 'multiaccuracy',
     // kept as plain data so moves still behave correctly if the simulator table (sd-moves.ts) can't be reached
     'weather', 'terrain', 'sideCondition', 'selfSwitch', 'self', 'willCrit',
     'damage', 'forceSwitch', 'thawsTarget', 'sleepUsable', 'breaksProtect',
@@ -284,6 +286,7 @@ function normalizeSdMove(sd, id, originalName) {
         boosts: sd.boosts || null,
         secondaries: Object.freeze(sd.secondaries || (sd.secondary ? [sd.secondary] : [])),
         multihit: sd.multihit || null,
+        multiaccuracy: sd.multiaccuracy || false,
         // see SD_MOVE_FIELDS
         weather: sd.weather || null,
         terrain: sd.terrain || null,

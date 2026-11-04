@@ -11,6 +11,7 @@ import { TypeDropdown, useClickAway } from '../components/editor/fields.tsx';
 import { CategoryBadge } from '../components/MoveCategory.tsx';
 import { FlagPicker } from '../components/editor/FlagPicker.tsx';
 import { BattleEffect } from '../components/editor/BattleEffect.tsx';
+import { MultihitField } from '../components/editor/MultihitField.tsx';
 import { NAME_MAX } from '../../core/data.ts';
 
 /** The editor's header: title, "Add to region", close. */
@@ -210,6 +211,7 @@ function CustomMoveDialog({ index, libraryId, close }: DialogProps<{ index: numb
                 {num('accuracy', 'Accuracy', 0, 100)}
                 {num('pp', 'PP', 1, 64)}
             </div>
+            {!statusOnly && <MultihitField value={draft.multihit} basePower={draft.basePower} onChange={multihit => set({ multihit })} />}
             {num('priority', 'Priority', -7, 5)}
             <div className="form-group">
                 <label>Flags</label>

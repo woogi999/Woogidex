@@ -7,6 +7,7 @@ import { SELECTABLE_TYPES } from '../core/data.ts';
 // the same parser the battle engine uses, so exporters and pasted code can
 // never disagree about what a paste means
 import { parseRawEntry } from '../battle/engine/sd-hooks.ts';
+import { showdownMultihitLines } from '../features/multihit.ts';
 
 // ==================== ability block coding ====================
 // small Scratch-style visual coding surface for custom ability battle logic.
@@ -1828,7 +1829,8 @@ function compileShowdownMove(move) {
         `\t\tpriority: ${Number(move.priority) || 0},`,
         `\t\tflags: ${JSON.stringify(move.flags || {})},`,
         `\t\tshortDesc: "${esc(move.desc)}",`,
-        `\t\ttarget: "normal",`
+        `\t\ttarget: "normal",`,
+        ...showdownMultihitLines(move, move.rawCode)
     ];
     const blockBody = compileShowdownMoveBlocks(move);
     if (blockBody) fields.push(blockBody + ',');

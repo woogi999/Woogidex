@@ -151,6 +151,20 @@
 .custom-entity-make { width: 100%; justify-content: center; }
 .custom-entity-make { margin-bottom: 14px; }
 
+/* the Multi-hit part of the move editor (js/app/components/editor/MultihitField.tsx) */
+.multihit-field { margin-bottom: var(--sp-4); }
+.multihit-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 28px; font-size: 13px; font-weight: 600; color: var(--text-primary); cursor: pointer; }
+.multihit-toggle input { width: 16px; height: 16px; margin: 0; accent-color: var(--accent); }
+.multihit-panel { display: grid; gap: var(--sp-3); margin-top: var(--sp-2); padding: var(--sp-3); border-radius: var(--ctl-r); background: var(--bg-panel); }
+.multihit-row { display: flex; flex-wrap: wrap; gap: var(--sp-3) var(--sp-5); align-items: flex-end; }
+.multihit-range { display: flex; align-items: center; gap: 8px; margin: 0; padding: 0; border: 0; }
+.multihit-range legend, .multihit-label { display: block; margin-bottom: 4px; padding: 0; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.multihit-range input { width: 64px; }
+.multihit-range span { font-size: 13px; color: var(--text-secondary); }
+.multihit-style button { width: auto; padding: 0 12px; font: 600 13px var(--font-sans); white-space: nowrap; }
+.multihit-style button.active { background: var(--bg-card); }
+.multihit-summary { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-secondary); }
+
 /* ==================== the right-click menu (js/app/components/ContextMenu.tsx) ====================
    one menu for cards, links, selected text and the page. GSAP plays the
    entrance from the corner nearest the pointer. */

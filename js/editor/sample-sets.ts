@@ -1,5 +1,6 @@
 import { calcStat as calcBattleStat } from '../battle/engine/dex.ts';
 import { log } from '../core/log.ts';
+import { multihitPowerFactor } from '../features/multihit.ts';
 import { state, api } from '../core/app.ts';
 
 import { NATURE_DATA, NATURES, STAT_NAMES, findNatureByBoosts } from '../core/data.ts';
@@ -314,7 +315,7 @@ import { form } from './draft.ts';
             const accRaw = move.accuracy;
             const acc = (accRaw === true || accRaw == null) ? 100 : (Number(accRaw) || 100);
             let score = bp * Math.min(1, acc / 100);
-            score *= SAMPLE_SET_MULTIHIT_AVG_MULT[move.name] || 1;
+            score *= SAMPLE_SET_MULTIHIT_AVG_MULT[move.name] || multihitPowerFactor(move);
             if (move.priority > 0) score += 20 + move.priority * 8;
             const flags = move.flags || {};
             if (flags.drain) score += 10;

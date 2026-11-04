@@ -6,6 +6,7 @@ import { sortLearnsetEntries, normalizeMoveCategoryInput, normalizeMoveTypeInput
 import { form } from '../editor/draft.ts';
 import { openDialog } from '../app/dialogs.tsx';
 import { cleanArtSets } from '../editor/art-sets.ts';
+import { multihitText, parseMultihitText } from '../features/multihit.ts';
 
 
         function downloadJsonFile(filename, data) {
@@ -794,7 +795,7 @@ import { cleanArtSets } from '../editor/art-sets.ts';
                     const categoryType = learnLines[i + 1] || '';
                     const bpLine = learnLines[i + 2] || '';
                     const categoryMatch = categoryType.match(/^(.+?)\s*\|\s*(.+)$/);
-                    const bpMatch = bpLine.match(/^(.+?)\s*BP\s*\|\s*(.+?)\s*ACC\s*\|\s*(.+?)\s*PP$/i);
+                    const bpMatch = bpLine.match(/^(.+?)\s*BP\s*\|\s*(.+?)\s*ACC\s*\|\s*(.+?)\s*PP(?:\s*\|.*)?$/i);
                     if (!categoryMatch || !bpMatch) continue;
 
                     let cursor = i + 3;
@@ -812,6 +813,7 @@ import { cleanArtSets } from '../editor/art-sets.ts';
                     const move = {
                         name,
                         source:'custom', custom:true, learnMethod:'none', level:null as any,
+                        ...parseMultihitText(bpLine),
                         category:normalizeMoveCategoryInput(categoryMatch[1]), type:normalizeMoveTypeInput(categoryMatch[2]),
                         basePower: /^-$/.test(trim(bpMatch[1])) ? 0 : (parseInt(bpMatch[1], 10) || 0),
                         accuracy: /^-$/.test(accuracyText) ? true : (parseFloat(accuracyText.replace('%','')) || 100),
@@ -991,7 +993,7 @@ import { cleanArtSets } from '../editor/art-sets.ts';
                 lines.push(`${m.name}!`);
                 lines.push(`${m.category || 'Status'} | ${m.type || 'Normal'}`);
                 const acc = (m.accuracy === true || m.accuracy === undefined) ? '-' : (m.accuracy === false ? '-' : `${m.accuracy}%`);
-                lines.push(`${m.basePower || '-'} BP | ${acc} ACC | ${m.pp || '-'} PP`);
+                lines.push(`${m.basePower || '-'} BP | ${acc} ACC | ${m.pp || '-'} PP${multihitText(m)}`);
                 const flags = api.getFlagLabels ? api.getFlagLabels(m.flags || {}, m.category) : [];
                 if (flags.length) lines.push(flags.join(' | '));
                 lines.push(escapePlainText(m.desc || ''));
@@ -1132,7 +1134,7 @@ import { cleanArtSets } from '../editor/art-sets.ts';
                 lines.push(`${m.name}!`);
                 lines.push(`${m.category || 'Status'} | ${m.type || 'Normal'}`);
                 const acc = (m.accuracy === true || m.accuracy === undefined || m.accuracy === false) ? '-' : `${m.accuracy}%`;
-                lines.push(`${m.basePower || '-'} BP | ${acc} ACC | ${m.pp || '-'} PP`);
+                lines.push(`${m.basePower || '-'} BP | ${acc} ACC | ${m.pp || '-'} PP${multihitText(m)}`);
                 const flags = api.getFlagLabels ? api.getFlagLabels(m.flags || {}, m.category) : [];
                 if (flags.length) lines.push(flags.join(' | '));
                 lines.push(escapePlainText(m.desc || ''));
@@ -1153,7 +1155,7 @@ import { cleanArtSets } from '../editor/art-sets.ts';
         function buildPlainTextForCustomMove(m) {
             const lines = [`${m.name}!`, `${m.category || 'Status'} | ${m.type || 'Normal'}`];
             const acc = (m.accuracy === true || m.accuracy === undefined || m.accuracy === false) ? '-' : `${m.accuracy}%`;
-            lines.push(`${m.basePower || '-'} BP | ${acc} ACC | ${m.pp || '-'} PP${m.priority ? ` | Priority ${m.priority}` : ''}`);
+            lines.push(`${m.basePower || '-'} BP | ${acc} ACC | ${m.pp || '-'} PP${m.priority ? ` | Priority ${m.priority}` : ''}${multihitText(m)}`);
             const flags = api.getFlagLabels ? api.getFlagLabels(m.flags || {}, m.category) : [];
             if (flags.length) lines.push(flags.join(' | '));
             lines.push('');
