@@ -40,6 +40,8 @@ export interface AppState {
     learnset: any[];
     /** the open Fakemon inherits its prevolutions' moves (js/features/move-inheritance.ts) */
     inheritPrevoMoves?: boolean;
+    /** moves Recommend Moves leaves out for the open Fakemon (js/features/no-recommend.ts) */
+    noRecommendMoves?: string[];
     /** a community post's inherited moves, as published */
     inheritedLearnset?: any[];
     sampleSets: any[];

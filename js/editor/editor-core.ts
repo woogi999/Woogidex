@@ -33,6 +33,7 @@ function resetEditor() {
             state.learnset = [];
             state.inheritedLearnset = [];
             state.inheritPrevoMoves = false;
+            state.noRecommendMoves = [];
             state.sampleSets = [];
             state.artworkData = null;
             state.shinyArtworkData = null;
@@ -96,6 +97,7 @@ function resetEditor() {
             // inherited copies aren't the Fakemon's own moves: the Moves tab
             // lists them separately and saving rebuilds them (move-inheritance.ts)
             state.inheritPrevoMoves = !!fakemon.inheritPrevoMoves;
+            state.noRecommendMoves = Array.isArray(fakemon.noRecommendMoves) ? fakemon.noRecommendMoves.filter(n => typeof n === 'string').slice(0, 500) : [];
             state.inheritedLearnset = (fakemon.learnset || []).filter(m => m && m.inherited);
             state.learnset = (fakemon.learnset || []).filter(m => m && !m.inherited).map(m => {
                 if (m && (m.source === 'custom' || m.custom === true)) {

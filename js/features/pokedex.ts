@@ -300,6 +300,7 @@ const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 8640000
             state.abilities=getTemplateAbilities(template);
             state.learnset=getPokemonTemplateLearnset(template);
             state.inheritPrevoMoves=false;
+            state.noRecommendMoves=[];
             state.inheritedLearnset=[];
             // learnset entries are minimal; rehydrate so move details are available on first render.
             if (state.sdLoaded && state.learnset.length && typeof api.rehydrateCurrentLearnsetFromShowdown === 'function') {

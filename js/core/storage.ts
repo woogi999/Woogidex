@@ -677,6 +677,8 @@ function normalizeCollections() {
                 eggGroups: api.getEggGroupValue(),
                 genderRatio: api.getGenderRatioValue(),
                 inheritPrevoMoves: !!state.inheritPrevoMoves,
+                // only when there are some, so plain records stay as they were
+                ...(state.noRecommendMoves?.length ? { noRecommendMoves: [...state.noRecommendMoves] } : {}),
                 learnset: state.learnset.filter(m => m && !m.inherited).map(m => {
                     if (m && (m.source === 'custom' || m.custom === true)) {
                         return {

@@ -165,11 +165,12 @@ async function publishableSetImage(src: string, pixel: boolean): Promise<string>
 
 /**
  * A Fakemon without its private notebook (notes, doodles, tags, status:
- * js/features/notebook.ts). Those are for its maker; a post never carries them.
+ * js/features/notebook.ts), and without the moves its maker told Recommend
+ * Moves to leave out. Those are for its maker; a post never carries them.
  */
 export function withoutNotebook(mon: any): any {
     if (!mon || typeof mon !== 'object') return mon;
-    const { notes: _n, doodles: _d, tags: _t, status: _s, ...rest } = mon;
+    const { notes: _n, doodles: _d, tags: _t, status: _s, noRecommendMoves: _r, ...rest } = mon;
     return rest;
 }
 

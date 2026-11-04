@@ -306,16 +306,31 @@
 .dialog-sort-row label { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
 .dialog-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; justify-content: flex-end; }
 .recommend-generate { width: 100%; margin-bottom: 6px; justify-content: center; }
-/* a section's name, and a way to swap its moves for the next ones in line */
-.recommend-section-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin: var(--sp-4) 0 var(--sp-2); }
+/* a section's name and how many moves fit it */
+.recommend-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); margin: var(--sp-4) 0 var(--sp-2); }
 .recommend-section-head .recommend-section-label { margin: 0; }
-.name-roll-btn.recommend-roll { width: 28px; height: 28px; flex: 0 0 auto; }
-.name-roll-btn.recommend-roll svg { width: 15px; height: 15px; }
+.recommend-section-count { font-size: 11px; color: var(--text-muted); }
+/* a row is a checkbox: tick it, then add every ticked move at once */
+.recommend-move-item { margin-bottom: 0; padding: 9px 10px; }
+.recommend-move-item.is-picked { background: var(--accent-soft); }
+.recommend-check { width: 16px; height: 16px; flex: 0 0 auto; margin: 0; accent-color: var(--accent); }
+.recommend-move-text { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+.recommend-move-item .move-why { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.link-btn.recommend-more { margin: var(--sp-2) 0 0 10px; font-size: 12.5px; font-weight: 600; }
+.recommend-kept-out { margin-top: var(--sp-5); padding-top: var(--sp-3); border-top: 1px solid var(--border-light); }
+.recommend-kept-out summary { cursor: pointer; font-size: 12px; font-weight: 700; color: var(--text-secondary); }
+.recommend-kept-group .recommend-section-label { margin: var(--sp-3) 0 var(--sp-2); }
+.recommend-kept-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.recommend-kept-chip { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border: 0; border-radius: 999px; background: var(--bg-panel); color: var(--text-secondary); font: 600 12px var(--font-sans); cursor: pointer; transition: var(--t-ui); }
+.recommend-kept-chip:hover { color: var(--accent); }
+.recommend-kept-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* stays at the bottom of the dialog while you scroll and tick */
+/* the negative offsets undo the dialog's own padding (.modal in css/modals.css), edge to edge */
+.recommend-actions { position: sticky; bottom: calc(var(--sp-6) * -1); display: flex; align-items: center; gap: 8px; margin: var(--sp-4) calc(var(--sp-6) * -1) calc(var(--sp-6) * -1); padding: var(--sp-3) var(--sp-6) var(--sp-4); background: var(--bg-card); border-top: 1px solid var(--border-light); }
+.recommend-actions span { flex: 1 1 auto; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
 .recommend-dismiss { width: 26px; height: 26px; flex: 0 0 auto; margin-right: -6px; padding: 0; border: 0; border-radius: var(--ctl-r); background: none; color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .recommend-dismiss:hover { background: var(--bg-card); color: var(--danger); }
 .recommend-dismiss:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.recommend-restore { margin: var(--sp-4) 0 0; font-size: 12px; color: var(--text-muted); }
-.recommend-restore .link-btn { font-size: 12px; }
 .detail-popup-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; position: sticky; top: 0; background: var(--bg-card); padding-bottom: 4px; }
 .detail-flags { display: flex; flex-wrap: wrap; gap: 6px; margin: 12px 0; padding: 12px 0; border-top: 1px solid var(--border-light); border-bottom: 1px solid var(--border-light); }
 

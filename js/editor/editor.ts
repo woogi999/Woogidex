@@ -13,6 +13,7 @@ import { notify, notifySync } from '../app/store.ts';
 import { closeDialog, openDialog } from '../app/dialogs.tsx';
 import { abilityRole, prepareLearnset } from './learnset-model.ts';
 import { isFilterQuery, moveMatches, parseMoveQuery } from '../features/move-query.ts';
+import { addNoRecommend, noRecommendEverywhere, noRecommendHere, noRecommendSet, removeNoRecommend, type NoRecommendScope } from '../features/no-recommend.ts';
 
 // ==================== SHOWDOWN DATA ====================
         // Showdown's move dex has no numeric usefulness rating, so we derive one
@@ -1614,16 +1615,12 @@ import { form } from './draft.ts';
             return 'flavour';
         }
 
-        // remembers name -> {learnMethod, level} so clicking a recommendation adds
-        // it with the method/level it was suggested with, not a default TM
+        // remembers name -> {learnMethod, level} so a picked recommendation is added
+        // with the method/level it was suggested with, not a default TM
         let lastRecommendations: Record<string, any> = {};
-        // moves waved away in the Recommended Moves dialog: left out of the list so
-        // the next ones in line show instead. Forgotten each time the dialog opens.
-        const dismissedRecommendations = new Set<string>();
-        // a section the dice was rolled on shows these moves (by name) instead of
-        // its top picks; each roll draws a fresh random handful from the same pool
-        const rolledRecommendations: Record<string, string[]> = {};
-        let recommendationPools: Record<string, { names: string[]; limit: number }> = {};
+
+        /** A pool from buildSimilarMovePools without the moves Recommend Moves leaves out (js/features/no-recommend.ts). */
+        const withoutNoRecommend = <T extends { move: any }>(pool: T[], skip = noRecommendSet()): T[] => pool.filter(e => !skip.has(e.move.name));
 
         function generateMoveRecommendations() {
             const profile = getFakemonProfile();
@@ -1632,18 +1629,26 @@ import { form } from './draft.ts';
             if (!profile.types.length) return { sections, needsType: true };
 
             const pools = buildSimilarMovePools(profile);
+            const skip = noRecommendSet();
             const candidates = [
                 ...pools.levelPool.map(e => ({ move: e.move, weight: e.weight, supporters: e.supporters, learnMethod: 'level', level: e.avgLevel })),
                 ...pools.eggPool.map(e => ({ move: e.move, weight: e.weight, supporters: e.supporters, learnMethod: 'egg', level: null as any })),
                 ...pools.tmPool.map(e => ({ move: e.move, weight: e.weight, supporters: e.supporters, learnMethod: 'tm', level: null as any }))
-            ].filter(e => !learnedNames.has(e.move.name) && !dismissedRecommendations.has(e.move.name));
+            ].filter(e => !learnedNames.has(e.move.name) && !skip.has(e.move.name));
 
             const buckets = { stab: [] as any[], flavour: [] as any[], setup: [] as any[], speed: [] as any[], recovery: [] as any[], utility: [] as any[], coverage: [] as any[] };
-            candidates.forEach(e => buckets[classifyMoveRole(e.move, profile.types)].push(e));
+            // one entry a move: the same move can come from the level, egg and TM pools
+            const seen = new Set<string>();
+            candidates.sort((a, b) => b.weight - a.weight).forEach(e => {
+                if (seen.has(e.move.name)) return;
+                seen.add(e.move.name);
+                buckets[classifyMoveRole(e.move, profile.types)].push(e);
+            });
 
-            // collapse slight variations of the same job down to the strongest
-            // representative per type+category, avoiding near-identical redundant picks
-            const dedupeByTypeCategory = arr => {
+            // the strongest move of each type+category leads its section; the
+            // near-identical rest follow it instead of being dropped, so the whole
+            // pool stays pickable
+            const strongestFirst = arr => {
                 const best = new Map();
                 arr.forEach(e => {
                     const key = `${e.move.type}|${e.move.category}`;
@@ -1653,12 +1658,11 @@ import { form } from './draft.ts';
                         best.set(key, { entry: e, bp });
                     }
                 });
-                return Array.from(best.values()).map(v => v.entry);
+                const leads = Array.from(best.values()).map(v => v.entry).sort((a, b) => b.weight - a.weight);
+                return [...leads, ...arr.filter(e => !leads.includes(e))];
             };
-            buckets.stab = dedupeByTypeCategory(buckets.stab);
-            buckets.coverage = dedupeByTypeCategory(buckets.coverage);
-
-            Object.values<any>(buckets).forEach(arr => arr.sort((a, b) => b.weight - a.weight));
+            buckets.stab = strongestFirst(buckets.stab);
+            buckets.coverage = strongestFirst(buckets.coverage);
 
             const reasonFor = e => e.learnMethod === 'level'
                 ? `~Lv.${e.level} on similar Pokémon (e.g. ${e.supporters.slice(0, 2).join(', ')})`
@@ -1666,15 +1670,10 @@ import { form } from './draft.ts';
                     ? `Egg move on similar Pokémon (e.g. ${e.supporters.slice(0, 2).join(', ')})`
                     : `TM/tutor move on similar Pokémon (e.g. ${e.supporters.slice(0, 2).join(', ')})`;
 
-            recommendationPools = {};
-            const pushSection = (label, pool, limit) => {
+            // every move of a section is listed; `top` is how many are its best picks
+            const pushSection = (label, pool, top) => {
                 if (!pool.length) return;
-                recommendationPools[label] = { names: pool.map(e => e.move.name), limit };
-                // rolled: those moves, in the order they were drawn; anything since
-                // added or removed drops out and the best of the rest fills the gap
-                const rolled = (rolledRecommendations[label] || []).map(name => pool.find(e => e.move.name === name)).filter(Boolean);
-                const arr = rolled.length ? [...rolled, ...pool.filter(e => !rolled.includes(e))] : pool;
-                sections.push({ label, canRoll: pool.length > limit, moves: arr.slice(0, limit).map(e => ({ move: e.move, reason: reasonFor(e), learnMethod: e.learnMethod, level: e.level })) });
+                sections.push({ label, top: Math.min(top, pool.length), moves: pool.map(e => ({ move: e.move, reason: reasonFor(e), learnMethod: e.learnMethod, level: e.level })) });
             };
 
             pushSection('STAB Moves', buckets.stab, 4);
@@ -1693,14 +1692,12 @@ import { form } from './draft.ts';
             // both load lazily (boot may still be waiting for an idle moment)
             await Promise.all([fetchShowdownData(), ensureLearnsets()]);
             if (!state.sdLoaded) { api.showToast('Showdown data could not be loaded. Check your connection and try again.', 'error'); return; }
-            dismissedRecommendations.clear();
-            Object.keys(rolledRecommendations).forEach(label => delete rolledRecommendations[label]);
             openDialog('recommend-moves', {});
         }
 
         /**
          * The Recommended Moves list: sections of { move, reason }, remembering how
-         * each would be learned for selectRecommendedMove().
+         * each would be learned for addRecommendedMoves().
          */
         function moveRecommendations() {
             const { sections, needsType } = generateMoveRecommendations();
@@ -1708,34 +1705,30 @@ import { form } from './draft.ts';
             (sections || []).forEach(sec => sec.moves.forEach(({ move, learnMethod, level }: { move?: any; learnMethod?: any; level?: any }) => {
                 lastRecommendations[move.name] = { learnMethod, level };
             }));
-            return { sections: sections || [], needsType: !!needsType, dismissed: dismissedRecommendations.size };
+            return { sections: sections || [], needsType: !!needsType, everywhere: noRecommendEverywhere(), here: noRecommendHere() };
         }
-        /** Takes moves out of the Recommended Moves list, so the next ones in line show. */
-        function dismissRecommendedMoves(names: string[]) {
-            names.forEach(name => dismissedRecommendations.add(name));
-        }
-        /** The dice on a section: a random handful from everything that fits it, favouring moves not on show right now. */
-        function rollRecommendedSection(label: string, showing: string[] = []) {
-            const pool = recommendationPools[label];
-            if (!pool) return;
-            const shuffle = (names: string[]) => names.map(n => [Math.random(), n] as [number, string]).sort((a, b) => a[0] - b[0]).map(x => x[1]);
-            const fresh = shuffle(pool.names.filter(n => !showing.includes(n)));
-            rolledRecommendations[label] = [...fresh, ...shuffle(pool.names.filter(n => showing.includes(n)))].slice(0, pool.limit);
-        }
-        function restoreRecommendedMoves() {
-            dismissedRecommendations.clear();
-        }
-        // the dialog redraws its own list
-        function renderRecommendMovesModal() { notify(); }
 
-        function selectRecommendedMove(name) {
-            const move = findClosestMove(name);
-            if (!move) return;
-            const meta = lastRecommendations[name] || { learnMethod: 'tm', level: null as any };
-            addLearnsetMove(move, meta.learnMethod, meta.level);
+        /** Leaves a move out of Recommend Moves, for this Fakémon (saved with it) or for every one. */
+        function setMoveRecommendable(name: string, scope: NoRecommendScope, recommend: boolean) {
+            if (recommend) removeNoRecommend(name, scope);
+            else addNoRecommend(name, scope);
+            if (scope === 'mon') api.autoSave();
+        }
+
+        /** Adds the picked recommendations to the learnset, each the way it was suggested. */
+        function addRecommendedMoves(names: string[]) {
+            const added: string[] = [];
+            for (const name of names) {
+                const move = findClosestMove(name);
+                if (!move || state.learnset.some(m => m.name === move.name)) continue;
+                const meta = lastRecommendations[name] || { learnMethod: 'tm', level: null as any };
+                addLearnsetMove(move, meta.learnMethod, meta.level);
+                added.push(move.name);
+            }
+            if (!added.length) return 0;
             api.autoSave();
-            const methodLabel = meta.learnMethod === 'level' ? `Lv.${meta.level}` : meta.learnMethod.toUpperCase();
-            api.showToast(`Added ${move.name} (${methodLabel})!`, 'success');
+            api.showToast(added.length === 1 ? `Added ${added[0]}.` : `Added ${added.length} moves.`, 'success');
+            return added.length;
         }
 
 
@@ -1750,7 +1743,9 @@ import { form } from './draft.ts';
             const profile = getFakemonProfile();
             if (!profile.types.length) { api.showToast('Set a primary type first so we can generate a state.learnset.', 'error'); return; }
 
-            const pools = buildSimilarMovePools(profile);
+            const all = buildSimilarMovePools(profile);
+            // the moves Recommend Moves leaves out stay out of a generated learnset too
+            const pools = { ...all, levelPool: withoutNoRecommend(all.levelPool), eggPool: withoutNoRecommend(all.eggPool), tmPool: withoutNoRecommend(all.tmPool) };
             if (!pools.levelPool.length && !pools.eggPool.length && !pools.tmPool.length) {
                 api.showToast('Not enough similar Pokémon data to generate a state.learnset yet.', 'error');
                 return;
@@ -2200,4 +2195,4 @@ function editCustomItemLibrary(id) { openCustomItemModal(id); }
         }
 
 
-export { learnsetSearch, cycleLearnsetSort, addMoveFromSearch, ensureLearnsets, openAbilityBrowserModal, getExportableMovesText, moveRecommendations, dismissRecommendedMoves, restoreRecommendedMoves, rollRecommendedSection, moveDetail, MOVE_BROWSER_FLAGS, moveMatchesFilters, moveBrowserResults, abilityBrowserResults, addAbilityFromBrowser, openCustomAbilityLibraryModal, saveCustomAbility, saveCustomItem, saveCustomMoveEntry, customMoveDraft, customEntityChoices, rawCodeReport, rawCodeHooks, repairRawCode, getNewMoveMethod, setNewMoveMethod, abilitySuggestions, moveSuggestions, addAbilityByName, addMoveByName, getEditingAbilityIndex, getLearnsetFilters, setLearnsetFilters, learnsetEntries, getLearnsetChartGroup, setLearnsetChartGroup, learnsetChartSegments, describeAbility, getAllBrowsableMoves, sortLearnsetEntries, resetEditingCustomAbilityIndex, getAbilityRole, fetchShowdownData, openMoveBrowserModal, addMoveFromBrowser, findClosestAbility, findClosestMove, findClosestMoveForImport, parseMoveImportText, stripCustomMoveMarker, normalizeMoveCategoryInput, normalizeMoveTypeInput, openMoveImportExportModal, importMovesFromText, addAbility, openCustomAbilityChooser, addExistingCustomAbility, editCustomAbilityLibrary, updateAbility, toggleCustomAbilityEdit, finishCustomAbilityEdit, removeAbility, moveAbility, renderAbilities, showAbilityDetail, getSdMoveByName, hydrateLearnsetEntry, rehydrateCurrentLearnsetFromShowdown, addLearnsetMove, removeLearnsetMove, updateMoveMethod, updateMoveLevel, sortLearnset, renderLearnset, clearLearnsetFilters, addUniversalMoves, getFakemonStats, getFakemonProfile, findSimilarPokemon, classifyLearnsetSource, buildSimilarMovePools, classifyMoveRole, generateMoveRecommendations, openRecommendMovesModal, renderRecommendMovesModal, selectRecommendedMove, generateLearnset, formatLearnMethodLabel, clearMoveset, showMoveDetail, updateCustomAbility, removeCustomAbility, renderCustomAbilities, openCustomMoveChooser, addExistingCustomMove, editCustomMoveLibrary, openCustomMoveModal, removeCustomMove, renderCustomMoves, getCustomItemLibrary, openCustomItemModal, editCustomItemLibrary, loadCompetitiveMoveUsefulness, escapeHtml, isCustomMove, openCustomMoveLibraryModal };
+export { learnsetSearch, cycleLearnsetSort, addMoveFromSearch, ensureLearnsets, openAbilityBrowserModal, getExportableMovesText, moveRecommendations, setMoveRecommendable, addRecommendedMoves, moveDetail, MOVE_BROWSER_FLAGS, moveMatchesFilters, moveBrowserResults, abilityBrowserResults, addAbilityFromBrowser, openCustomAbilityLibraryModal, saveCustomAbility, saveCustomItem, saveCustomMoveEntry, customMoveDraft, customEntityChoices, rawCodeReport, rawCodeHooks, repairRawCode, getNewMoveMethod, setNewMoveMethod, abilitySuggestions, moveSuggestions, addAbilityByName, addMoveByName, getEditingAbilityIndex, getLearnsetFilters, setLearnsetFilters, learnsetEntries, getLearnsetChartGroup, setLearnsetChartGroup, learnsetChartSegments, describeAbility, getAllBrowsableMoves, sortLearnsetEntries, resetEditingCustomAbilityIndex, getAbilityRole, fetchShowdownData, openMoveBrowserModal, addMoveFromBrowser, findClosestAbility, findClosestMove, findClosestMoveForImport, parseMoveImportText, stripCustomMoveMarker, normalizeMoveCategoryInput, normalizeMoveTypeInput, openMoveImportExportModal, importMovesFromText, addAbility, openCustomAbilityChooser, addExistingCustomAbility, editCustomAbilityLibrary, updateAbility, toggleCustomAbilityEdit, finishCustomAbilityEdit, removeAbility, moveAbility, renderAbilities, showAbilityDetail, getSdMoveByName, hydrateLearnsetEntry, rehydrateCurrentLearnsetFromShowdown, addLearnsetMove, removeLearnsetMove, updateMoveMethod, updateMoveLevel, sortLearnset, renderLearnset, clearLearnsetFilters, addUniversalMoves, getFakemonStats, getFakemonProfile, findSimilarPokemon, classifyLearnsetSource, buildSimilarMovePools, classifyMoveRole, generateMoveRecommendations, openRecommendMovesModal, generateLearnset, formatLearnMethodLabel, clearMoveset, showMoveDetail, updateCustomAbility, removeCustomAbility, renderCustomAbilities, openCustomMoveChooser, addExistingCustomMove, editCustomMoveLibrary, openCustomMoveModal, removeCustomMove, renderCustomMoves, getCustomItemLibrary, openCustomItemModal, editCustomItemLibrary, loadCompetitiveMoveUsefulness, escapeHtml, isCustomMove, openCustomMoveLibraryModal };
