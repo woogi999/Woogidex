@@ -145,7 +145,7 @@ export function conditionLabel(kind: ConditionKind, value: string): string {
 // The sheet is js/app/dialogs/customCondition.tsx. It edits a draft and
 // hands it back to saveConditionDraft().
 
-export interface ConditionDraft { kind: ConditionKind; name: string; color: string; desc: string; duration: number; vanillaOf: string | null }
+export interface ConditionDraft { kind: ConditionKind; name: string; color: string; desc: string; duration: number; rawCode: string; vanillaOf: string | null }
 
 export function openCustomConditionEditor(id = '', kind: ConditionKind = 'status', entry: any = null) {
     const editing = entry || (id ? allEntries().find(c => c.id === id) || null : null);
@@ -159,6 +159,7 @@ export function conditionDraft(entry: any, kind: ConditionKind): ConditionDraft 
         color: HEX.test(String(entry?.color || '')) ? entry.color : CONDITION_COLORS[0],
         desc: String(entry?.desc || ''),
         duration: Number.isFinite(Number(entry?.duration)) ? Number(entry.duration) : (kind === 'status' ? 0 : 5),
+        rawCode: String(entry?.rawCode || ''),
         vanillaOf: entry?.vanillaOf || null
     };
 }
@@ -182,7 +183,7 @@ export function saveConditionDraft(entry: any, d: ConditionDraft, regionIds: str
     const target = isSaved(entry) ? entry : { id: `cond-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, type: CONDITION_KIND, createdAt: Date.now() };
     const oldSlug = target.name && !target.vanillaOf ? conditionSlug(target.name) : '';
     Object.assign(target, {
-        kind, color: d.color, desc: d.desc.trim().slice(0, 300), duration, updatedAt: Date.now(),
+        kind, color: d.color, desc: d.desc.trim().slice(0, 300), duration, rawCode: api.repairRawCode?.(d.rawCode || '', 'ability') ?? d.rawCode, updatedAt: Date.now(),
         name: d.vanillaOf ? VANILLA_CONDITIONS[kind].find(v => v.id === d.vanillaOf)?.name || name : name,
         vanillaOf: d.vanillaOf || null
     });

@@ -1747,6 +1747,13 @@ function getAbilityEvents(ast) {
     if (ast?.trigger && TRIGGERS[ast.trigger]) return [{ kind:'event', trigger:ast.trigger, triggerParams:ast.triggerParams || {}, body:ast.body || [] }];
     return [];
 }
+/** What a saved block program does, for the editors' Battle effect section: one row per trigger. */
+function describeBlockTriggers(ast): Array<{ label: string; icon: string; blocks: number }> {
+    const count = (list) => (Array.isArray(list) ? list : []).reduce((n, b) =>
+        n + 1 + Object.values(b || {}).filter(Array.isArray).reduce((m, a) => m + count(a), 0), 0);
+    return getAbilityEvents(ast).filter(ev => TRIGGERS[ev.trigger])
+        .map(ev => ({ label: TRIGGERS[ev.trigger].label, icon: TRIGGERS[ev.trigger].icon, blocks: count(ev.body) }));
+}
 function compileEssentialsEvent(ev, index = 0) {
     const def = TRIGGERS[ev.trigger]; if (!def) return '';
     const t = def.es(ev); const ctx = { selfVar:t.selfVar, foeVar:t.foeVar, moveVar:t.moveVar };
@@ -2710,7 +2717,7 @@ export {
     abilityBlockView, updateAbilityEventParam,
     handleConnectionDragOver, handleConnectionDragLeave, handleConnectionDrop,
     handleBlockConnectionDragStart, handleBlockConnectionDragEnd, addAbilityEvent,
-    openAbilityBlockEditor, openMoveBlockEditor, openItemBlockEditor, compileShowdownCondition, buildShowdownConditionsFile, closeAbilityBlockEditor, onTopLevelNavigation, hideAbilityBlockEditorForNavigation, saveAbilityBlockEditor,
+    openAbilityBlockEditor, openMoveBlockEditor, openItemBlockEditor, describeBlockTriggers, compileShowdownCondition, buildShowdownConditionsFile, closeAbilityBlockEditor, onTopLevelNavigation, hideAbilityBlockEditorForNavigation, saveAbilityBlockEditor,
     setAbilityBlockTrigger, updateAbilityTriggerParam,
     addAbilityBlock, removeAbilityBlock, moveAbilityBlock,
     updateAbilityBlockParam, updateAbilityIfCondition, updateAbilityIfCondParam,

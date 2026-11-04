@@ -325,9 +325,6 @@ function activateTopLevelView(viewId, options: Record<string, any> = {}) {
     // a community post's borrowed custom types only apply while it's open
     if (viewId !== 'community-detail-view') { api.setVisitingTypes?.([]); api.setVisitingConditions?.([]); }
 
-    // a library editor panel belongs to My Collection; leaving closes it
-    document.querySelectorAll('.modal-overlay.as-sheet.active').forEach(el => el.classList.remove('active'));
-
     // a sheet keeps (or brings up) the page it belongs over
     const pageId = SHEET_VIEWS[viewId] || viewId;
     const pageWasShowing = document.getElementById(pageId)?.style.display === 'block';

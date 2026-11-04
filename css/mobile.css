@@ -145,7 +145,7 @@
     .tabs .tab { flex: 0 0 auto !important; white-space: nowrap; }
 
     /* ---- modals: full width, room to breathe, never wider than the screen ---- */
-    .modal-overlay:not(.as-sheet) .modal { max-width: calc(100vw - 24px); }
+    .modal-overlay .modal { max-width: calc(100vw - 24px); }
     .region-modal-actions { flex-wrap: wrap; gap: 8px; }
 
     /* ---- the uploads meter reads as a bar, not a hairline ---- */

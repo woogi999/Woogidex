@@ -1,7 +1,5 @@
 // The custom move, ability and item editors, and the "Add Custom ..." chooser
-// the editor opens first. From My Collection they slide in from the right
-// (.as-sheet); from the Fakémon editor they're ordinary dialogs. Saving and
-// its rules are js/editor/editor.ts.
+// the editor opens first. Saving and its rules are js/editor/editor.ts.
 
 import { useState, type ReactNode } from 'react';
 import { api, state } from '../../core/app.ts';
@@ -13,9 +11,8 @@ import { ArtField } from '../components/ArtField.tsx';
 import { TypeDropdown, useClickAway } from '../components/editor/fields.tsx';
 import { CategoryBadge } from '../components/MoveCategory.tsx';
 import { FlagPicker } from '../components/editor/FlagPicker.tsx';
+import { BattleEffect } from '../components/editor/BattleEffect.tsx';
 import { NAME_MAX } from '../../core/data.ts';
-
-type Kind = 'move' | 'ability' | 'item';
 
 /** The editor's header: title, "Add to region", close. */
 function Head({ title, regionIds, setRegionIds, close }: { title: string; regionIds: string[]; setRegionIds: (ids: string[]) => void; close: () => void }) {
@@ -28,39 +25,23 @@ function Head({ title, regionIds, setRegionIds, close }: { title: string; region
     );
 }
 
-/** Blocks, or hand-written Showdown hook code, for what it does in battle. */
-function BattleCode({ kind, code, setCode, onBlocks }: { kind: Kind; code: string; setCode: (c: string) => void; onBlocks: () => void }) {
-    const report = api.rawCodeReport(code, kind);
-    const hooks: string[] = api.rawCodeHooks(kind);
-    const noun = kind === 'move' ? 'move' : kind === 'item' ? 'item' : 'ability';
-    return (
-        <div className="form-group entity-code-launch">
-            <button type="button" className="btn btn-secondary entity-code-blocks-btn" onClick={onBlocks}><Icon name="puzzle" size={16} /> Code Battle Effect (Blocks)</button>
-            <p className="entity-code-hint">Save the {noun} once first, then build its real battle logic out of coding blocks. It exports to both Showdown and Essentials.</p>
-            {/* open when there's something in it, so saved code is never hidden behind a closed summary */}
-            <details className="entity-raw-code" open={!!code.trim() || undefined}>
-                <summary><Icon name="code-bracket" /> Or write the code yourself</summary>
-                <p className="entity-code-hint">
-                    Paste Showdown hook syntax. The bare hooks, the whole <code>{'{ ... }'}</code> entry, an <code>export const</code> off GitHub or one keyed entry out of a dex table all work, TypeScript annotations included. Runs in battles against the bot; a battle against another player skips it, on both sides, because their copy arrived over the network.
-                    {kind === 'move' && <> A move also gets the move pipeline: <code>basePowerCallback</code>, <code>onModifyMove</code>, <code>onBasePower</code>, <code>onTry</code>, <code>onHit</code>, plus data fields like <code>secondaries</code>, <code>drain</code> and <code>multihit</code>.</>}
-                </p>
-                <textarea rows={10} spellCheck={false} value={code} aria-label="Battle code"
-                    placeholder={kind === 'move'
-                        ? 'basePowerCallback(pokemon, target, move) {\n    return 40 + Math.floor(pokemon.hp * 60 / pokemon.maxhp);\n},\nsecondaries: [{ chance: 30, boosts: { spe: -1 } }],\nonHit(target, source, move) {\n    this.boost({ atk: 1 }, source);\n}'
-                        : kind === 'item'
-                            ? 'onModifySpe(spe, pokemon) {\n    return this.chainModify(2);\n},\nonDamage(damage, target, source, effect) {\n    if (damage >= target.hp) return target.hp - 1;\n}'
-                            : 'onModifyMove(move, pokemon) {\n    if (move.secondaries) {\n        for (const s of move.secondaries) s.chance *= 2;\n    }\n},\nonResidual(pokemon) {\n    this.heal(pokemon.maxhp / 8, pokemon);\n}'}
-                    onChange={e => setCode(e.target.value)}
-                    onBlur={() => { const fixed = api.rawCodeReport(code, kind, true).fixed; if (fixed) setCode(fixed); }} />
-                <div className={`entity-raw-code-status ${report.tone}`.trim()}>{report.text}</div>
-                <details className="entity-raw-code-ref">
-                    <summary>Hooks this engine can run</summary>
-                    <div className="entity-raw-code-hooks">{hooks.map((h, i) => <span key={h}>{i ? ' ' : ''}<code>{h}</code></span>)}</div>
-                </details>
-            </details>
-        </div>
-    );
+/**
+ * The block editor writes to a saved entry, so this saves the dialog first
+ * (nothing typed is lost), then opens the blocks for it.
+ *   find: the saved entry's id, looked up after the save
+ */
+function blocksOpener(save: () => string, find: () => string | undefined, open: (id: string) => void, close: () => void) {
+    return () => {
+        const problem = save();
+        if (problem) { api.showToast(problem, 'error'); return; }
+        const id = find();
+        close();
+        if (id) open(id);
+    };
 }
+
+const byName = (list: any[] | undefined, name: string) =>
+    (list || []).find(x => String(x?.name || '').trim().toLowerCase() === name.trim().toLowerCase())?.id;
 
 function Actions({ close, save, label }: { close: () => void; save: () => void; label: string }) {
     return (
@@ -82,16 +63,18 @@ function saving(run: () => string, close: () => void) {
 
 // ---- abilities ----
 
-function CustomAbilityDialog({ id, sheet, close }: DialogProps<{ id: string; sheet?: boolean }>) {
+function CustomAbilityDialog({ id, close }: DialogProps<{ id: string }>) {
     const entry = id ? (state.customAbilities || []).find(x => x.id === id) : null;
     const [name, setName] = useState(entry?.name || '');
     const [desc, setDesc] = useState(entry?.desc || '');
     const [code, setCode] = useState(entry?.rawCode || '');
     const [art, setArt] = useState(entry?.artwork || '');
     const [regionIds, setRegionIds] = useState<string[]>(() => entry ? api.entryRegionIds(entry) : [api.defaultRegionForNewFakemon?.()].filter(Boolean));
-    const save = saving(() => api.saveCustomAbility({ id, name, desc, rawCode: code, artwork: art, regionIds }), close);
+    const run = () => api.saveCustomAbility({ id, name, desc, rawCode: code, artwork: art, regionIds });
+    const save = saving(run, close);
+    const openBlocks = blocksOpener(run, () => id || byName(state.customAbilities, name), api.openAbilityBlockEditor, close);
     return (
-        <Modal onClose={close} className="library-editor library-editor-ability" overlayClassName={sheet ? 'as-sheet' : ''}>
+        <Modal onClose={close} className="library-editor library-editor-ability">
             <Head title={entry ? 'Edit Custom Ability' : 'Create Custom Ability'} regionIds={regionIds} setRegionIds={setRegionIds} close={close} />
             <div className="form-group">
                 <label htmlFor="custom-ability-name">Ability Name</label>
@@ -105,7 +88,7 @@ function CustomAbilityDialog({ id, sheet, close }: DialogProps<{ id: string; she
                 <label htmlFor="custom-ability-desc">Description</label>
                 <textarea id="custom-ability-desc" rows={4} placeholder="Describe what this ability does..." value={desc} onChange={e => setDesc(e.target.value)} />
             </div>
-            <BattleCode kind="ability" code={code} setCode={setCode} onBlocks={() => api.openAbilityBlockEditor(id)} />
+            <BattleEffect kind="ability" blocks={entry?.blocks} code={code} setCode={setCode} openBlocks={openBlocks} />
             <Actions close={close} save={save} label="Save Ability" />
         </Modal>
     );
@@ -136,7 +119,7 @@ function ItemArtwork({ value, onChange }: { value: string; onChange: (url: strin
     );
 }
 
-function CustomItemDialog({ id, sampleSetTarget, sheet, close }: DialogProps<{ id: string; sampleSetTarget?: { setIndex: number } | null; sheet?: boolean }>) {
+function CustomItemDialog({ id, sampleSetTarget, close }: DialogProps<{ id: string; sampleSetTarget?: { setIndex: number } | null }>) {
     const entry = id ? (state.customItems || []).find(x => x.id === id) : null;
     const [name, setName] = useState(entry?.name || '');
     const [desc, setDesc] = useState(entry?.desc || '');
@@ -144,9 +127,11 @@ function CustomItemDialog({ id, sampleSetTarget, sheet, close }: DialogProps<{ i
     const [mega, setMega] = useState(entry?.isMegaStone === true);
     const [code, setCode] = useState(entry?.rawCode || '');
     const [regionIds, setRegionIds] = useState<string[]>(() => entry ? api.entryRegionIds(entry) : [api.defaultRegionForNewFakemon?.()].filter(Boolean));
-    const save = saving(() => api.saveCustomItem({ id, name, desc, artwork: art, isMegaStone: mega, rawCode: code, regionIds, sampleSetTarget }), close);
+    const run = () => api.saveCustomItem({ id, name, desc, artwork: art, isMegaStone: mega, rawCode: code, regionIds, sampleSetTarget });
+    const save = saving(run, close);
+    const openBlocks = blocksOpener(run, () => id || byName(state.customItems, name), api.openItemBlockEditor, close);
     return (
-        <Modal onClose={close} className="library-editor library-editor-item" overlayClassName={sheet ? 'as-sheet' : ''}>
+        <Modal onClose={close} className="library-editor library-editor-item">
             <Head title={entry ? 'Edit Custom Item' : 'Create Custom Item'} regionIds={regionIds} setRegionIds={setRegionIds} close={close} />
             <div className="form-group">
                 <label htmlFor="custom-item-name">Item Name</label>
@@ -167,7 +152,7 @@ function CustomItemDialog({ id, sampleSetTarget, sheet, close }: DialogProps<{ i
                     <span>Mark this item as a Mega Stone for evolution and item pickers.</span>
                 </span>
             </label>
-            <BattleCode kind="item" code={code} setCode={setCode} onBlocks={() => api.openItemBlockEditor(id)} />
+            <BattleEffect kind="item" blocks={entry?.blocks} code={code} setCode={setCode} openBlocks={openBlocks} />
             <Actions close={close} save={save} label="Save Item" />
         </Modal>
     );
@@ -194,12 +179,15 @@ function CategoryPicker({ value, onPick }: { value: string; onPick: (c: string) 
     );
 }
 
-function CustomMoveDialog({ index, libraryId, sheet, close }: DialogProps<{ index: number | null; libraryId: string; sheet?: boolean }>) {
+function CustomMoveDialog({ index, libraryId, close }: DialogProps<{ index: number | null; libraryId: string }>) {
     const [draft, setDraft] = useState(() => api.customMoveDraft(index, libraryId));
     const set = (patch: object) => setDraft((d: any) => ({ ...d, ...patch }));
     const editing = !!libraryId || index != null;
     const statusOnly = draft.category === 'Status';
-    const save = saving(() => api.saveCustomMoveEntry({ index, libraryId, draft }), close);
+    const run = () => api.saveCustomMoveEntry({ index, libraryId, draft });
+    const save = saving(run, close);
+    const openBlocks = blocksOpener(run, () => libraryId || byName(state.customMoves, draft.name), api.openMoveBlockEditor, close);
+    const blocks = libraryId ? (state.customMoves || []).find((m: any) => m.id === libraryId)?.blocks : null;
     const num = (key: string, label: string, min: number, max: number) => (
         <div className="form-group">
             <label>{label}</label>
@@ -207,7 +195,7 @@ function CustomMoveDialog({ index, libraryId, sheet, close }: DialogProps<{ inde
         </div>
     );
     return (
-        <Modal onClose={close} className="library-editor library-editor-move" overlayClassName={sheet ? 'as-sheet' : ''}>
+        <Modal onClose={close} className="library-editor library-editor-move">
             <Head title={editing ? 'Edit Custom Move' : 'Create Custom Move'} regionIds={draft.regionIds} setRegionIds={regionIds => set({ regionIds })} close={close} />
             <div className="form-group">
                 <label htmlFor="custom-move-name">Move Name</label>
@@ -241,7 +229,7 @@ function CustomMoveDialog({ index, libraryId, sheet, close }: DialogProps<{ inde
                 <label htmlFor="custom-move-desc">Description</label>
                 <textarea id="custom-move-desc" rows={3} placeholder="Describe what this move does..." value={draft.desc} onChange={e => set({ desc: e.target.value })} />
             </div>
-            <BattleCode kind="move" code={draft.rawCode} setCode={rawCode => set({ rawCode })} onBlocks={() => api.openMoveBlockEditor(libraryId)} />
+            <BattleEffect kind="move" blocks={blocks} code={draft.rawCode || ''} setCode={rawCode => set({ rawCode })} openBlocks={openBlocks} />
             <Actions close={close} save={save} label="Save Move" />
         </Modal>
     );

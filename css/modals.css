@@ -106,44 +106,6 @@
         .settings-row-static:hover { transform: none; }
         .file-upload-btn:hover { border-color: var(--text-secondary); color: var(--text-primary); }
 
-/* ==================== modal as a right-hand sheet ====================
-   The custom move / ability / item editors open this way when you start them
-   from My Collection (openLibraryEditorSheet() in js/features/pokedex.ts), to
-   match the Fakémon editor. Opened from anywhere else they stay centred
-   modals: the openers clear .as-sheet first. Under the header, like the
-   Fakémon editor sheet (css/editor.css). */
-.modal-overlay.as-sheet {
-    top: var(--header-h);
-    z-index: 11500;
-    padding: 0;
-    justify-content: flex-end;
-    align-items: stretch;
-    background: rgba(17,17,20,.32);
-}
-.modal-overlay.as-sheet .modal {
-    width: clamp(min(100vw, 480px), 40vw, 640px);
-    max-width: none !important;
-    height: 100%;
-    max-height: none;
-    padding: var(--sp-4) var(--sp-5) var(--sp-6);
-    border-width: 0 0 0 1px;
-    border-radius: 0;
-    transform: translateX(40px);
-    transition: transform .24s cubic-bezier(.2,.8,.2,1);
-}
-.modal-overlay.as-sheet.active .modal { transform: none; }
-.modal-overlay.as-sheet .modal-header {
-    position: sticky; top: calc(var(--sp-4) * -1); z-index: 2;
-    margin: calc(var(--sp-4) * -1) calc(var(--sp-5) * -1) var(--sp-4);
-    padding: var(--sp-3) var(--sp-5);
-    background: var(--bg-card);
-    border-bottom: 1px solid var(--border-light);
-}
-.reduce-motion .modal-overlay.as-sheet .modal { transition: none; transform: none; }
-@media (max-width: 640px) {
-    .modal-overlay.as-sheet .modal { width: 100vw; border-left: 0; }
-}
-
 /* ==================== confirm dialog (js/app/dialogs/confirm.tsx) ====================
    the site's own "Are you sure?", above every other modal and sheet */
 .modal-overlay.confirm-dialog-overlay { z-index: 13000; }
@@ -182,9 +144,11 @@
 /* the custom move / ability / item editors (js/app/dialogs/libraryEditors.tsx) */
 .modal.library-editor { max-width: 520px; }
 .modal.library-editor-move { max-width: 600px; }
+/* the type and condition editors hold a matchup board and the block code */
+.modal.custom-type-modal { max-width: 640px; }
 .modal.custom-entity-chooser { max-width: 620px; }
-.library-editor-actions { display: flex; gap: 10px; justify-content: flex-end; }
-.entity-code-blocks-btn, .custom-entity-make { width: 100%; justify-content: center; }
+.library-editor-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: var(--sp-5); }
+.custom-entity-make { width: 100%; justify-content: center; }
 .custom-entity-make { margin-bottom: 14px; }
 
 /* ==================== the right-click menu (js/app/components/ContextMenu.tsx) ====================

@@ -271,17 +271,17 @@
        every centred dialog rises from the bottom edge instead, full width.
        The "Are you sure?" box stays in the middle: it is small and it must
        not be mistaken for a menu */
-    .modal-overlay:not(.as-sheet):not(.confirm-dialog-overlay) { align-items: flex-end; padding: 0; }
-    .modal-overlay:not(.as-sheet):not(.confirm-dialog-overlay) .modal {
+    .modal-overlay:not(.confirm-dialog-overlay) { align-items: flex-end; padding: 0; }
+    .modal-overlay:not(.confirm-dialog-overlay) .modal {
         width: 100%; max-width: none; max-height: 92vh;
         padding: var(--sp-4) var(--sp-4) calc(var(--sp-5) + env(safe-area-inset-bottom, 0px));
         border-width: 1px 0 0; border-radius: var(--sheet-r) var(--sheet-r) 0 0;
         box-shadow: 0 -12px 40px rgba(0, 0, 0, .14);
         transform: translateY(24px);
     }
-    .modal-overlay:not(.as-sheet):not(.confirm-dialog-overlay).active .modal { transform: none; }
-    #react-dialogs .modal-overlay:not(.as-sheet):not(.confirm-dialog-overlay).active .modal { animation: sheet-up .3s var(--ease-out) both; }
-    .modal-overlay:not(.as-sheet):not(.confirm-dialog-overlay) .modal::before {
+    .modal-overlay:not(.confirm-dialog-overlay).active .modal { transform: none; }
+    #react-dialogs .modal-overlay:not(.confirm-dialog-overlay).active .modal { animation: sheet-up .3s var(--ease-out) both; }
+    .modal-overlay:not(.confirm-dialog-overlay) .modal::before {
         content: ""; display: block; width: 36px; height: 4px; margin: -6px auto 12px;
         border-radius: 2px; background: var(--border-strong);
     }

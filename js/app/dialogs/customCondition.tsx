@@ -1,6 +1,6 @@
-// The custom condition editor (a right-hand sheet, like the custom type one):
+// The custom condition editor (a dialog, like the custom type one):
 // a status condition, weather or terrain's name, colour, description and how
-// long it lasts, plus its battle code (the block editor). It also edits a
+// long it lasts, plus its battle effect (blocks or code). It also edits a
 // region's own version of a main-game one. Saving and the rules are
 // js/features/custom-conditions.ts.
 
@@ -15,6 +15,7 @@ import { registerDialog, type DialogProps } from '../dialogs.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { RegionAssign } from '../components/RegionAssign.tsx';
+import { BattleEffect } from '../components/editor/BattleEffect.tsx';
 
 const DURATION_HELP: Record<ConditionKind, string> = {
     status: 'Turns before it wears off by itself. 0 means it stays until something cures it, like Burn.',
@@ -47,7 +48,7 @@ function CustomConditionDialog({ entry, kind, close }: DialogProps<{ entry: any;
     };
 
     return (
-        <Modal onClose={close} className="custom-type-modal custom-condition-modal" overlayClassName="as-sheet" labelledBy="custom-condition-title">
+        <Modal onClose={close} className="custom-type-modal custom-condition-modal" labelledBy="custom-condition-title">
             <div className="modal-header">
                 <h3 id="custom-condition-title">{title}</h3>
                 {!vanillaOf && <RegionAssign value={regionIds} onChange={setRegionIds} />}
@@ -100,13 +101,7 @@ function CustomConditionDialog({ entry, kind, close }: DialogProps<{ entry: any;
                 </div>
                 <p className="custom-type-help">{DURATION_HELP[draft.kind]}</p>
             </div>
-            <div className="form-group">
-                <label>Battle code</label>
-                <p className="custom-type-help">What it does in a battle, made with blocks: when it starts, each turn, when it ends, and how it changes damage. It goes in the Showdown export as conditions.ts.</p>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={code}>
-                    <Icon name="puzzle-piece" size={14} /> {saved && (entry.blocks?.triggers?.length || entry.rawCode) ? 'Edit the battle code' : 'Add battle code'}
-                </button>
-            </div>
+            <BattleEffect kind="condition" blocks={saved ? entry.blocks : null} code={draft.rawCode} setCode={rawCode => set({ rawCode })} openBlocks={code} />
             <div className="region-modal-actions custom-type-actions">
                 {saved && (
                     <button className="btn btn-secondary region-delete-btn" type="button" onClick={remove}>

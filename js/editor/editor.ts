@@ -2026,9 +2026,8 @@ import { form } from './draft.ts';
             openDialog('custom-entity-chooser', { kind: 'ability' });
         }
 
-        /** The ability editor; sheet: slide in from the right (opened from My Collection). */
-        function openCustomAbilityLibraryModal(id = '', { sheet = false }: { sheet?: any } = {}) {
-            openDialog('custom-ability', { id: id || '', sheet });
+        function openCustomAbilityLibraryModal(id = '') {
+            openDialog('custom-ability', { id: id || '' });
         }
 
         /**
@@ -2082,8 +2081,8 @@ import { form } from './draft.ts';
 function getCustomItemLibrary() { return Array.isArray(state.customItems) ? state.customItems : []; }
 
 /** The item editor; sampleSetTarget: { setIndex } when made from a sample set's item box, which then gets it. */
-function openCustomItemModal(id = '', sampleSetTarget: any = null, { sheet = false }: { sheet?: any } = {}) {
-    openDialog('custom-item', { id: id || '', sampleSetTarget, sheet });
+function openCustomItemModal(id = '', sampleSetTarget: any = null) {
+    openDialog('custom-item', { id: id || '', sampleSetTarget });
 }
 
 /**
@@ -2122,17 +2121,17 @@ function editCustomItemLibrary(id) { openCustomItemModal(id); }
 
 // ==================== CUSTOM MOVES ====================
         /** The move editor on a custom move in the open Fakemon's learnset (index), or a new one. */
-        function openCustomMoveModal(index?, { sheet = false }: { sheet?: any } = {}) {
+        function openCustomMoveModal(index?) {
             log.debug('CUSTOM MOVE', 'Opening custom move editor', { index });
             const entry = index !== undefined && state.learnset[index] && isCustomMove(state.learnset[index]) ? state.learnset[index] : null;
-            openDialog('custom-move', { index: entry ? index : null, libraryId: '', sheet });
+            openDialog('custom-move', { index: entry ? index : null, libraryId: '' });
         }
 
         /** The move editor on a move in your library. */
-        function editCustomMoveLibrary(id, { sheet = false }: { sheet?: any } = {}) {
+        function editCustomMoveLibrary(id) {
             if (!getCustomMoveLibrary().some(x => x.id === id)) return;
             closeDialog('custom-entity-chooser');
-            openDialog('custom-move', { index: null as any, libraryId: id, sheet });
+            openDialog('custom-move', { index: null as any, libraryId: id });
         }
         // What the block editor calls on its way back, so a move keeps its
         // place in the library instead of reopening as a blank new move.

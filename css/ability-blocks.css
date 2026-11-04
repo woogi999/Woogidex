@@ -12,8 +12,6 @@ html.reduce-motion, html.reduce-motion * {
 }
 
 /* ==================== ability block editor ==================== */
-.entity-code-launch { margin-top: 4px; }
-.entity-code-hint { font-size: 12px; opacity: 0.7; margin: 6px 2px 0; line-height: 1.4; }
 .ability-code-badge { display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(168,85,247,.15);color:#a855f7;vertical-align:middle; }
 .ability-code-badge i { width:12px;height:12px; }
 .ability-code-open { background:none;border:none;cursor:pointer;color:var(--text-secondary,#888);padding:4px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center; }
@@ -73,38 +71,56 @@ html.reduce-motion, html.reduce-motion * {
 /* labels the dropdown, since two bare selects side by side gave no clue which was which */
 .ab-trigger-hat .ab-param-label { font-size:11px; font-weight:700; letter-spacing:.03em; opacity:.85; margin-right:-4px; }
 
-/* ---- hand-written battle code, in the move / item / ability modals ---- */
-.entity-code-launch { border-top:1px solid var(--border-light); padding-top:14px; margin-top:14px; }
-.entity-code-hint { font-size:11.5px; line-height:1.5; color:var(--text-muted); margin:8px 0 0; }
-.entity-raw-code { margin-top:12px; border:1px solid var(--border); border-radius:7px; background:var(--bg-panel); padding:10px 12px; }
-.entity-raw-code summary { cursor:pointer; font-size:12.5px; font-weight:700; color:var(--text-secondary); display:flex; align-items:center; gap:6px; }
-.entity-raw-code summary i { width:14px; height:14px; }
-.entity-raw-code textarea {
-    width:100%; margin-top:10px; padding:10px 12px; border:1px solid var(--border); border-radius:5px;
-    background:var(--bg-input); color:var(--text-primary); font-family:var(--font-mono);
-    font-size:12px; line-height:1.6; resize:vertical;
-}
-.entity-raw-code textarea:focus { outline:none; border-color:var(--accent); }
-.entity-raw-code-status { margin-top:8px; font-size:11.5px; line-height:1.5; min-height:1em; color:var(--text-muted); }
-.entity-raw-code-status.is-good { color:#16a34a; }
-.entity-raw-code-status.is-warn { color:#d97706; }
-.entity-raw-code-status.is-bad { color:var(--danger,#dc2626); }
+/* ---- Battle effect: blocks or code, in the move / ability / item / condition dialogs ----
+   js/app/components/editor/BattleEffect.tsx. A rule above it, then a heading
+   with the Blocks / Code switch, then the pane. No box around it. */
+.battle-effect { margin-top: var(--sp-5); padding-top: var(--sp-4); border-top: 1px solid var(--border-light); }
+.battle-effect-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-3); margin-bottom: var(--sp-3); }
+.battle-effect-head h4 { margin: 0; font: 700 14px var(--font-sans); color: var(--text-primary); }
+.battle-effect-tabs button { width: auto; gap: 6px; padding: 0 12px; font: 600 13px var(--font-sans); white-space: nowrap; }
+.battle-effect-tabs button svg { width: 15px; height: 15px; }
+/* this side holds something */
+.battle-effect-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); }
+.battle-effect-pane { display: flex; flex-direction: column; gap: var(--sp-3); }
+.battle-effect-help { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--text-secondary); }
+.battle-effect-help code, .battle-effect-ref code { font-family: var(--font-mono); font-size: 12px; }
 
-/* supported-hook reference under the code box, filled in from the bridge's own hook table rather than duplicated here */
-.entity-raw-code-ref { margin-top:8px; }
-.entity-raw-code-ref summary {
-    cursor:pointer; font-size:11.5px; font-weight:600;
-    color:var(--text-muted); list-style:revert;
+.battle-effect-triggers { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--border-light); }
+.battle-effect-triggers li {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 2px; border-bottom: 1px solid var(--border-light);
+    font-size: 13px; color: var(--text-primary);
 }
-.entity-raw-code-hooks {
-    display:flex; flex-wrap:wrap; gap:4px;
-    margin-top:8px; max-height:180px; overflow-y:auto;
+.battle-effect-triggers li svg { flex: 0 0 auto; color: var(--accent); }
+.battle-effect-triggers li span:first-of-type { flex: 1 1 auto; min-width: 0; }
+.battle-effect-count { flex: 0 0 auto; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.battle-effect-open { align-self: flex-start; gap: 8px; }
+.battle-effect-arrow { width: 14px; height: 14px; color: var(--text-muted); transition: transform .15s var(--ease-out, ease); }
+.battle-effect-open:hover .battle-effect-arrow { transform: translateX(2px); color: currentColor; }
+.reduce-motion .battle-effect-arrow { transition: none; }
+
+.battle-effect-code {
+    width: 100%; min-height: 180px; padding: 10px 12px;
+    border: 1px solid var(--border); border-radius: var(--ctl-r);
+    background: var(--bg-input); color: var(--text-primary);
+    font: 13px/1.6 var(--font-mono); tab-size: 4; resize: vertical;
 }
-.entity-raw-code-hooks code {
-    font-family:var(--font-mono); font-size:10.5px;
-    padding:2px 6px; border-radius:3px;
-    background:var(--bg-input); border:1px solid var(--border);
-    color:var(--text-secondary); white-space:nowrap;
+.battle-effect-code:focus { outline: none; border-color: var(--accent); }
+.battle-effect-status { min-height: 1.5em; margin-top: -4px; font-size: 12px; line-height: 1.5; color: var(--text-muted); }
+.battle-effect-status:empty { display: none; }
+.battle-effect-status.is-good { color: var(--success); }
+.battle-effect-status.is-warn { color: var(--warning); }
+.battle-effect-status.is-bad { color: var(--danger); }
+
+/* the hooks the engine can run, from the bridge's own table (supportedHooks) */
+.battle-effect-ref summary { cursor: pointer; width: fit-content; font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
+.battle-effect-ref summary:hover { color: var(--text-primary); }
+.battle-effect-ref[open] summary { margin-bottom: var(--sp-2); }
+.battle-effect-ref .battle-effect-help { margin-bottom: var(--sp-2); }
+.battle-effect-hooks { display: flex; flex-wrap: wrap; gap: 4px; max-height: 168px; overflow-y: auto; }
+.battle-effect-hooks code {
+    padding: 2px 6px; border-radius: 4px;
+    background: var(--bg-panel); color: var(--text-secondary); white-space: nowrap;
 }
 
 /* needs room to hold real source code */

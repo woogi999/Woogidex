@@ -1,4 +1,4 @@
-// The custom type editor (a right-hand sheet): name, colour or gradient, icon,
+// The custom type editor: name, colour or gradient, icon,
 // description, and the type's matchups both ways, sorted by dragging each
 // type into a group (or tapping it, then the group). It also edits a region's
 // own version of a main-game type. Saving and the rules are
@@ -269,7 +269,7 @@ function MatchupBoards({ draft, entry, setDraft, selfStyle }: { draft: Draft; en
     );
 }
 
-// ---- the sheet ----
+// ---- the dialog ----
 
 function CustomTypeDialog({ entry, close }: DialogProps<{ entry: any }>) {
     const [draft, setDraftState] = useState<Draft>(() => customTypeDraft(entry));
@@ -282,7 +282,7 @@ function CustomTypeDialog({ entry, close }: DialogProps<{ entry: any }>) {
         ? `${api.getActiveRegion?.()?.name || 'This region'}'s ${vanillaOf}`
         : entry ? 'Edit custom type' : 'New custom type';
 
-    // the type pickers and chart follow a save; a closed sheet leaves nothing behind
+    // the type pickers and chart follow a save; a closed dialog leaves nothing behind
     useEffect(() => () => { document.querySelectorAll('.type-group-ghost').forEach(el => el.remove()); }, []);
 
     const save = () => {
@@ -293,7 +293,7 @@ function CustomTypeDialog({ entry, close }: DialogProps<{ entry: any }>) {
     const remove = async () => { if (await deleteCustomType(entry)) close(); };
 
     return (
-        <Modal onClose={close} className="custom-type-modal" overlayClassName="as-sheet" labelledBy="custom-type-modal-title">
+        <Modal onClose={close} className="custom-type-modal" labelledBy="custom-type-modal-title">
             <div className="modal-header">
                 <h3 id="custom-type-modal-title">{title}</h3>
                 {/* a region's version belongs to that region by definition */}

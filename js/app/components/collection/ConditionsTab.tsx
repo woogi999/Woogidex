@@ -56,6 +56,7 @@ function cardsFor(kind: ConditionKind, q: string): Card[] {
 export function ConditionsGrid({ layout, search }: { layout: 'grid' | 'table'; search: string }) {
     const q = search.trim().toLowerCase();
     const sections = CONDITION_KINDS.map(([kind, label, one]) => ({ kind, label, one, cards: cardsFor(kind, q) }));
+    const any = sections.some(s => s.cards.length);
     return (
         <div id="collection-grid" className="cond-sections">
             {sections.map(({ kind, label, one, cards }) => (q && !cards.length) ? null : (

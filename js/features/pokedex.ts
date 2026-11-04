@@ -794,13 +794,12 @@ const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 8640000
             return { kind, search, folders: folders.map(folder => ({ folder, count: count(folder) })), entries };
         }
 
-        // The custom move / ability / item / type editors, opened from My
-        // Collection: the same editors as everywhere else, but as a panel sliding
-        // in from the right (css/modals.css .as-sheet) to match the Fakemon editor.
+        // The custom move / ability / item / type / condition editors, opened
+        // from My Collection. They are pop-up dialogs, the same as everywhere else.
         function openLibraryEditorSheet(kind, id = '') {
-            if (kind === 'moves') { if (id) api.editCustomMoveLibrary?.(id, { sheet: true }); else api.openCustomMoveModal?.(undefined, { sheet: true }); }
-            else if (kind === 'abilities') api.openCustomAbilityLibraryModal?.(id, { sheet: true });
-            else if (kind === 'items') api.openCustomItemModal?.(id, null, { sheet: true });
+            if (kind === 'moves') { if (id) api.editCustomMoveLibrary?.(id); else api.openCustomMoveModal?.(); }
+            else if (kind === 'abilities') api.openCustomAbilityLibraryModal?.(id);
+            else if (kind === 'items') api.openCustomItemModal?.(id, null);
             else if (kind === 'types') api.openCustomTypeEditor?.(id);
             else if (kind === 'conditions') api.openCustomConditionEditor?.(id);
         }
