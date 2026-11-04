@@ -97,7 +97,38 @@ test('/calc: STAB, immunity, status moves, and bad input', () => {
     assert.match(r.lines[1], /% to .*% \(\d+-\d+ of \d+ HP\)/);
     assert.match(runCommand(dex, cmd('calc'), 'garchomp earthquake vs pelipper').lines[0], /immune/);
     assert.match(runCommand(dex, cmd('calc'), 'toxapex recover vs garchomp').error, /no direct damage/);
-    assert.match(runCommand(dex, cmd('calc'), 'garchomp earthquake').error, /Use \/calc/);
+    assert.match(runCommand(dex, cmd('calc'), 'garchomp earthquake').error, /use \/calc <attacker>/);
+    assert.equal(r.calc.rolls.length, 2);
+    assert.match(r.calc.rolls[0].ko, /HKO|hits to KO/);
+    assert.deepEqual(r.calc.move, { name: 'Earthquake', type: 'Ground', category: 'Physical', basePower: 100 });
+});
+
+test('/calc: plain math, like Showdown', () => {
+    const math = s => runCommand(dex, cmd('calc'), s);
+    assert.equal(math('2 + 2').math.value, '4');
+    assert.equal(math('2 + 3 * 4').math.value, '14');
+    assert.equal(math('(2 + 3) * 4').math.value, '20');
+    assert.equal(math('2 ^ 3 ^ 2').math.value, '512');
+    assert.equal(math('-2 ^ 2').math.value, '-4');
+    assert.equal(math('10 % 4').math.value, '2');
+    assert.equal(math('1 / 3').math.value, '0.333333333333');
+    assert.equal(math('0x1f + 0b1').math.value, '32');
+    assert.equal(math('255 in hex').math.value, '0xff');
+    assert.equal(math('5 in binary').math.value, '0b101');
+    assert.equal(math('2 * pi').math.value, String(Number((2 * Math.PI).toPrecision(12))));
+    assert.equal(parseCommand('/calculate 1+1').cmd.name, 'calc');
+    assert.match(math('1 / 0').error, /too big|divided by zero/);
+    assert.match(math('(1 + 2').error, /bracket/);
+    assert.match(math('2 +').error, /ends too early/);
+    assert.match(math('alert(1)').error, /not a number/);
+});
+
+test('rows and matchups carry types for the palette', () => {
+    const w = runCommand(dex, cmd('weakness'), 'ground/flying');
+    assert.ok(w.typeGroups.some(g => g.label === 'Weak ×4' && g.types.includes('Ice')));
+    const ms = runCommand(dex, cmd('dt'), 'surf').rows[0];
+    assert.deepEqual([ms.types, ms.category], [['Water'], 'Special']);
+    assert.deepEqual(runCommand(dex, cmd('dt'), 'garchomp').rows[0].types, ['Dragon', 'Ground']);
 });
 
 // the top of a "lo-hi of HP" range

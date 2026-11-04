@@ -21,6 +21,7 @@ import { MOD_KEY, setQuickSearch } from '../components/ContextMenu.tsx';
 import { api } from '../../core/app.ts';
 import { parseCommand, runInput, suggest } from '../../features/commands.ts';
 import type { Result, Row } from '../../features/commands-model.ts';
+import { COMMAND_ICONS, CommandBody, CommandRow } from './CommandResult.tsx';
 
 const LIMIT = 6;
 const COMMUNITY_DEBOUNCE_MS = 250;
@@ -146,7 +147,10 @@ function Palette({ seed, onClose }: { seed: string; onClose: () => void }) {
         const onCmdKey = (e: React.KeyboardEvent) => {
             if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
                 e.preventDefault();
-                if (count) setActive((sel + (e.key === 'ArrowDown' ? 1 : -1) + count) % count);
+                if (!count) return;
+                const next = (sel + (e.key === 'ArrowDown' ? 1 : -1) + count) % count;
+                setActive(next);
+                document.getElementById(`qs-opt-${next}`)?.scrollIntoView({ block: 'nearest' });
             } else if (e.key === 'Enter' || (e.key === 'Tab' && commandList.length)) { e.preventDefault(); pick(sel); }
             else if (e.key === 'Escape') { e.preventDefault(); close(); }
         };
@@ -168,7 +172,8 @@ function Palette({ seed, onClose }: { seed: string; onClose: () => void }) {
                                 {commandList.map((c, i) => (
                                     <button key={c.name} type="button" id={`qs-opt-${i}`} role="option" aria-selected={i === sel}
                                         className={`gs-item qs-cmd${i === sel ? ' is-active' : ''}`} onClick={() => pick(i)}>
-                                        <span className="gs-text"><span className="gs-title">/{c.name}</span><span className="gs-sub">{c.help} <code>{c.usage}</code></span></span>
+                                        <span className="qs-cmd-icon"><Icon name={COMMAND_ICONS[c.name] || 'command-line'} size={18} /></span>
+                                        <span className="gs-text"><span className="gs-title">/{c.name}</span><span className="gs-sub">{c.help}</span><code className="qs-usage">{c.usage}</code></span>
                                     </button>
                                 ))}
                             </>
@@ -176,15 +181,15 @@ function Palette({ seed, onClose }: { seed: string; onClose: () => void }) {
                             <>
                                 {result.busy && !out && <div className="gs-status">Working…</div>}
                                 {out?.error && <div className="gs-status qs-cmd-error" role="alert">{out.error}</div>}
-                                {out?.head && <div className="gs-group-label">{out.head}</div>}
-                                {(out?.lines || []).map((l, i) => <p key={i} className="qs-cmd-line">{l}</p>)}
+                                {out?.head && !out.calc && <div className="gs-group-label">{out.head}</div>}
+                                {out && !out.error && <CommandBody out={out} />}
                                 {rows.map((r, i) => (
                                     <button key={`${r.title}-${i}`} type="button" id={`qs-opt-${i}`} role="option" aria-selected={i === sel}
-                                        className={`gs-item${i === sel ? ' is-active' : ''}`} onClick={() => pick(i)}>
-                                        <span className="gs-text"><span className="gs-title">{r.title}</span>{r.sub && <span className="gs-sub">{r.sub}</span>}</span>
+                                        className={`gs-item qs-result${i === sel ? ' is-active' : ''}`} onClick={() => pick(i)}>
+                                        <CommandRow row={r} />
                                     </button>
                                 ))}
-                                {!parseCommand(query) && <div className="gs-empty">Type a command, like /dt garchomp.</div>}
+                                {!parseCommand(query) && <div className="gs-empty">Type a command, like /dt garchomp or /calc 2 + 2.</div>}
                             </>
                         )}
                     </div>

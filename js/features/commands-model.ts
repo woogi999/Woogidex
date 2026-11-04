@@ -8,6 +8,7 @@
 //   /learn garchomp, earthquake       whether it learns the move
 //   /randpoke 3                       random Pokémon
 //   /calc 252+ Atk Choice Band garchomp earthquake vs 252 HP / 4 Def toxapex   a damage range
+//   /calc (2 + 3) ^ 2 in hex          or plain arithmetic, like Showdown's /calc
 //   /bulk toxapex                     Scrappie's bulk numbers (HP x Def, HP x SpD)
 // Everything here is pure: commands.ts hands it the data and the move search.
 
@@ -34,13 +35,36 @@ export interface Dex {
     searchMoves: (query: string) => DexMove[];
 }
 
-export type Row = { title: string; sub?: string; kind?: 'mon' | 'move' | 'ability' | 'item' | 'type'; id?: string };
+export type Row = {
+    title: string; sub?: string; kind?: 'mon' | 'move' | 'ability' | 'item' | 'type'; id?: string;
+    /** what the palette draws as pills and badges (the sub is the text for the rest) */
+    types?: string[]; category?: string; stats?: DexMon['stats']; basePower?: number; accuracy?: number | true;
+};
+/** A group of types, like "Weak ×2: Ice, Rock", drawn as type pills. */
+export interface TypeGroup { label: string; types: string[]; tone?: 'weak' | 'resist' | 'immune' | 'neutral' }
+/** One spread in a damage calc. */
+export interface CalcRoll { label: string; lo: number; hi: number; hp: number; loPct: number; hiPct: number; ko: string }
+export interface CalcOut {
+    attacker: { name: string; types: string[]; label: string };
+    move: { name: string; type: string; category: string; basePower: number };
+    defender: { name: string; types: string[]; label: string };
+    eff: number; stab: number; immune?: string;
+    rolls: CalcRoll[];
+}
 export interface Result {
     /** a heading over the rows or lines */
     head?: string;
     rows?: Row[];
-    /** plain lines (a calc, a type's matchups) */
+    /** plain lines (a calc, a type's matchups); the palette shows them when nothing richer is given */
     lines?: string[];
+    /** the same matchups as type pills */
+    typeGroups?: TypeGroup[];
+    /** a damage calc, for the calc card */
+    calc?: CalcOut;
+    /** arithmetic: what was asked and the answer */
+    math?: { expr: string; value: string };
+    /** a line under everything (what the calc leaves out) */
+    note?: string;
     /** why the command could not run */
     error?: string;
 }
@@ -54,7 +78,7 @@ export const COMMANDS: CommandDef[] = [
     { name: 'coverage', aliases: ['cover'], usage: '/coverage fire, water', help: 'What a set of attacking types hits super effectively.' },
     { name: 'learn', aliases: ['learnset'], usage: '/learn garchomp, earthquake', help: 'Whether a Pokémon learns a move.' },
     { name: 'randpoke', aliases: ['randompokemon'], usage: '/randpoke 3', help: 'Random Pokémon.' },
-    { name: 'calc', aliases: ['damage'], usage: '/calc 252+ Atk Choice Band garchomp earthquake vs 252 HP / 4 Def toxapex', help: 'A damage range, written like Showdown\'s calc: EVs and nature, then items and abilities, then the Pokémon. Leave the EVs out for 252+ against no and full bulk.' },
+    { name: 'calc', aliases: ['damage', 'calculate'], usage: '/calc 252+ Atk garchomp earthquake vs toxapex', help: 'A damage range, written like Showdown\'s calc (EVs and nature, then items and abilities, then the Pokémon), or plain math like /calc (2 + 3) ^ 2.' },
     { name: 'bulk', aliases: [], usage: '/bulk toxapex', help: 'Bulk numbers: HP × Def and HP × SpD, uninvested and fully invested.' }
 ];
 
@@ -94,11 +118,17 @@ export function effectiveness(dex: Dex, attack: string, defend: string[]): numbe
 const monLine = (m: DexMon) => `${m.types.join('/')} · ${m.stats.hp}/${m.stats.atk}/${m.stats.def}/${m.stats.spa}/${m.stats.spd}/${m.stats.spe} · BST ${bst(m)}`;
 const bst = (m: DexMon) => m.stats.hp + m.stats.atk + m.stats.def + m.stats.spa + m.stats.spd + m.stats.spe;
 
+const moveRow = (m: DexMove): Row => ({
+    title: m.name, sub: `${m.type} · ${m.category} · ${m.basePower || '—'} BP · ${m.accuracy === true ? '—' : `${m.accuracy}%`}`, kind: 'move', id: m.id,
+    types: [m.type], category: m.category, basePower: m.basePower, accuracy: m.accuracy
+});
+const monRow = (m: DexMon): Row => ({ title: m.name + (m.own ? ' (yours)' : ''), sub: monLine(m), kind: 'mon', id: m.id, types: m.types, stats: m.stats });
+
 // ---- /ms ----
 function moveSearch(dex: Dex, args: string): Result {
     if (!args) return { error: 'Type what to look for, like /ms fire, physical.' };
     const hits = dex.searchMoves(args);
-    return { head: `${hits.length} move${hits.length === 1 ? '' : 's'}`, rows: hits.slice(0, 200).map(m => ({ title: m.name, sub: `${m.type} · ${m.category} · ${m.basePower || '—'} BP · ${m.accuracy === true ? '—' : `${m.accuracy}%`}`, kind: 'move', id: m.id })) };
+    return { head: `${hits.length} move${hits.length === 1 ? '' : 's'}`, rows: hits.slice(0, 200).map(moveRow) };
 }
 
 // ---- /ds ----
@@ -134,7 +164,7 @@ function dexSearch(dex: Dex, args: string): Result {
         tests.push(not ? m => !test!(m) : test);
     }
     const hits = dex.mons.filter(m => tests.every(t => t(m)));
-    return { head: `${hits.length} result${hits.length === 1 ? '' : 's'}`, rows: hits.slice(0, 200).map(m => ({ title: m.name + (m.own ? ' (yours)' : ''), sub: monLine(m), kind: 'mon', id: m.id })) };
+    return { head: `${hits.length} result${hits.length === 1 ? '' : 's'}`, rows: hits.slice(0, 200).map(monRow) };
 }
 
 // ---- /weakness ----
@@ -151,8 +181,9 @@ function weakness(dex: Dex, args: string): Result {
     if (!t) return { error: 'Name a Pokémon or one or two types, like /weakness ground/flying.' };
     const by = new Map<number, string[]>();
     for (const a of dex.types) { const x = effectiveness(dex, a, t.types); by.set(x, [...(by.get(x) || []), a]); }
-    const line = (x: number, label: string) => by.get(x)?.length ? [`${label}: ${by.get(x)!.join(', ')}`] : [];
-    return { head: t.label, lines: [...line(4, 'Weak ×4'), ...line(2, 'Weak ×2'), ...line(0.5, 'Resists ×½'), ...line(0.25, 'Resists ×¼'), ...line(0, 'Immune')] };
+    const groups: TypeGroup[] = ([[4, 'Weak ×4', 'weak'], [2, 'Weak ×2', 'weak'], [0.5, 'Resists ×½', 'resist'], [0.25, 'Resists ×¼', 'resist'], [0, 'Immune', 'immune']] as const)
+        .filter(([x]) => by.get(x)?.length).map(([x, label, tone]) => ({ label, types: by.get(x)!, tone }));
+    return { head: t.label, lines: groups.map(g => `${g.label}: ${g.types.join(', ')}`), typeGroups: groups };
 }
 
 // ---- /coverage ----
@@ -166,7 +197,13 @@ function coverage(dex: Dex, args: string): Result {
     const best = (d: string) => Math.max(...(attacks as string[]).map(a => effectiveness(dex, a, [d])));
     const group = (test: (x: number) => boolean) => dex.types.filter(d => test(best(d)));
     const se = group(x => x > 1), neutral = group(x => x === 1), resisted = group(x => x > 0 && x < 1), immune = group(x => x === 0);
-    return { head: `Coverage of ${(attacks as string[]).join(', ')}`, lines: [
+    const typeGroups: TypeGroup[] = [
+        { label: `Super effective on ${se.length}`, types: se, tone: 'weak' },
+        { label: `Neutral on ${neutral.length}`, types: neutral, tone: 'neutral' },
+        { label: `Resisted by ${resisted.length}`, types: resisted, tone: 'resist' },
+        ...(immune.length ? [{ label: 'No effect on', types: immune, tone: 'immune' as const }] : [])
+    ];
+    return { head: `Coverage of ${[...new Set(attacks as string[])].join(', ')}`, typeGroups, lines: [
         `Super effective on ${se.length}: ${se.join(', ') || 'none'}`,
         `Neutral on ${neutral.length}: ${neutral.join(', ') || 'none'}`,
         `Resisted by ${resisted.length}: ${resisted.join(', ') || 'none'}`,
@@ -199,7 +236,7 @@ function randpoke(dex: Dex, args: string, random: () => number): Result {
         [pool[i], pool[j]] = [pool[j], pool[i]];
     }
     const picked = pool.slice(0, count);
-    return { head: `${picked.length} random Pokémon`, rows: picked.map(m => ({ title: m.name, sub: monLine(m), kind: 'mon', id: m.id })) };
+    return { head: `${picked.length} random Pokémon`, rows: picked.map(monRow) };
 }
 
 // ---- stats, /calc and /bulk ----
@@ -287,9 +324,24 @@ function parseCalcSide(text: string, side: Mod['side']): CalcSide {
     return out;
 }
 
+/** How many hits a damage range needs, in Showdown's words. */
+function koText(lo: number, hi: number, hp: number): string {
+    if (lo >= hp) return 'guaranteed OHKO';
+    if (hi >= hp) return 'possible OHKO';
+    const most = Math.ceil(hp / lo), least = Math.ceil(hp / hi);
+    if (least > 9) return 'more than 9 hits to KO';
+    return most === least ? `guaranteed ${least}HKO` : `possible ${least}HKO`;
+}
+
 function calc(dex: Dex, args: string): Result {
     const m = args.match(/^(.+?)\s+vs\.?\s+(.+)$/i);
-    if (!m) return { error: 'Use /calc <attacker> <move> vs <defender>, like /calc 252+ Atk Choice Band garchomp earthquake vs 252 HP / 4 Def toxapex.' };
+    if (!m) {
+        // no "vs": arithmetic, like Showdown's /calc
+        if (!args) return { error: 'Type a sum, like /calc 2 + 2, or a damage calc, like /calc garchomp earthquake vs toxapex.' };
+        const r = arithmetic(args);
+        if ('error' in r) return { error: `${r.error} For a damage calc, use /calc <attacker> <move> vs <defender>.` };
+        return { head: 'Calculator', math: r, lines: [`${r.expr} = ${r.value}`] };
+    }
     const a = parseCalcSide(m[1], 'attacker'), d = parseCalcSide(m[2], 'defender');
     const words = a.rest.split(/\s+/);
     // the longest name that is a Pokémon, the rest is the move
@@ -315,9 +367,9 @@ function calc(dex: Dex, args: string): Result {
         };
         for (const mod of [...a.mods, ...d.mods]) mod.apply(c);
         const hp = statAt(defender.stats.hp, hpEv, 1, true);
-        if (c.eff === 0 || c.immune) return { c, text: '' };
+        if (c.eff === 0 || c.immune) return { c, text: '', lo: 0, hi: 0, hp };
         const [lo, hi] = damageRange(Math.floor(c.bp), Math.floor(c.atk), Math.floor(c.def), c.stab * c.eff * c.final);
-        return { c, text: `${fmt(lo / hp * 100)}% to ${fmt(hi / hp * 100)}% (${lo}-${hi} of ${hp} HP)` };
+        return { c, text: `${fmt(lo / hp * 100)}% to ${fmt(hi / hp * 100)}% (${lo}-${hi} of ${hp} HP)`, lo, hi, hp };
     };
     const atkLabel = [a.evText || `252+ ${statName}`, ...a.mods.map(x => x.name), attacker.name, move.name].join(' ');
     const defMods = d.mods.map(x => x.name).join(' ');
@@ -327,13 +379,90 @@ function calc(dex: Dex, args: string): Result {
         ? [[d.evText, d.hpEv ?? 0, d.ev ?? 0, d.nature]]
         : [[`0 HP / 0 ${defName}`, 0, 0, 1], [`252 HP / 252+ ${defName}`, 252, 252, 1.1]];
     const first = run(spreads[0][1], spreads[0][2], spreads[0][3]).c;
-    if (first.immune || first.eff === 0) lines.push(`No effect: ${first.immune ? `${defender.name}'s ${first.immune}` : `${defender.name} is immune`}.`);
+    const rolls: CalcRoll[] = [];
+    const immune = first.immune ? `${defender.name}'s ${first.immune}` : first.eff === 0 ? `${defender.name} is immune` : '';
+    if (immune) lines.push(`No effect: ${immune}.`);
     else {
         lines.push(`Type: ×${first.eff}${first.stab > 1 ? `, STAB ×${first.stab}` : ''}`);
-        for (const [label, hpEv, defEv, nature] of spreads) lines.push(`${label}${defMods ? ` ${defMods}` : ''}: ${run(hpEv, defEv, nature).text}`);
+        for (const [label, hpEv, defEv, nature] of spreads) {
+            const r = run(hpEv, defEv, nature);
+            const full = `${label}${defMods ? ` ${defMods}` : ''}`;
+            lines.push(`${full}: ${r.text}`);
+            rolls.push({ label: full, lo: r.lo, hi: r.hi, hp: r.hp, loPct: r.lo / r.hp * 100, hiPct: r.hi / r.hp * 100, ko: koText(r.lo, r.hi, r.hp) });
+        }
     }
-    lines.push('Level 100, 31 IVs, no weather, terrain or stat boosts.');
-    return { head: `${atkLabel} vs ${defender.name}`, lines };
+    const note = 'Level 100, 31 IVs, no weather, terrain or stat boosts.';
+    lines.push(note);
+    return {
+        head: `${atkLabel} vs ${defender.name}`, lines, note,
+        calc: {
+            attacker: { name: attacker.name, types: attacker.types, label: [a.evText || `252+ ${statName}`, ...a.mods.map(x => x.name)].join(' ') },
+            move: { name: move.name, type: move.type, category: move.category, basePower: move.basePower },
+            defender: { name: defender.name, types: defender.types, label: defMods },
+            eff: first.eff, stab: first.stab, immune: immune || undefined, rolls
+        }
+    };
+}
+
+// ---- /calc as a calculator ----
+// A small parser, not eval: numbers (12, 1.5, 2e3, 0x1f, 0b101, 0o17), pi
+// and e, + - * / % ^ (or **) and brackets, in the usual order. "in hex",
+// "in binary" or "in octal" at the end changes how the answer is written.
+const MATH_TOKEN = /\s*(0x[0-9a-f]+|0b[01]+|0o[0-7]+|\d+(?:\.\d*)?(?:e[+-]?\d+)?|\.\d+(?:e[+-]?\d+)?|pi|π|e|\*\*|[-+*/%^()×÷])/iy;
+
+export function arithmetic(input: string): { expr: string; value: string } | { error: string } {
+    let text = input.trim(), base = 10;
+    const want = text.match(/\s+in\s+(hex|hexadecimal|bin|binary|oct|octal|dec|decimal)$/i);
+    if (want) { base = /^h/i.test(want[1]) ? 16 : /^b/i.test(want[1]) ? 2 : /^o/i.test(want[1]) ? 8 : 10; text = text.slice(0, want.index).trim(); }
+    const tokens: string[] = [];
+    MATH_TOKEN.lastIndex = 0;
+    while (MATH_TOKEN.lastIndex < text.length) {
+        const at = MATH_TOKEN.lastIndex;
+        const m = MATH_TOKEN.exec(text);
+        if (!m) {
+            const rest = text.slice(at).trim();
+            if (!rest) break;
+            return { error: `"${rest.slice(0, 12)}" is not a number or a sign I know.` };
+        }
+        tokens.push(m[1].toLowerCase());
+    }
+    if (!tokens.length) return { error: 'There is no sum to work out.' };
+    let i = 0;
+    const peek = () => tokens[i];
+    const fail = (why: string): never => { throw new Error(why); };
+    // sum := term (+|- term)*, term := unary (*|/|% unary)*, unary := (+|-) unary | power, power := atom (^ unary)?
+    const sum = (): number => { let v = term(); while (peek() === '+' || peek() === '-') v = tokens[i++] === '+' ? v + term() : v - term(); return v; };
+    const term = (): number => {
+        let v = unary();
+        while (['*', '/', '%', '×', '÷'].includes(peek())) {
+            const op = tokens[i++], r = unary();
+            v = op === '*' || op === '×' ? v * r : op === '%' ? v % r : v / r;
+        }
+        return v;
+    };
+    const unary = (): number => peek() === '-' ? (i++, -unary()) : peek() === '+' ? (i++, unary()) : power();
+    const power = (): number => { const b = atom(); if (peek() === '^' || peek() === '**') { i++; return b ** unary(); } return b; };
+    const atom = (): number => {
+        const tok = tokens[i++];
+        if (tok === undefined) return fail('The sum ends too early.');
+        if (tok === '(') { const v = sum(); if (tokens[i++] !== ')') fail('A bracket is not closed.'); return v; }
+        if (tok === 'pi' || tok === 'π') return Math.PI;
+        if (tok === 'e') return Math.E;
+        if (/^0[xbo]/.test(tok)) return parseInt(tok.slice(2), tok[1] === 'x' ? 16 : tok[1] === 'b' ? 2 : 8);
+        if (/^[\d.]/.test(tok)) return Number(tok);
+        return fail(`"${tok}" is in the wrong place.`);
+    };
+    let value: number;
+    try {
+        value = sum();
+        if (i < tokens.length) fail(`"${tokens[i]}" is in the wrong place.`);
+    } catch (err) { return { error: (err as Error).message }; }
+    if (!Number.isFinite(value)) return { error: Number.isNaN(value) ? 'That sum has no answer.' : 'The answer is too big (or you divided by zero).' };
+    const shown = base === 10
+        ? String(Number.isInteger(value) ? value : Number(value.toPrecision(12)))
+        : Number.isInteger(value) ? (value < 0 ? '-' : '') + (base === 16 ? '0x' : base === 2 ? '0b' : '0o') + Math.abs(value).toString(base) : '';
+    if (!shown) return { error: 'Only whole numbers can be written in hex, binary or octal.' };
+    return { expr: tokens.join(' ').replace(/\( /g, '(').replace(/ \)/g, ')'), value: shown };
 }
 
 function bulkCmd(dex: Dex, args: string): Result {
@@ -351,9 +480,9 @@ function bulkCmd(dex: Dex, args: string): Result {
 function data(dex: Dex, args: string): Result {
     if (!args) return { error: 'Name something, like /dt garchomp.' };
     const mon = findMon(dex, args);
-    if (mon) return { head: mon.name + (mon.own ? ' (yours)' : ''), lines: [monLine(mon), `Abilities: ${mon.abilities.join(', ') || '—'}`], rows: [{ title: `Weaknesses of ${mon.name}`, kind: 'mon', id: mon.id }] };
+    if (mon) return { head: mon.name + (mon.own ? ' (yours)' : ''), lines: [`Abilities: ${mon.abilities.join(', ') || '—'}`], rows: [monRow(mon), { title: `Weaknesses of ${mon.name}`, kind: 'mon', id: mon.id }] };
     const move = findMove(dex, args);
-    if (move) return { head: move.name, rows: [{ title: move.name, sub: `${move.type} · ${move.category} · ${move.basePower || '—'} BP`, kind: 'move', id: move.id }] };
+    if (move) return { head: move.name, rows: [moveRow(move)], lines: move.desc ? [move.desc] : undefined };
     const ability = dex.abilities.find(a => a.id === toId(args));
     if (ability) return { head: ability.name, rows: [{ title: ability.name, sub: ability.desc, kind: 'ability', id: ability.id }] };
     const item = dex.items.find(i => i.id === toId(args));
@@ -362,7 +491,8 @@ function data(dex: Dex, args: string): Result {
     if (type) {
         const r = weakness(dex, type);
         const hits = dex.types.filter(d => effectiveness(dex, type, [d]) > 1);
-        return { head: `${type} type`, lines: [`Super effective on: ${hits.join(', ') || 'none'}`, ...(r.lines || [])] };
+        return { head: `${type} type`, lines: [`Super effective on: ${hits.join(', ') || 'none'}`, ...(r.lines || [])],
+            typeGroups: [{ label: 'Super effective on', types: hits, tone: 'neutral' }, ...(r.typeGroups || [])] };
     }
     return { error: `Nothing is called "${args}".` };
 }
