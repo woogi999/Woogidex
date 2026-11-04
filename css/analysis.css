@@ -130,9 +130,6 @@
 
 /* preview artwork controls stay out of the way until the artwork is hovered */
 .move-browser-filters { display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:8px; }
-.mb-range-label { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-secondary); }
-.mb-range-label input { width:64px; padding:8px 10px; border:1px solid var(--border); border-radius:5px; font-family:var(--font-sans); font-size:13px; }
-.move-browser-flags { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px; }
 .mb-flag-chip { border:1px solid var(--border); border-radius:999px; padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer; background:var(--bg-card); color:var(--text-secondary); user-select:none; }
 .mb-flag-chip:hover { border-color:var(--accent, #6366f1); }
 .mb-flag-chip.active { background:var(--accent, #6366f1); border-color:var(--accent, #6366f1); color:#fff; }
@@ -140,7 +137,6 @@
 .mb-flag-chip.is-custom { display:inline-flex; align-items:center; gap:6px; }
 .mb-flag-chip.is-custom::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--flag-color, var(--text-muted)); }
 .mb-flag-chip.is-custom.active::before { background:#fff; }
-.move-browser-results { max-height:50vh; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:8px; }
 .gl-section-label { font-size:11px; font-weight:700; color:var(--text-muted); margin:16px 0 8px; }
 .gl-section-label:first-child { margin-top:0; }
 .gl-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:8px; }
@@ -149,19 +145,6 @@
 .gl-item .move-name { flex:1; font-weight:600; font-size:13px; }
 .gl-item .move-meta { display:flex; flex-direction:column; align-items:flex-end; gap:4px; }
 .gl-item .method-text { font-size:11px; color:var(--text-muted); font-family:var(--font-sans); }
-.move-browser-card { padding:8px 10px; cursor:pointer; transition:border-color .12s ease, background .12s ease; background: transparent; border: 0; border-bottom: 1px solid var(--border-light); border-radius: 0; }
-.move-browser-card:hover { background:var(--bg-panel); }
-.move-browser-card.added { opacity:.55; }
-.move-browser-card-top { display:flex; align-items:center; gap:6px; margin-bottom:4px; flex-wrap:wrap; }
-.move-browser-card-name { font-weight:600; font-size:13px; margin-bottom:2px; }
-/* unlearnable moves are shown (not hidden) so search still finds them, but visibly out of reach and unresponsive */
-.move-browser-card.is-locked { opacity:.42; cursor:not-allowed; filter:grayscale(.85); }
-.move-browser-card.is-locked:hover { transform:none; background:transparent; box-shadow:none; }
-.move-browser-locked-badge { margin-left:auto; font-size:9px; font-weight:800; letter-spacing:.03em;
-    padding:2px 6px; border-radius:999px; background:var(--bg-panel); color:var(--text-muted);
-    border:1px solid var(--border); }
-.move-browser-added-badge { font-size:10px; font-weight:700; color:var(--text-secondary); margin-left:auto; }
-.move-browser-card-stats { font-size:11px; color:var(--text-secondary); }
 .move-browser-empty { grid-column:1/-1; text-align:center; padding:24px; color:var(--text-muted); font-size:13px; }
 /* opacity-only fade, no transform: sliding the hit box while gaining pointer-events under the cursor flickered :hover rapidly */
 

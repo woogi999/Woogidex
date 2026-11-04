@@ -399,10 +399,40 @@ import { addNoRecommend, noRecommendEverywhere, noRecommendHere, noRecommendSet,
             return moves.map(m => ({ ...m, added: added.has(m.name.toLowerCase()) }));
         }
 
-        // Browse Moves: every move as cards with filters, next to the
-        // learnset's own search (a click adds it, the same way the search does)
-        function openMoveBrowserModal() {
-            openDialog('move-browser', { mode: 'editor' });
+        // Browse Moves: every move with filters, as a table or a grid, next to
+        // the learnset's own search. Its other views are Recommended (moves
+        // that similar Pokémon learn) and Universal (moves nearly all learn).
+        // You tick moves in any view and add them together (addBrowserPicks).
+        async function openMoveBrowserModal(view: 'all' | 'recommended' | 'universal' = 'all') {
+            if (view !== 'all') {
+                // both load lazily (boot may still be waiting for an idle moment)
+                await Promise.all([fetchShowdownData(), ensureLearnsets()]);
+                if (!state.sdLoaded) { api.showToast('Showdown data could not be loaded. Check your connection and try again.', 'error'); return; }
+            }
+            openDialog('move-browser', { mode: 'editor', view });
+        }
+
+        /** A move picked in Browse Moves, and the view it was picked in (that sets how it is learned). */
+        type BrowserPick = { key: string; name: string; via: 'all' | 'recommended' | 'universal' };
+
+        /**
+         * Adds the moves picked in Browse Moves. From All moves they are learned
+         * the way the Moves tab's "Add as" says, from Universal as TMs, and from
+         * Recommended the way they were suggested. One toast for all of them.
+         */
+        function addBrowserPicks(picks: BrowserPick[]) {
+            const before = state.learnset.length;
+            for (const p of picks) {
+                if (state.learnset.some(m => m?.name?.toLowerCase() === p.name.toLowerCase())) continue;
+                if (p.via === 'all') { addMoveFromBrowser(p.key); continue; }
+                const move = findClosestMove(p.name);
+                if (!move) continue;
+                const meta = p.via === 'recommended' ? (lastRecommendations[move.name] || { learnMethod: 'tm', level: null as any }) : { learnMethod: 'tm', level: null as any };
+                addLearnsetMove(move, meta.learnMethod, meta.level);
+            }
+            const added = state.learnset.length - before;
+            if (added) api.showToast(added === 1 ? `Added ${picks.find(p => state.learnset.some(m => m?.name === p.name))?.name || '1 move'}.` : `Added ${added} moves.`, 'success');
+            return added;
         }
 
         function addMoveFromBrowser(key) {
@@ -1279,6 +1309,13 @@ import { form } from './draft.ts';
 // ==================== UNIVERSAL MOVES ====================
         const UNIVERSAL_MOVES = ['Toxic', 'Hidden Power', 'Tera Blast', 'Protect', 'Frustration', 'Return', 'Double Team', 'Facade', 'Rest', 'Attract', 'Round', 'Swagger', 'Sleep Talk', 'Substitute'];
 
+        /** The universal moves for Browse Moves, with which are in the learnset already. */
+        function universalMoveChoices() {
+            const added = new Set(state.learnset.filter(m => m && m.name).map(m => m.name.toLowerCase()));
+            return UNIVERSAL_MOVES.map(name => findClosestMove(name)).filter(Boolean)
+                .map((m: any) => ({ key: m.id || String(m.name).toLowerCase().replace(/[^a-z0-9]/g, ''), ...m, added: added.has(m.name.toLowerCase()) }));
+        }
+
         async function addUniversalMoves() {
             // both load lazily (boot may still be waiting for an idle moment)
             await Promise.all([fetchShowdownData(), ensureLearnsets()]);
@@ -1689,11 +1726,9 @@ import { form } from './draft.ts';
             return { sections, similar: pools.similar };
         }
 
-        async function openRecommendMovesModal() {
-            // both load lazily (boot may still be waiting for an idle moment)
-            await Promise.all([fetchShowdownData(), ensureLearnsets()]);
-            if (!state.sdLoaded) { api.showToast('Showdown data could not be loaded. Check your connection and try again.', 'error'); return; }
-            openDialog('recommend-moves', {});
+        /** Recommend Moves is a view of Browse Moves now. */
+        function openRecommendMovesModal() {
+            return openMoveBrowserModal('recommended');
         }
 
         /**
@@ -1829,7 +1864,7 @@ import { form } from './draft.ts';
             api.autoSave();
             const sampleSimilar = pools.similar.slice(0, 3).join(', ');
             api.showToast(`Generated from Pokémon like ${sampleSimilar}: ${added} added, ${woven} woven in.`, 'success');
-            closeDialog('recommend-moves');
+            closeDialog('move-browser');
             if (addedMoves.length || wovenMoves.length) openDialog('generated-learnset', { added: addedMoves, woven: wovenMoves, similar: sampleSimilar });
         }
 
@@ -2196,4 +2231,4 @@ function editCustomItemLibrary(id) { openCustomItemModal(id); }
         }
 
 
-export { learnsetSearch, cycleLearnsetSort, addMoveFromSearch, ensureLearnsets, openAbilityBrowserModal, getExportableMovesText, moveRecommendations, setMoveRecommendable, addRecommendedMoves, moveDetail, MOVE_BROWSER_FLAGS, moveMatchesFilters, moveBrowserResults, abilityBrowserResults, addAbilityFromBrowser, openCustomAbilityLibraryModal, saveCustomAbility, saveCustomItem, saveCustomMoveEntry, customMoveDraft, customEntityChoices, rawCodeReport, rawCodeHooks, repairRawCode, getNewMoveMethod, setNewMoveMethod, abilitySuggestions, moveSuggestions, addAbilityByName, addMoveByName, getEditingAbilityIndex, getLearnsetFilters, setLearnsetFilters, learnsetEntries, getLearnsetChartGroup, setLearnsetChartGroup, learnsetChartSegments, describeAbility, getAllBrowsableMoves, sortLearnsetEntries, resetEditingCustomAbilityIndex, getAbilityRole, fetchShowdownData, openMoveBrowserModal, addMoveFromBrowser, findClosestAbility, findClosestMove, findClosestMoveForImport, parseMoveImportText, stripCustomMoveMarker, normalizeMoveCategoryInput, normalizeMoveTypeInput, openMoveImportExportModal, importMovesFromText, addAbility, openCustomAbilityChooser, addExistingCustomAbility, editCustomAbilityLibrary, updateAbility, toggleCustomAbilityEdit, finishCustomAbilityEdit, removeAbility, moveAbility, renderAbilities, showAbilityDetail, getSdMoveByName, hydrateLearnsetEntry, rehydrateCurrentLearnsetFromShowdown, addLearnsetMove, removeLearnsetMove, updateMoveMethod, updateMoveLevel, sortLearnset, renderLearnset, clearLearnsetFilters, addUniversalMoves, getFakemonStats, getFakemonProfile, findSimilarPokemon, classifyLearnsetSource, buildSimilarMovePools, classifyMoveRole, generateMoveRecommendations, openRecommendMovesModal, generateLearnset, formatLearnMethodLabel, clearMoveset, showMoveDetail, updateCustomAbility, removeCustomAbility, renderCustomAbilities, openCustomMoveChooser, addExistingCustomMove, editCustomMoveLibrary, openCustomMoveModal, removeCustomMove, renderCustomMoves, getCustomItemLibrary, openCustomItemModal, editCustomItemLibrary, loadCompetitiveMoveUsefulness, escapeHtml, isCustomMove, openCustomMoveLibraryModal };
+export { addBrowserPicks, universalMoveChoices, learnsetSearch, cycleLearnsetSort, addMoveFromSearch, ensureLearnsets, openAbilityBrowserModal, getExportableMovesText, moveRecommendations, setMoveRecommendable, addRecommendedMoves, moveDetail, MOVE_BROWSER_FLAGS, moveMatchesFilters, moveBrowserResults, abilityBrowserResults, addAbilityFromBrowser, openCustomAbilityLibraryModal, saveCustomAbility, saveCustomItem, saveCustomMoveEntry, customMoveDraft, customEntityChoices, rawCodeReport, rawCodeHooks, repairRawCode, getNewMoveMethod, setNewMoveMethod, abilitySuggestions, moveSuggestions, addAbilityByName, addMoveByName, getEditingAbilityIndex, getLearnsetFilters, setLearnsetFilters, learnsetEntries, getLearnsetChartGroup, setLearnsetChartGroup, learnsetChartSegments, describeAbility, getAllBrowsableMoves, sortLearnsetEntries, resetEditingCustomAbilityIndex, getAbilityRole, fetchShowdownData, openMoveBrowserModal, addMoveFromBrowser, findClosestAbility, findClosestMove, findClosestMoveForImport, parseMoveImportText, stripCustomMoveMarker, normalizeMoveCategoryInput, normalizeMoveTypeInput, openMoveImportExportModal, importMovesFromText, addAbility, openCustomAbilityChooser, addExistingCustomAbility, editCustomAbilityLibrary, updateAbility, toggleCustomAbilityEdit, finishCustomAbilityEdit, removeAbility, moveAbility, renderAbilities, showAbilityDetail, getSdMoveByName, hydrateLearnsetEntry, rehydrateCurrentLearnsetFromShowdown, addLearnsetMove, removeLearnsetMove, updateMoveMethod, updateMoveLevel, sortLearnset, renderLearnset, clearLearnsetFilters, addUniversalMoves, getFakemonStats, getFakemonProfile, findSimilarPokemon, classifyLearnsetSource, buildSimilarMovePools, classifyMoveRole, generateMoveRecommendations, openRecommendMovesModal, generateLearnset, formatLearnMethodLabel, clearMoveset, showMoveDetail, updateCustomAbility, removeCustomAbility, renderCustomAbilities, openCustomMoveChooser, addExistingCustomMove, editCustomMoveLibrary, openCustomMoveModal, removeCustomMove, renderCustomMoves, getCustomItemLibrary, openCustomItemModal, editCustomItemLibrary, loadCompetitiveMoveUsefulness, escapeHtml, isCustomMove, openCustomMoveLibraryModal };

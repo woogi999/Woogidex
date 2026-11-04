@@ -250,10 +250,8 @@ body.quick-search-open { overflow: hidden; }
 .qs-esc { cursor: pointer; }
 /* quick commands (js/app/shell/QuickSearch.tsx, js/app/shell/CommandResult.tsx) */
 .qs-cmd { align-items: flex-start; }
-.qs-cmd-icon {
-    width: 34px; height: 34px; flex: 0 0 34px; display: flex; align-items: center; justify-content: center;
-    border-radius: var(--ctl-r); background: var(--accent-soft); color: var(--accent);
-}
+/* the icon alone, no box, in the colour of quick search's icons */
+.qs-cmd-icon { width: 20px; flex: 0 0 20px; display: flex; justify-content: center; padding-top: 1px; color: var(--text-secondary); }
 .qs-cmd .gs-title { font-family: var(--font-mono, monospace); font-weight: 700; }
 .qs-cmd .gs-sub { white-space: normal; line-height: 1.4; }
 .qs-usage {

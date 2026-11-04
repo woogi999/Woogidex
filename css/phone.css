@@ -314,17 +314,23 @@
     /* ==================== the type and category pickers: soft fills like the other fields ==================== */
     .type-dropdown-trigger, .cat-dropdown-trigger { min-height: 36px; border-color: transparent; background: var(--bg-panel); }
 
-    /* ==================== Browse Moves: the filters two by two ==================== */
+    /* ==================== Browse Moves ==================== */
     .move-browser-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-    /* the dialog gives some filters a fixed desktop width in its markup */
-    .move-browser-filters > * { width: auto !important; min-width: 0 !important; }
-    .move-browser-filters .mb-filter-name { grid-column: 1 / -1; }
-    .move-browser-filters .mb-filter-name, .move-browser-filters .mb-filter-select { height: 36px; border-color: transparent; background: var(--bg-panel); font-size: 14px; }
-    .move-browser-filters:has(.mb-range-label) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .move-browser-filters:has(.mb-range-label) > .btn { grid-column: 1 / -1; }
-    .mb-range-label { flex-direction: column; align-items: stretch; gap: 4px; }
-    .mb-range-label input { width: 100%; height: 36px; border-color: transparent; background: var(--bg-panel); }
-    .move-browser-results { max-height: none; grid-template-columns: minmax(0, 1fr); }
+    .mb-top .mb-views .tab { padding: 10px 8px; }
+    .mb-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .mb-filters .mb-search { grid-column: 1 / -1; border-color: transparent; background: var(--bg-panel); }
+    .mb-filters > * { width: auto !important; min-width: 0; }
+    .mb-filters .mb-more-toggle { grid-column: 1 / -1; justify-content: center; }
+    .mb-range input, .mb-range select { width: 100%; border-color: transparent; background: var(--bg-panel); }
+    .mb-more-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .mb-clear { grid-column: 1 / -1; margin: 0; }
+    .mb-view-note { flex-direction: column; align-items: stretch; }
+    /* the table keeps the name, the type, the category and the power */
+    .mb-table th:nth-child(n+6):not(.mb-col-x), .mb-table td:nth-child(n+6):not(.mb-col-x) { display: none; }
+    .mb-table .cat-badge span { display: none; }
+    .mb-table .cat-badge { min-width: 0; width: 22px; padding: 0; gap: 0; }
+    .mb-col-name { min-width: 0; }
+    .mb-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* a finger leaves no hover behind: a sheet row lights up only while pressed */
