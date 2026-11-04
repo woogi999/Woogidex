@@ -35,15 +35,24 @@
         })();
     </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <!-- iPhone and iPad Safari zoom the page in when a text field under 16px
-         gets focus, and leave it zoomed. maximum-scale=1 stops that zoom only:
-         Safari still lets people pinch-zoom (it ignores the cap for pinch).
-         Other browsers never zoom on focus and would lose pinch-zoom, so they
-         keep the plain tag. -->
+    <!-- Phones draw the page at 80%: with initial-scale=0.8 the browser lays the
+         page out 1.25 times wider than the screen and shows all of it, so a
+         phone fits as much as a desktop at Interface size 80%. It is the
+         browser's own scale, not CSS zoom, so pointer and layout numbers stay
+         in one unit, and people can still pinch-zoom. Interface size in
+         Settings still works on top of it.
+         iPhone and iPad Safari zoom the page in when a text field under 16px
+         gets focus, and leave it zoomed. maximum-scale at the start scale
+         stops that zoom only: Safari still lets people pinch-zoom (it ignores
+         the cap for pinch). Other browsers never zoom on focus and would lose
+         pinch-zoom, so they get no cap. -->
     <script>
         (function () {
             var ios = /iP(hone|od|ad)/.test(navigator.platform) || (navigator.userAgent.indexOf('Mac') !== -1 && navigator.maxTouchPoints > 1);
-            if (ios) document.querySelector('meta[name="viewport"]').setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover');
+            var phone = Math.min(screen.width, screen.height) <= 600 && !!window.matchMedia && matchMedia('(pointer: coarse)').matches;
+            var scale = phone ? '0.8' : '1.0';
+            document.querySelector('meta[name="viewport"]').setAttribute('content',
+                'width=device-width, initial-scale=' + scale + (ios ? ', maximum-scale=' + scale : '') + ', viewport-fit=cover');
         })();
     </script>
     <title>Woogidex</title>
