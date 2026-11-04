@@ -13,7 +13,7 @@ import { UserHoverCard } from '../app/components/profile.tsx';
 import { notify } from '../app/store.ts';
 import { closeDialog, openDialog } from '../app/dialogs.tsx';
 import { devicePrint } from '../core/fingerprint.ts';
-import { sessionNeedsCode } from './mfa.ts';
+import { secondFactorNeeded, sessionNeedsCode, tokenSessionId, type SecondFactor } from './mfa.ts';
 
 // ==================== Supabase client ====================
 // loaded from CDN as an es module - no npm/bundler needed.
@@ -197,12 +197,19 @@ function canDeleteAnyContent() {
 // would throw before app.ts's `state` export initializes.
 
 // ==================== two-factor ====================
-// An account with an authenticator app is not signed in until its code is in
-// (js/features/mfa.ts; the database holds back its data until then, too).
-// Closing the code step signs the account out.
+// An account with an authenticator app or email codes is not signed in until
+// its code is in (js/features/mfa.ts; the database holds back its data until
+// then, too). Closing the code step signs the account out.
+//
+// The check runs for each new session (a new session_id), not only for a
+// new user: a password change signs in again with a new session, and a tab
+// that was open before two-factor was turned on elsewhere has an old copy of
+// the factors. Without the check, the database answered such a session with
+// no rows and refused its writes ("Two-factor sessions only").
 let secondFactorOpen: Promise<boolean> | null = null;
-function requireSecondFactor(): Promise<boolean> {
-    secondFactorOpen ||= new Promise<boolean>(resolve => openDialog('mfa-code', { resolve }))
+let knownSessionId = '';
+function requireSecondFactor(method: SecondFactor = 'totp'): Promise<boolean> {
+    secondFactorOpen ||= new Promise<boolean>(resolve => openDialog('mfa-code', { resolve, method }))
         .then(async ok => {
             if (!ok) { const client = await getClient(); await client.auth.signOut(); }
             return ok;
@@ -221,7 +228,9 @@ function initAuth() {
         const client = await getClient();
         let { data: { session } } = await client.auth.getSession();
         // a saved session from before the code was typed: ask for it now
-        if (sessionNeedsCode(session)) session = (await requireSecondFactor()) ? (await client.auth.getSession()).data.session : null;
+        const need = await secondFactorNeeded(session).catch(() => null);
+        if (need) session = (await requireSecondFactor(need)) ? (await client.auth.getSession()).data.session : null;
+        knownSessionId = tokenSessionId(session?.access_token);
         state.user = session?.user ? await attachProfile(mapUser(session.user)) : null;
         state.authReady = true;
         log.info('AUTH', 'Session restored', { loggedIn: !!state.user });
@@ -266,48 +275,71 @@ function initAuth() {
             // and updateAuthUI() calls refreshCloudManifest(), which re-renders
             // the whole collection grid -- so the UI visibly rebuilt itself
             // several times on load and again on every tab switch.
+            // two-factor on: not signed in until the code is in. Checked before
+            // the same-user shortcut below, because a token refresh can bring
+            // an app that was set up in another tab or device. The code step
+            // runs outside this callback, since a Supabase call awaited in here
+            // can wait on Supabase's own auth lock forever. An app code's
+            // success comes back here as MFA_CHALLENGE_VERIFIED.
+            if (sessionNeedsCode(session)) {
+                setTimeout(() => { requireSecondFactor('totp'); }, 0);
+                return;
+            }
+            const sessionId = tokenSessionId(session?.access_token);
+            const newSession = !!session?.user && sessionId !== knownSessionId;
             const sameUser = (session?.user?.id || null) === (state.user?.id || null);
             const identityUnchanged = sameUser && ['INITIAL_SESSION', 'TOKEN_REFRESHED', 'SIGNED_IN'].includes(event);
-            if (identityUnchanged && state.authReady) {
+            if (identityUnchanged && state.authReady && !newSession) {
                 log.debug('AUTH', 'Auth state change ignored; same user', { event });
                 return;
             }
-            // two-factor on: not signed in until the code is in. The code step
-            // runs outside this callback, since a Supabase call awaited in here
-            // can wait on Supabase's own auth lock forever. Its success comes
-            // back here as MFA_CHALLENGE_VERIFIED.
-            if (sessionNeedsCode(session)) {
-                setTimeout(() => { requireSecondFactor(); }, 0);
+            // a new session: ask the database whether it still needs a code
+            // (email codes, or an app this session does not know of yet).
+            // A sign-up that is still running has no two-factor yet.
+            if (newSession && event !== 'MFA_CHALLENGE_VERIFIED' && !signupInProgress) {
+                knownSessionId = sessionId;
+                setTimeout(async () => {
+                    const need = await secondFactorNeeded(session).catch(() => null);
+                    if (need === 'totp') { requireSecondFactor('totp'); return; }
+                    if (need === 'email' && !(await requireSecondFactor('email'))) return;
+                    await applySession(event, session, wasLoggedIn);
+                }, 0);
                 return;
             }
-            state.user = session?.user ? await attachProfile(mapUser(session.user)) : null;
-            updateAuthUI();
-
-            if ((event === 'SIGNED_IN' || event === 'MFA_CHALLENGE_VERIFIED') && !wasLoggedIn && state.user) {
-                if (!signupInProgress) api.showToast?.(`Signed in as ${publicName(state.user)}`, 'success');
-                // OAuth sign-ins never touch signUp()/signIn(), so this is
-                // their only recording point. The edge function dedupes
-                // within the same minute; `wasLoggedIn` keeps a token
-                // refresh from counting as a fresh sign-in.
-                recordAuthEvent('login');
-                promptUsernameIfMissing();
-                // last chance to cancel a pending deletion while the owner is confirmed present.
-                api.maybeAnnouncePendingDeletion?.();
-            }
-            if (event === 'SIGNED_OUT') {
-                api.showToast?.('Signed out', 'info');
-                leaveMembersOnlyPage();
-            }
-            if (event === 'PASSWORD_RECOVERY') {
-                closeAuthModal();
-                closeForgotPasswordModal();
-                openSetNewPasswordModal();
-            }
+            knownSessionId = sessionId;
+            await applySession(event, session, wasLoggedIn);
         });
 
         return state.user;
     })();
     return authInitPromise;
+}
+
+// what a sign-in, a sign-out or a new session changes on the page
+async function applySession(event, session, wasLoggedIn) {
+    state.user = session?.user ? await attachProfile(mapUser(session.user)) : null;
+    updateAuthUI();
+
+    if ((event === 'SIGNED_IN' || event === 'MFA_CHALLENGE_VERIFIED') && !wasLoggedIn && state.user) {
+        if (!signupInProgress) api.showToast?.(`Signed in as ${publicName(state.user)}`, 'success');
+        // OAuth sign-ins never touch signUp()/signIn(), so this is
+        // their only recording point. The edge function dedupes
+        // within the same minute; `wasLoggedIn` keeps a token
+        // refresh from counting as a fresh sign-in.
+        recordAuthEvent('login');
+        promptUsernameIfMissing();
+        // last chance to cancel a pending deletion while the owner is confirmed present.
+        api.maybeAnnouncePendingDeletion?.();
+    }
+    if (event === 'SIGNED_OUT') {
+        api.showToast?.('Signed out', 'info');
+        leaveMembersOnlyPage();
+    }
+    if (event === 'PASSWORD_RECOVERY') {
+        closeAuthModal();
+        closeForgotPasswordModal();
+        openSetNewPasswordModal();
+    }
 }
 
 // ==================== actions ====================

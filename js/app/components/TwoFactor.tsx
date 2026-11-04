@@ -5,7 +5,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Icon } from './Icon.tsx';
-import { finishEnrollment, listTotp, startEnrollment, verifyCode, type Enrollment, type TotpFactor } from '../../features/mfa.ts';
+import { finishEnrollment, listTotp, sendEmailCode, startEnrollment, verifyCode, verifyEmailCode, type Enrollment, type TotpFactor } from '../../features/mfa.ts';
 
 /** The 6-digit field: digits only, filled by a phone's one-time-code suggestion. */
 function CodeInput({ id, value, onChange, autoFocus = true }: { id: string; value: string; onChange: (v: string) => void; autoFocus?: boolean }) {
@@ -115,6 +115,74 @@ export function TwoFactorSetup({ onDone, onCancel, cancelLabel = 'Cancel', intro
             <div className="tf-actions">
                 {onCancel && <button type="button" className="btn btn-secondary" onClick={onCancel}>{cancelLabel}</button>}
                 <button type="submit" className="btn btn-primary" disabled={!enrollment || busy || code.length !== 6}><Icon name="shield-check" size={16} /> {busy ? 'Checking…' : 'Turn on'}</button>
+            </div>
+        </form>
+    );
+}
+
+/**
+ * The email code: sends one to the account's email when it opens, then checks
+ * it. purpose 'signin' is the code step of signing in; 'setup' turns email
+ * codes on.
+ */
+export function EmailCodeForm({ purpose, onDone, onCancel, cancelLabel = 'Sign out' }: { purpose: 'signin' | 'setup'; onDone: () => void; onCancel?: () => void; cancelLabel?: string }) {
+    const [to, setTo] = useState('');
+    const [code, setCode] = useState('');
+    const [error, setError] = useState('');
+    const [busy, setBusy] = useState(false);
+    const [sending, setSending] = useState(false);
+    const [wait, setWait] = useState(0);
+    // one email per form, also when development mode runs the effect twice
+    const sent = useRef(false);
+
+    async function send() {
+        setSending(true);
+        setError('');
+        try { setTo(await sendEmailCode(purpose)); setWait(30); }
+        catch (err: any) { setError(err.message || 'The code could not be sent.'); }
+        finally { setSending(false); }
+    }
+    useEffect(() => {
+        if (sent.current) return;
+        sent.current = true;
+        send();
+    }, []);
+    useEffect(() => {
+        if (wait <= 0) return;
+        const t = setTimeout(() => setWait(w => w - 1), 1000);
+        return () => clearTimeout(t);
+    }, [wait]);
+
+    async function submit(e: FormEvent) {
+        e.preventDefault();
+        if (busy) return;
+        setBusy(true);
+        setError('');
+        try { await verifyEmailCode(code); onDone(); }
+        catch (err: any) { setError(err.message || 'The code could not be checked.'); setCode(''); }
+        finally { setBusy(false); }
+    }
+
+    const lead = to
+        ? `We sent a 6-digit code to ${to}. It works for 10 minutes.`
+        : sending ? 'Sending a code to your email…' : 'Send a code to your email, then type it here.';
+    return (
+        <form className="tf-form" onSubmit={submit}>
+            <p className="tf-lead">
+                {purpose === 'setup' ? 'Each time you sign in, Woogidex will also send a code to your email, so a stolen password is not enough. ' : ''}
+                {lead}
+            </p>
+            <div className="form-group">
+                <label htmlFor="tf-email-code">Code</label>
+                <CodeInput id="tf-email-code" value={code} onChange={setCode} />
+            </div>
+            {error && <p className="tf-error" role="alert">{error}</p>}
+            <div className="tf-actions">
+                <button type="button" className="btn btn-secondary tf-resend" onClick={send} disabled={sending || wait > 0}>
+                    <Icon name="envelope" size={16} /> {wait > 0 ? `Send again in ${wait}s` : 'Send a new code'}
+                </button>
+                {onCancel && <button type="button" className="btn btn-secondary" onClick={onCancel}>{cancelLabel}</button>}
+                <button type="submit" className="btn btn-primary" disabled={busy || code.length !== 6}><Icon name="shield-check" size={16} /> {busy ? 'Checking…' : purpose === 'setup' ? 'Turn on' : 'Verify'}</button>
             </div>
         </form>
     );

@@ -1,18 +1,21 @@
 // Two-factor dialogs: the code step after a password (or a Google/Discord)
-// sign-in, and setting up an authenticator app. The forms are
-// js/app/components/TwoFactor.tsx; the gate that opens the code step is
-// requireSecondFactor() in js/features/auth.ts.
+// sign-in, setting up an authenticator app, and turning on email codes. The
+// forms are js/app/components/TwoFactor.tsx; the gate that opens the code
+// step is requireSecondFactor() in js/features/auth.ts.
 
 import { registerDialog, type DialogProps } from '../dialogs.tsx';
 import { Modal } from '../components/Modal.tsx';
-import { TwoFactorCode, TwoFactorSetup } from '../components/TwoFactor.tsx';
+import { EmailCodeForm, TwoFactorCode, TwoFactorSetup } from '../components/TwoFactor.tsx';
+import type { SecondFactor } from '../../features/mfa.ts';
 
-/** The code step. Closing it without a code signs the account out (resolve(false)). */
-function MfaCodeDialog({ close, resolve }: DialogProps<{ resolve: (ok: boolean) => void }>) {
+/** The code step (an app code, or an email code). Closing it without a code signs the account out (resolve(false)). */
+function MfaCodeDialog({ close, resolve, method = 'totp' }: DialogProps<{ resolve: (ok: boolean) => void; method?: SecondFactor }>) {
     const finish = (ok: boolean) => { close(); resolve(ok); };
     return (
         <Modal onClose={() => finish(false)} title="Two-factor sign-in" className="tf-modal" labelledBy="tf-code-title" dismissible={false}>
-            <TwoFactorCode onDone={() => finish(true)} onCancel={() => finish(false)} />
+            {method === 'email'
+                ? <EmailCodeForm purpose="signin" onDone={() => finish(true)} onCancel={() => finish(false)} />
+                : <TwoFactorCode onDone={() => finish(true)} onCancel={() => finish(false)} />}
         </Modal>
     );
 }
@@ -27,5 +30,16 @@ function MfaSetupDialog({ close, resolve }: DialogProps<{ resolve?: (ok: boolean
     );
 }
 
+/** Turning on email codes; resolve(true) once they are on. */
+function MfaEmailSetupDialog({ close, resolve }: DialogProps<{ resolve?: (ok: boolean) => void }>) {
+    const finish = (ok: boolean) => { close(); resolve?.(ok); };
+    return (
+        <Modal onClose={() => finish(false)} title="Turn on email codes" className="tf-modal" labelledBy="tf-email-setup-title">
+            <EmailCodeForm purpose="setup" onDone={() => finish(true)} onCancel={() => finish(false)} cancelLabel="Cancel" />
+        </Modal>
+    );
+}
+
 registerDialog('mfa-code', MfaCodeDialog);
 registerDialog('mfa-setup', MfaSetupDialog);
+registerDialog('mfa-email-setup', MfaEmailSetupDialog);
