@@ -223,7 +223,7 @@ function BadgeDialog({ close, badge: b }: DialogProps<{ badge: Badge | null }>) 
                     <label>Limits this badge grants</label>
                     <p className="admin-section-sub" style={{ margin: '0 0 8px' }}>Leave a box empty to inherit the site default. Enter -1 for unlimited. When someone holds several badges the most generous number wins, so these raise a limit and never lower one.</p>
                     <div className="admin-modal-row">
-                        {([['items', 'Cloud backup items', -1], ['uploads', 'Community uploads', -1], ['cooldown', 'Publish cooldown (seconds)', 0], ['regions', 'Cloud backup regions', -1]] as const).map(([k, label, min]) => (
+                        {([['items', 'Cloud backup items', -1], ['regions', 'Cloud backup regions', -1]] as const).map(([k, label, min]) => (
                             <div className="form-group" key={k}>
                                 <label htmlFor={`admin-badge-limit-${k}`}>{label}</label>
                                 <input id={`admin-badge-limit-${k}`} type="number" min={min} step={1} placeholder="inherit" disabled={!mayEditLimits}
@@ -273,12 +273,13 @@ export function LimitsTab() {
     async function submit(e: FormEvent) {
         e.preventDefault();
         if (!f) return;
-        const items = parseInt(f.items, 10), mb = parseFloat(f.mb), uploads = parseInt(f.uploads, 10);
-        const cooldown = parseInt(f.cooldown, 10), regions = parseInt(f.regions, 10);
+        const items = parseInt(f.items, 10), mb = parseFloat(f.mb), regions = parseInt(f.regions, 10);
+        // the upload cap and the cooldown do nothing since the publishing speed limit
+        // (Woogidex-DB migration 20261104120000); they are sent back as they were loaded
+        const asLoaded = (s: string, none: number) => { const n = parseInt(s, 10); return Number.isFinite(n) ? n : none; };
+        const uploads = asLoaded(f.uploads, -1), cooldown = Math.max(0, asLoaded(f.cooldown, 0));
         // -1 means unlimited; any other negative would pass the database's check but confuse the trigger
         if (!Number.isFinite(items) || items < -1) return showToast('Cloud backup items must be -1 or higher.', 'error');
-        if (!Number.isFinite(uploads) || uploads < -1) return showToast('Community uploads must be -1 or higher.', 'error');
-        if (!Number.isFinite(cooldown) || cooldown < 0) return showToast('Cooldown cannot be negative.', 'error');
         if (!Number.isFinite(regions) || regions < -1) return showToast('Regions per backup must be -1 or higher.', 'error');
         if (!Number.isFinite(mb) || mb <= 0) return showToast('Backup size must be greater than zero.', 'error');
         const client = await getClient();
@@ -301,7 +302,7 @@ export function LimitsTab() {
     return (
         <>
             <div className="admin-section-head"><h3>Limits</h3></div>
-            <p className="admin-section-sub">What every account gets by default. A badge can raise any of these for the people holding it (Badges tab), and the most generous badge a user holds is the one that applies. They're enforced in Postgres by enforce_collection_quota() and published_mons_enforce_cooldown(), so they hold no matter what any client sends.</p>
+            <p className="admin-section-sub">What every account gets by default. A badge can raise any of these for the people holding it (Badges tab), and the most generous badge a user holds is the one that applies. Postgres enforces them (enforce_collection_quota()), so they hold no matter what any client sends.</p>
             {!f ? <div className="admin-empty">Loading…</div> : (
                 <form id="admin-limits-form" onSubmit={submit}>
                     <fieldset className="admin-limits-group">
@@ -322,10 +323,7 @@ export function LimitsTab() {
                     </fieldset>
                     <fieldset className="admin-limits-group">
                         <legend><Icon name="users" /> Community</legend>
-                        <div className="admin-modal-row">
-                            {field('uploads', 'Uploads', '-1 for unlimited', -1)}
-                            {field('cooldown', 'Publish cooldown', 'seconds, 0 for none', 0)}
-                        </div>
+                        <p className="admin-section-sub" style={{ margin: 0 }}>Publishing has no upload cap and no cooldown. A speed limit in the database stops floods instead: someone who publishes or posts a lot in a short time waits a few minutes, and new accounts get a smaller limit.</p>
                     </fieldset>
                     <div className="admin-modal-actions"><button type="submit" className="btn btn-primary"><Icon name="save" /> Save limits</button></div>
                 </form>
