@@ -11,9 +11,16 @@
 //     title: What changed
 //     ---
 //
+//     A short note in plain lines, before any list (optional).
+//
+//     ## New
 //     - Something that changed.
 //     - Something else, with **bold** and `code` allowed.
 //
+//     ## Fixes
+//     - Something that works again.
+//
+// The "## " headings are optional: a file with only bullets still works.
 // A static host cannot list a directory, so index.json is the running order.
 // The newest one opens once as "What's New" (js/features/whats-new.ts); every
 // one is in the Updates dialog (js/app/dialogs/updates.tsx), from the account
@@ -24,7 +31,9 @@
 
 import { log } from '../core/log.ts';
 
-export interface Update { id: string; version: string; date: string; title: string; items: string[]; }
+export interface UpdateSection { title: string; items: string[]; }
+/** items is every bullet in order; sections groups them under their "## " headings. */
+export interface Update { id: string; version: string; date: string; title: string; intro: string[]; sections: UpdateSection[]; items: string[]; }
 
 const INDEX_URL = 'updates/index.json';
 
@@ -38,7 +47,7 @@ let loading: Promise<Update[]> | null = null;
  */
 export function parseUpdateFile(text: string, id = ''): Update {
     const source = String(text || '');
-    const update: Update = { id, version: '', date: '', title: '', items: [] };
+    const update: Update = { id, version: '', date: '', title: '', intro: [], sections: [], items: [] };
     // front matter is optional: a file without it still shows its bullets
     const match = source.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
     const body = match ? source.slice(match[0].length) : source;
@@ -51,12 +60,34 @@ export function parseUpdateFile(text: string, id = ''): Update {
             if (key === 'version' || key === 'date' || key === 'title') update[key] = value;
         }
     }
+    let section: UpdateSection | null = null;
+    let last: 'intro' | 'item' | null = null;   // what a wrapped line continues
+    let gap = true;                             // a blank line starts a new intro paragraph
     for (const raw of body.split(/\r?\n/)) {
         const line = raw.trim();
-        if (!line || line.startsWith('#')) continue;
-        if (/^[-*]\s+/.test(line)) update.items.push(line.replace(/^[-*]\s+/, ''));
-        else if (update.items.length) update.items[update.items.length - 1] += ' ' + line; // a wrapped line goes on
+        if (!line) { gap = true; continue; }
+        const heading = line.match(/^#{1,6}\s+(.*)$/);
+        if (heading) {
+            section = { title: heading[1].trim(), items: [] };
+            update.sections.push(section);
+            last = null;
+        } else if (/^[-*]\s+/.test(line)) {
+            const item = line.replace(/^[-*]\s+/, '');
+            if (!section) { section = { title: '', items: [] }; update.sections.push(section); }
+            section.items.push(item);
+            update.items.push(item);
+            last = 'item';
+        } else if (last === 'item' && section && !gap) {
+            section.items[section.items.length - 1] += ' ' + line;
+            update.items[update.items.length - 1] += ' ' + line;
+        } else if (!update.items.length) {
+            if (last === 'intro' && !gap) update.intro[update.intro.length - 1] += ' ' + line;
+            else update.intro.push(line);
+            last = 'intro';
+        }
+        gap = false;
     }
+    update.sections = update.sections.filter(s => s.items.length);
     return update;
 }
 

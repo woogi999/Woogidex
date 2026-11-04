@@ -25,7 +25,7 @@ function Rich({ text }: { text: string }) {
     );
 }
 
-/** One update: its version, title and date, then every change. */
+/** One update: its version, title and date, the note, then each section of changes. */
 export function UpdateEntry({ update, latest = false }: { update: Update; latest?: boolean }) {
     return (
         <article className={`update-entry${latest ? ' is-latest' : ''}`}>
@@ -34,7 +34,13 @@ export function UpdateEntry({ update, latest = false }: { update: Update; latest
                 <h4>{update.title || 'Update'}</h4>
                 {update.date && <time>{update.date}</time>}
             </header>
-            {update.items.length > 0 && <ul>{update.items.map((item, i) => <li key={i}><Rich text={item} /></li>)}</ul>}
+            {update.intro.map((p, i) => <p key={i} className="update-entry-intro"><Rich text={p} /></p>)}
+            {update.sections.map((s, i) => (
+                <section key={i} className="update-entry-section">
+                    {s.title && <h5>{s.title}</h5>}
+                    <ul>{s.items.map((item, j) => <li key={j}><Rich text={item} /></li>)}</ul>
+                </section>
+            ))}
         </article>
     );
 }
