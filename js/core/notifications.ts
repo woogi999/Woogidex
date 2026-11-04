@@ -116,6 +116,7 @@ function notificationText(n) {
     // from the site itself: admin_decide_case, admin_decide_appeal (Settings > Safety shows the details)
     if (n.type === 'mod_content_removed') return `removed your ${n.target_name === 'comment' ? 'comment' : 'post'} after a review. Reason:`;
     if (n.type === 'report_reviewed') return 'reviewed your report:';
+    if (n.type === 'feedback_reply') return `replied to your report${n.target_name ? ` "${n.target_name}"` : ''}:`;
     if (n.type === 'appeal_decided') return `${n.target_name === 'reversed' ? 'accepted' : 'turned down'} your appeal:`;
     // from the site itself (run_event_scheduled_announcements), when an event's results show
     if (n.type === 'event_results') return `has the results of ${n.target_name || 'an event'}. Take a look!`;
@@ -153,7 +154,7 @@ function tabOf(type: string): NotificationTab | null {
     if (REACTION_TYPES.has(type)) return 'likes';
     if (type === 'follow') return 'follows';
     // what the site itself tells you: badges, roles, reviews, events
-    if (/^(mod_|event_|badge_|role_|report_|appeal_)/.test(type) || type === 'mon_deleted' || type === 'contest_submission_deleted') return 'updates';
+    if (/^(mod_|event_|badge_|role_|report_|appeal_|feedback_)/.test(type) || type === 'mon_deleted' || type === 'contest_submission_deleted') return 'updates';
     return null;
 }
 
@@ -165,6 +166,8 @@ export interface NotificationRow {
     id: string; ids: string[]; read: boolean; type: string; tab: NotificationTab | null;
     actorName: string; actorId: string; actorAvatar: string; others: number;
     text: string; preview: string; reaction: string; time: string; path: string;
+    /** a reply to your report: the report it opens */
+    ticket: string;
 }
 
 /** The rows, newest first: reactions and follows on the same thing within a week share one row. */
@@ -185,7 +188,9 @@ function notificationRows(items: any[]): NotificationRow[] {
         const row: NotificationRow = {
             id: String(n.id), ids: [String(n.id)], read: !!n.read, type: n.type, tab: tabOf(n.type),
             actorName: n.actor_name || 'Someone', actorId: n.actor_id || '', actorAvatar: n.actor_avatar_url || '', others: 0,
-            text: notificationText(n), preview: reaction ? '' : (n.preview || ''), reaction, time: timeAgo(n.created_at), path: notificationPath(n)
+            text: notificationText(n), preview: reaction ? '' : (n.preview || ''), reaction, time: timeAgo(n.created_at), path: notificationPath(n),
+            // a reply to your report opens its thread in the feedback dialog
+            ticket: n.type === 'feedback_reply' ? String(n.target_id || '').replace(/^feedback:/, '') : ''
         };
         rows.push(row);
         if (key) byKey.set(key, { row, actors: new Set([n.actor_id]), at });

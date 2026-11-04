@@ -34,7 +34,7 @@ export function NotificationItem({ n }: { n: NotificationRow }) {
     const target = n.path ? { to: n.path } : { type: 'button' };
     const others = n.others > 0 ? ` and ${n.others} other${n.others === 1 ? '' : 's'}` : '';
     return (
-        <Row className={`notification-item${n.read ? '' : ' unread'}`} {...target} onClick={() => api.onNotificationClick(n.ids)}>
+        <Row className={`notification-item${n.read ? '' : ' unread'}`} {...target} onClick={() => { api.onNotificationClick(n.ids); if (n.ticket) api.openFeedbackModal?.('mine', n.ticket); }}>
             <span className="notification-avatar-wrap">
                 <Avatar userId={n.actorId} url={n.actorAvatar} name={n.actorName} className="notification-avatar" />
                 {n.reaction && <span className="notification-reaction" aria-hidden="true"><EmojiGlyph code={n.reaction} size={14} /></span>}

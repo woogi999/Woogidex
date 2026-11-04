@@ -1,9 +1,10 @@
 // "Feedback & bug reports", from the account menu: send a report, or follow
-// the ones you sent under My reports. Sending and loading: js/features/feedback.ts.
+// the ones you sent under My reports, where each one is a thread you and the
+// team reply in, like a support ticket. Sending and loading: js/features/feedback.ts.
 
 import { useEffect, useState, type FormEvent } from 'react';
 import { api, state } from '../../core/app.ts';
-import { BODY_MAX, KINDS, STATUS, TITLE_MAX, loadMyFeedback, sendFeedback } from '../../features/feedback.ts';
+import { BODY_MAX, KINDS, STATUS, TITLE_MAX, hasNewReply, loadMyFeedback, loadTicket, sendFeedback, sendTicketReply, type MyReport, type TicketMessage } from '../../features/feedback.ts';
 import { registerDialog, type DialogProps } from '../dialogs.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { Icon } from '../components/Icon.tsx';
@@ -18,7 +19,7 @@ const PLACEHOLDER: Record<string, string> = {
     feedback: 'What’s on your mind?'
 };
 
-function FeedbackDialog({ close, tab: initialTab = 'send' }: DialogProps<{ tab?: Tab }>) {
+function FeedbackDialog({ close, tab: initialTab = 'send', ticket = '' }: DialogProps<{ tab?: Tab; ticket?: string }>) {
     const [tab, setTab] = useState<Tab>(initialTab);
     const pane = useSlide(tab, ['send', 'mine'] as Tab[]);
     return (
@@ -43,7 +44,7 @@ function FeedbackDialog({ close, tab: initialTab = 'send' }: DialogProps<{ tab?:
                             <button type="button" className={`tab${tab === 'mine' ? ' active' : ''}`} role="tab" aria-selected={tab === 'mine'} onClick={() => setTab('mine')}>My reports</button>
                         </div>
                         <div ref={pane}>
-                            {tab === 'send' ? <SendForm close={close} onSent={() => setTab('mine')} /> : <MyReports onSend={() => setTab('send')} />}
+                            {tab === 'send' ? <SendForm close={close} onSent={() => setTab('mine')} /> : <MyReports onSend={() => setTab('send')} ticket={ticket} />}
                         </div>
                     </>
                 )}
@@ -104,18 +105,20 @@ function SendForm({ close, onSent }: { close: () => void; onSent: () => void }) 
     );
 }
 
-type Report = Awaited<ReturnType<typeof loadMyFeedback>>['rows'][number];
+const dateTime = (iso: string) => new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
-function MyReports({ onSend }: { onSend: () => void }) {
-    const [result, setResult] = useState<{ rows: Report[]; error: string } | null>(null);
-    useEffect(() => {
-        let live = true;
-        loadMyFeedback().then(r => { if (live) setResult(r); });
-        return () => { live = false; };
-    }, []);
+/** Your reports, newest first; one opens its thread. */
+function MyReports({ onSend, ticket: startTicket = '' }: { onSend: () => void; ticket?: string }) {
+    const [result, setResult] = useState<{ rows: MyReport[]; error: string } | null>(null);
+    const [open, setOpen] = useState(startTicket);
+    const view = useSlide(open ? 'thread' : 'list', ['list', 'thread']);
+    const load = () => loadMyFeedback().then(setResult);
+    useEffect(() => { load(); }, []);
 
     if (!result) return <SkeletonRows count={3} label="Loading your reports" />;
     if (result.error) return <div className="feedback-empty">Your reports could not be loaded: {result.error}</div>;
+    const report = open ? result.rows.find(r => r.id === open) : null;
+    if (report) return <div ref={view}><Ticket report={report} onBack={() => { setOpen(''); load(); }} onChanged={load} /></div>;
     if (!result.rows.length) {
         return (
             <div className="feedback-empty">You haven’t sent any reports yet.<br />
@@ -124,24 +127,88 @@ function MyReports({ onSend }: { onSend: () => void }) {
         );
     }
     return (
-        <div className="feedback-list">
+        <div className="feedback-list" ref={view}>
             {result.rows.map(r => {
                 const k = KINDS.find(x => x.key === r.kind) || KINDS[1];
+                const fresh = hasNewReply(r);
                 return (
-                    <article className="feedback-item" key={r.id}>
-                        <div className="feedback-item-head">
+                    <button type="button" className={`feedback-item${fresh ? ' has-new' : ''}`} key={r.id} onClick={() => setOpen(r.id)}>
+                        <span className="feedback-item-head">
                             <span className={`feedback-item-kind ${r.kind}`} title={k.label}><Icon name={k.icon} /></span>
                             <strong>{r.title}</strong>
                             <span className={`feedback-status ${r.status}`}>{(STATUS as Record<string, string>)[r.status] || r.status}</span>
-                        </div>
-                        <p className="feedback-item-body">{r.body}</p>
-                        {r.staff_note && (
-                            <div className="feedback-reply"><Icon name="shield-check" /><div><small>Reply from the Woogidex team</small>{r.staff_note}</div></div>
-                        )}
-                        <small className="feedback-item-date">Sent {new Date(r.created_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}</small>
-                    </article>
+                        </span>
+                        <span className="feedback-item-meta">
+                            {fresh ? <span className="feedback-new">New reply</span> : r.last_reply_at ? (r.last_reply_staff ? 'The team replied' : 'You replied last') : 'No replies yet'}
+                            <span aria-hidden="true">·</span>
+                            Sent {new Date(r.created_at).toLocaleDateString(undefined, { dateStyle: 'medium' })}
+                        </span>
+                    </button>
                 );
             })}
+        </div>
+    );
+}
+
+/** One report and its replies, with a box to reply. */
+function Ticket({ report: r, onBack, onChanged }: { report: MyReport; onBack: () => void; onChanged: () => void }) {
+    const [thread, setThread] = useState<{ messages: TicketMessage[]; error: string } | null>(null);
+    const [reply, setReply] = useState('');
+    const [error, setError] = useState('');
+    const [sending, setSending] = useState(false);
+    const k = KINDS.find(x => x.key === r.kind) || KINDS[1];
+    const closed = ['resolved', 'wont_fix', 'duplicate'].includes(r.status);
+    const load = () => loadTicket(r.id).then(setThread);
+    useEffect(() => { load(); }, [r.id]);
+
+    async function send(e: FormEvent) {
+        e.preventDefault();
+        if (sending) return;
+        setSending(true);
+        const problem = await sendTicketReply(r.id, reply);
+        setSending(false);
+        setError(problem);
+        if (problem) return;
+        setReply('');
+        load();
+        onChanged();
+    }
+
+    return (
+        <div className="feedback-ticket">
+            <button type="button" className="feedback-back" onClick={onBack}><Icon name="arrow-left" size={15} /> My reports</button>
+            <div className="feedback-ticket-head">
+                <span className={`feedback-item-kind ${r.kind}`} title={k.label}><Icon name={k.icon} /></span>
+                <h4>{r.title}</h4>
+                <span className={`feedback-status ${r.status}`}>{(STATUS as Record<string, string>)[r.status] || r.status}</span>
+            </div>
+            <ol className="feedback-thread">
+                <li className="feedback-msg is-you">
+                    <span className="feedback-msg-who">You <time dateTime={r.created_at}>{dateTime(r.created_at)}</time></span>
+                    <p>{r.body}</p>
+                </li>
+                {!thread ? <li className="feedback-msg-loading"><SkeletonRows count={1} label="Loading the replies" /></li>
+                    : thread.error ? <li className="feedback-empty">The replies could not be loaded: {thread.error}</li>
+                        : thread.messages.map(m => (
+                            <li key={m.id} className={`feedback-msg ${m.is_staff ? 'is-staff' : 'is-you'}`}>
+                                <span className="feedback-msg-who">
+                                    {m.is_staff ? <><Icon name="shield-check" size={14} />{m.author ? `${m.author} · ` : ''}Woogidex team</> : 'You'}
+                                    <time dateTime={m.created_at}>{dateTime(m.created_at)}</time>
+                                </span>
+                                <p>{m.body}</p>
+                            </li>
+                        ))}
+            </ol>
+            <form className="feedback-reply-form" onSubmit={send}>
+                <label htmlFor="feedback-reply-body" className="feedback-reply-label">
+                    {closed ? 'This report is closed. A reply opens it again.' : 'Reply'}
+                </label>
+                <textarea id="feedback-reply-body" rows={3} maxLength={BODY_MAX} placeholder="Add details, or answer the team’s question" value={reply} onChange={e => setReply(e.target.value)} />
+                {error && <p className="auth-modal-error">{error}</p>}
+                <div className="feedback-actions">
+                    <button type="submit" className="btn btn-primary" disabled={sending || !reply.trim()}><Icon name="send" /> Send reply</button>
+                </div>
+            </form>
         </div>
     );
 }

@@ -41,7 +41,34 @@
 
 .feedback-empty { padding: var(--sp-6) 0; text-align: center; color: var(--text-muted); font-size: 13px; line-height: 2; }
 .feedback-list { display: flex; flex-direction: column; gap: var(--sp-2); }
-.feedback-item { padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border); border-radius: var(--card-r); background: var(--bg-card); }
+.feedback-item {
+    display: flex; flex-direction: column; gap: 6px; width: 100%;
+    padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border); border-radius: var(--card-r);
+    background: var(--bg-card); color: inherit; font: inherit; text-align: left; cursor: pointer;
+    transition: border-color .12s ease, background-color .12s ease;
+}
+.feedback-item:hover { border-color: var(--border-strong); background: var(--bg-panel); }
+.feedback-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.feedback-item.has-new { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.feedback-item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; color: var(--text-muted); }
+.feedback-new { font-weight: 700; color: var(--accent); }
+
+/* one report's thread (Ticket in js/app/dialogs/feedback.tsx) */
+.feedback-back { display: inline-flex; align-items: center; gap: 6px; margin-bottom: var(--sp-3); padding: 0; border: 0; background: none; color: var(--text-secondary); font: 600 13px var(--font-sans); cursor: pointer; }
+.feedback-back:hover { color: var(--text-primary); }
+.feedback-ticket-head { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.feedback-ticket-head h4 { flex: 1; min-width: 0; margin: 0; font-size: 15px; overflow-wrap: anywhere; }
+.feedback-thread { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--sp-3); max-height: min(46vh, 420px); overflow-y: auto; }
+.feedback-msg { max-width: 92%; padding: 10px 14px; border-radius: 12px; background: var(--bg-panel); }
+.feedback-msg.is-staff { align-self: flex-start; background: var(--accent-soft); border-bottom-left-radius: 4px; }
+.feedback-msg.is-you { align-self: flex-end; border-bottom-right-radius: 4px; }
+.feedback-msg p { margin: 4px 0 0; font-size: 13.5px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
+.feedback-msg-who { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 12px; font-weight: 700; color: var(--text-secondary); }
+.feedback-msg.is-staff .feedback-msg-who { color: var(--accent); }
+.feedback-msg-who time { font-weight: 500; color: var(--text-muted); }
+.feedback-reply-form { margin-top: var(--sp-4); padding-top: var(--sp-4); border-top: 1px solid var(--border-light); }
+.feedback-reply-label { display: block; margin-bottom: var(--sp-1); font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.feedback-reply-form textarea { width: 100%; }
 .feedback-item-head { display: flex; align-items: center; gap: var(--sp-2); }
 .feedback-item-head strong { flex: 1; min-width: 0; font-size: 14px; overflow-wrap: anywhere; }
 .feedback-item-kind {
@@ -61,19 +88,6 @@
 .feedback-status.open { background: var(--accent-soft); color: var(--accent); }
 .feedback-status.in_progress { background: color-mix(in srgb, var(--warning) 14%, transparent); color: var(--warning); }
 .feedback-status.resolved { background: color-mix(in srgb, var(--success) 12%, transparent); color: var(--success); }
-.feedback-item-body {
-    margin: var(--sp-2) 0 0; font-size: 13px; color: var(--text-secondary);
-    white-space: pre-wrap; overflow-wrap: anywhere;
-    display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden;
-}
-.feedback-reply {
-    display: flex; gap: var(--sp-2); margin-top: var(--sp-3); padding: var(--sp-2) var(--sp-3);
-    border-radius: var(--ctl-r); background: var(--accent-soft);
-    font-size: 13px; color: var(--text-primary); white-space: pre-wrap; overflow-wrap: anywhere;
-}
-.feedback-reply svg { width: 16px; height: 16px; color: var(--accent); flex: 0 0 auto; margin-top: 2px; }
-.feedback-reply small { display: block; font-size: 11.5px; font-weight: 700; color: var(--accent); white-space: normal; }
-.feedback-item-date { display: block; margin-top: var(--sp-2); font-size: 11.5px; color: var(--text-muted); }
 
 @media (max-width: 640px) {
     .feedback-kind { min-height: 56px; }
