@@ -88,6 +88,9 @@
     }
     .header-profile-wrap.is-tab .header-profile-btn[aria-expanded="true"] .header-profile-avatar { box-shadow: 0 0 0 1.5px var(--bg-card), 0 0 0 3px var(--accent); }
     .header-profile-wrap.is-tab .header-profile-avatar svg { width: 18px; height: 18px; }
+    /* signed out: the menu icon, drawn like the other tab icons */
+    .header-profile-wrap.is-tab.is-signed-out .header-profile-avatar svg { width: 22px; height: 22px; }
+    .header-profile-wrap.is-tab.is-signed-out .header-profile-btn[aria-expanded="true"] .header-profile-avatar { box-shadow: none; color: var(--accent); }
 
     /* ==================== sheets ====================
        the context menu (.ctx-menu.is-sheet), the account menu and the

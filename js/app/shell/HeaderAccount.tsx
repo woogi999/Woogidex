@@ -88,10 +88,10 @@ const displayName = () => {
     return user ? (user.displayName || user.username || 'Profile') : '';
 };
 
-/** The account menu's button: your avatar, signed in. */
+/** The account menu's button: your avatar signed in, a menu icon signed out (there is no account to show yet). */
 export function AccountButton() {
     const user = state.user;
-    if (!user) return <Icon name="user" />;
+    if (!user) return <Icon name="menu" />;
     return <Avatar userId={user.id} url={user.avatarUrl} name={displayName()} className="header-avatar-img" />;
 }
 

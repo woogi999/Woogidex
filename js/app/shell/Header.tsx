@@ -163,9 +163,9 @@ function AccountMenu({ tab = false }: { tab?: boolean }) {
     const signedIn = !!api.isLoggedIn?.();
     return (
         <div className={`header-profile-wrap${signedIn ? '' : ' is-signed-out'}${tab ? ' is-tab' : ''}`} ref={ref}>
-            <button className={`header-profile-btn${tab ? ' header-nav-btn' : ''}`} type="button" onClick={() => toggleHeaderProfilePopover()} aria-haspopup="true" aria-expanded={open} aria-label="Account menu" title="Account menu">
-                <span className="header-profile-avatar">{Button ? <Button /> : <Icon name="user" />}</span>
-                {tab && <span className="header-nav-label">You</span>}
+            <button className={`header-profile-btn${tab ? ' header-nav-btn' : ''}`} type="button" onClick={() => toggleHeaderProfilePopover()} aria-haspopup="true" aria-expanded={open} aria-label={signedIn ? 'Account menu' : 'Menu'} title={signedIn ? 'Account menu' : 'Menu'}>
+                <span className="header-profile-avatar">{Button ? <Button /> : <Icon name="menu" />}</span>
+                {tab && <span className="header-nav-label">{signedIn ? 'You' : 'Menu'}</span>}
             </button>
             {open && tab && <div className="header-profile-backdrop" onClick={close} aria-hidden="true" />}
             {open && (
