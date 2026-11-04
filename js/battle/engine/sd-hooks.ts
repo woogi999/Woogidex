@@ -491,6 +491,7 @@ function readString(text, i) {
 // `{ onStart() {} }`. Both are things people paste, so an object with no hooks
 // of its own but exactly one object-valued member is unwrapped -- repeatedly,
 // since `{ Abilities: { myability: { ... } } }` is also a thing people paste.
+const ENTRY_OBJECT_FIELDS = new Set(['condition', 'secondary', 'self', 'boosts', 'flags', 'fling', 'naturalGift', 'zMove', 'maxMove', 'selfBoost', 'onDrive', 'onMemory', 'onPlate']);
 function unwrapEntry(entry) {
     let current = entry;
     for (let depth = 0; depth < 4; depth++) {
@@ -498,6 +499,8 @@ function unwrapEntry(entry) {
         if (hasAnyHook(current)) return current;
         const objectKeys = Object.keys(current).filter(k => current[k] && typeof current[k] === 'object' && !Array.isArray(current[k]));
         if (objectKeys.length !== 1) break;
+        // a field of the entry itself is not a wrapper around it
+        if (ENTRY_OBJECT_FIELDS.has(objectKeys[0])) break;
         current = current[objectKeys[0]];
     }
     // Data-only is a legitimate entry for a move (someone pasting nothing but

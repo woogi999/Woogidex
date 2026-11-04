@@ -8,6 +8,7 @@ import { SELECTABLE_TYPES } from '../core/data.ts';
 // never disagree about what a paste means
 import { parseRawEntry } from '../battle/engine/sd-hooks.ts';
 import { showdownMultihitLines } from '../features/multihit.ts';
+import { holdsFunction, moveDataLines, toSource, translateEntry, type BlockCompiler, type EntryKind } from './code-to-blocks.ts';
 
 // ==================== ability block coding ====================
 // small Scratch-style visual coding surface for custom ability battle logic.
@@ -409,8 +410,9 @@ const TRIGGERS = {
         params: [{ key: 'direction', label: 'Direction', type: 'select', options: [{ value: 'dealing', label: 'This Pokémon is attacking' }, { value: 'receiving', label: 'This Pokémon is defending' }], default: 'dealing' }],
         allowed: ['multiplyDamage', 'dealDamage', 'boostStat', 'showMessage'],
         sd: (ast) => (ast.triggerParams.direction || 'dealing') === 'dealing'
-            ? { header: 'onSourceModifyDamage(damage, source, target, move) {', footer: 'return damage;\n\t\t}', selfVar: 'source', foeVar: 'target', moveVar: 'move', preamble: '' }
-            : { header: 'onModifyDamage(damage, source, target, move) {', footer: 'return damage;\n\t\t}', selfVar: 'target', foeVar: 'source', moveVar: 'move', preamble: '' },
+            // Showdown asks a holder that attacks through onModifyDamage, and one that defends through onSourceModifyDamage
+            ? { header: 'onModifyDamage(damage, source, target, move) {', footer: 'return damage;\n\t\t}', selfVar: 'source', foeVar: 'target', moveVar: 'move', preamble: '' }
+            : { header: 'onSourceModifyDamage(damage, source, target, move) {', footer: 'return damage;\n\t\t}', selfVar: 'target', foeVar: 'source', moveVar: 'move', preamble: '' },
         es: (ast) => (ast.triggerParams.direction || 'dealing') === 'dealing'
             ? { adder: 'Battle::AbilityEffects::DamageCalcFromUser', args: 'ability, user, target, move, mults, power, type', selfVar: 'user', foeVar: 'target', moveVar: 'move', preamble: '', footer: null as any }
             : { adder: 'Battle::AbilityEffects::DamageCalcFromTarget', args: 'ability, user, target, move, mults, baseDmg, type', selfVar: 'target', foeVar: 'user', moveVar: 'move', preamble: '', footer: null as any }
@@ -1605,6 +1607,248 @@ Object.assign(ACTIONS, {
     }
 });
 
+// ==================== blocks for templates and presets ====================
+// What js/editor/code-to-blocks.ts needs to say a Showdown entry in blocks. Each
+// compiles to the exact code it stands for; the translator checks this.
+const MOVE_EFFECT_SD = () => [] as string[];
+const SD_ONLY = (lines: string[]) => lines.map(l => `# Showdown only: ${l}`);
+const safeArgs = (text) => /^[\w$, ]*$/.test(String(text || '')) ? String(text || '').trim() : '';
+const safeHook = (name) => /^[A-Za-z_$][\w$]*$/.test(String(name || '')) ? String(name) : 'onStart';
+const MOVE_STATS = BOOST_STATS.map(s => ({ value: s.id, label: s.label }));
+const POKEMON_IS = [
+    { value: 'isActive', label: 'on the field' }, { value: 'fainted', label: 'fainted' }, { value: 'isGrounded()', label: 'on the ground' },
+    { value: 'hurtThisTurn', label: 'hurt this turn' }, { value: 'hp', label: 'still able to fight' }, { value: 'status', label: 'under a status' },
+    { value: 'terastallized', label: 'Terastallized' }, { value: 'transformed', label: 'transformed' },
+    { value: 'useItem()', label: 'able to use its item' }, { value: 'eatItem()', label: 'able to eat its item' }
+];
+const pokemonIsPart = (p) => POKEMON_IS.some(o => o.value === p.what) ? p.what : 'isActive';
+const codeArgs = (text, fallback = '') => String(text ?? fallback);
+
+Object.assign(TRIGGERS, {
+    moveData: {
+        label: 'What this move does', icon: 'bolt', kinds: ['move'], params: [] as any[], dataOnly: true,
+        // compileShowdownMoveBlocks writes these as data fields of the move, not as a handler
+        sd: () => ({ header: '', footer: '', selfVar: 'source', foeVar: 'target', moveVar: 'move', preamble: '' }),
+        es: () => ({ adder: '# Woogidex move effects', args: 'user, target', selfVar: 'user', foeVar: 'target', moveVar: 'move', preamble: '', footer: null as any })
+    },
+    movePower: {
+        label: 'Working out a move’s power', icon: 'arrow-trending-up', kinds: ['ability', 'item', 'move'], params: [] as any[],
+        sd: () => ({ header: 'onBasePower(basePower, pokemon, target, move) {', footer: '}', selfVar: 'pokemon', foeVar: 'target', moveVar: 'move', preamble: '' }),
+        es: () => ({ adder: 'Battle::AbilityEffects::DamageCalcFromUser', args: 'ability, user, target, move, mults, power, type', selfVar: 'user', foeVar: 'target', moveVar: 'move', preamble: '', footer: null as any })
+    },
+    moveChange: {
+        label: 'Getting a move ready to use', icon: 'adjustments-horizontal', kinds: ['ability', 'item', 'move'], params: [] as any[],
+        sd: () => ({ header: 'onModifyMove(move, pokemon, target) {', footer: '}', selfVar: 'pokemon', foeVar: 'target', moveVar: 'move', preamble: '' }),
+        es: () => ({ adder: '# Woogidex: getting a move ready', args: 'user, move', selfVar: 'user', foeVar: 'nil', moveVar: 'move', preamble: '', footer: null as any })
+    },
+    sdHook: {
+        label: 'When Showdown runs __ with __', icon: 'code-bracket', kinds: ['ability', 'item', 'move', 'condition'],
+        params: [
+            { key: 'hook', label: 'Hook', type: 'text', default: 'onStart' },
+            { key: 'args', label: 'Values', type: 'text', default: 'pokemon' }
+        ],
+        sd: (ast) => {
+            const args = safeArgs(ast.triggerParams.args);
+            const names = args.split(',').map(a => a.trim());
+            const self = ['pokemon', 'source', 'user', 'attacker'].find(n => names.includes(n)) || names.find(n => n === 'target') || 'pokemon';
+            const foe = ['target', 'source', 'defender'].find(n => names.includes(n) && n !== self) || 'foe';
+            return { header: `${safeHook(ast.triggerParams.hook)}(${args}) {`, footer: '}', selfVar: self, foeVar: foe, moveVar: names.includes('move') ? 'move' : null, preamble: '' };
+        },
+        es: (ast) => ({ adder: `# Showdown hook ${safeHook(ast.triggerParams.hook)}: Essentials has no match`, args: 'battler', selfVar: 'battler', foeVar: 'nil', moveVar: 'move', preamble: '', footer: null as any })
+    }
+});
+
+Object.assign(CONDITIONS, {
+    codeCondition: {
+        label: 'this code is true: __', params: [{ key: 'code', type: 'text', default: 'true' }],
+        sd: (_c, p) => String(p.code || 'true'),
+        es: (_c, p) => `false # Showdown only: ${String(p.code || 'true').replace(/\n/g, ' ')}`
+    },
+    hpFraction: {
+        label: 'health of __ is __ 1/__ of its max', params: [
+            { key: 'target', type: 'select', options: TARGETS, default: 'self' },
+            { key: 'op', type: 'select', options: [{ value: '<=', label: 'at most' }, { value: '<', label: 'under' }, { value: '>=', label: 'at least' }, { value: '>', label: 'over' }], default: '<=' },
+            { key: 'den', type: 'number', default: 2, min: 1, max: 100 }
+        ],
+        sd: (c, p) => { const t = p.target === 'foe' ? c.foeVar : c.selfVar; return `${t}.hp ${p.op || '<='} ${t}.maxhp / ${Number(p.den) || 1}`; },
+        es: (c, p) => { const t = p.target === 'foe' ? c.foeVar : c.selfVar; return `${t}.hp ${p.op || '<='} ${t}.totalhp / ${Number(p.den) || 1}`; }
+    },
+    randomFraction: {
+        label: 'random chance of __ in __', params: [{ key: 'num', type: 'number', default: 1, min: 1 }, { key: 'den', type: 'number', default: 2, min: 1 }],
+        sd: (_c, p) => `this.randomChance(${Number(p.num) || 1}, ${Number(p.den) || 1})`,
+        es: (_c, p) => `rand(${Number(p.den) || 1}) < ${Number(p.num) || 1}`
+    },
+    hasVolatileEffect: {
+        label: '__ has the effect __', params: [{ key: 'target', type: 'select', options: TARGETS, default: 'self' }, { key: 'id', type: 'text', default: 'flinch' }],
+        sd: (c, p) => `${p.target === 'foe' ? c.foeVar : c.selfVar}.volatiles['${safeEffectId(p.id)}']`,
+        es: (c, p) => `${p.target === 'foe' ? c.foeVar : c.selfVar}.effects[PBEffects::${safeEffectId(p.id).toUpperCase()}]`
+    },
+    lacksVolatileEffect: {
+        label: '__ does not have the effect __', params: [{ key: 'target', type: 'select', options: TARGETS, default: 'self' }, { key: 'id', type: 'text', default: 'flinch' }],
+        sd: (c, p) => `!${p.target === 'foe' ? c.foeVar : c.selfVar}.volatiles['${safeEffectId(p.id)}']`,
+        es: (c, p) => `!${p.target === 'foe' ? c.foeVar : c.selfVar}.effects[PBEffects::${safeEffectId(p.id).toUpperCase()}]`
+    },
+    targetsAnother: {
+        label: 'the move is aimed at another Pokémon', params: [{ key: 'left', type: 'select', options: TARGETS, default: 'foe' }],
+        sd: (c, p) => p.left === 'self' ? `${c.selfVar} !== ${c.foeVar}` : `${c.foeVar} !== ${c.selfVar}`,
+        es: (c) => `${c.foeVar} != ${c.selfVar}`
+    },
+    targetsItself: {
+        label: 'the move is aimed at its own user', params: [{ key: 'left', type: 'select', options: TARGETS, default: 'foe' }],
+        sd: (c, p) => p.left === 'self' ? `${c.selfVar} === ${c.foeVar}` : `${c.foeVar} === ${c.selfVar}`,
+        es: (c) => `${c.foeVar} == ${c.selfVar}`
+    },
+    pokemonIs: {
+        label: '__ is __', params: [{ key: 'target', type: 'select', options: TARGETS, default: 'self' }, { key: 'what', type: 'select', options: POKEMON_IS, default: 'isActive' }],
+        sd: (c, p) => `${p.target === 'foe' ? c.foeVar : c.selfVar}.${pokemonIsPart(p)}`,
+        es: () => 'false # Showdown only'
+    },
+    pokemonIsNot: {
+        label: '__ is not __', params: [{ key: 'target', type: 'select', options: TARGETS, default: 'self' }, { key: 'what', type: 'select', options: POKEMON_IS, default: 'isActive' }],
+        sd: (c, p) => `!${p.target === 'foe' ? c.foeVar : c.selfVar}.${pokemonIsPart(p)}`,
+        es: () => 'false # Showdown only'
+    },
+    moveSuperEffective: {
+        label: 'the move is super effective on __', params: [{ key: 'target', type: 'select', options: TARGETS, default: 'foe' }],
+        sd: (c, p) => `${p.target === 'self' ? c.selfVar : c.foeVar}.getMoveHitData(${c.moveVar || 'move'}).typeMod > 0`,
+        es: () => 'false # Showdown only'
+    },
+    moveResisted: {
+        label: 'the move is not very effective on __', params: [{ key: 'target', type: 'select', options: TARGETS, default: 'foe' }],
+        sd: (c, p) => `${p.target === 'self' ? c.selfVar : c.foeVar}.getMoveHitData(${c.moveVar || 'move'}).typeMod < 0`,
+        es: () => 'false # Showdown only'
+    },
+    moveContactCheck: {
+        label: 'the move touches: __ hits __', params: [{ key: 'attacker', type: 'select', options: TARGETS, default: 'foe' }, { key: 'defender', type: 'select', options: TARGETS, default: 'self' }],
+        sd: (c, p) => `this.checkMoveMakesContact(${c.moveVar || 'move'}, ${p.attacker === 'self' ? c.selfVar : c.foeVar}, ${p.defender === 'self' ? c.selfVar : c.foeVar})`,
+        es: () => 'false # Showdown only'
+    }
+});
+
+Object.assign(ACTIONS, {
+    showdownCode: {
+        label: 'Showdown code: __', category: 'Raw Code', params: [{ key: 'code', type: 'code', default: '', placeholder: 'this.heal(pokemon.baseMaxhp / 8);' }],
+        sd: (_c, p) => String(p.code || '').split('\n'),
+        es: (_c, p) => SD_ONLY(String(p.code || '').split('\n'))
+    },
+    healFraction: {
+        label: 'Restore __/__ of max HP on __', category: 'Battle Actions', params: [
+            { key: 'num', type: 'number', default: 1, min: 1 }, { key: 'den', type: 'number', default: 16, min: 1 },
+            { key: 'target', type: 'select', options: TARGETS, default: 'self' }
+        ],
+        sd: (c, p) => { const t = p.target === 'foe' ? c.foeVar : c.selfVar; const n = Number(p.num) || 1; return [`this.heal(${t}.baseMaxhp${n === 1 ? '' : ` * ${n}`} / ${Number(p.den) || 1}, ${t});`]; },
+        es: (c, p) => { const t = p.target === 'foe' ? c.foeVar : c.selfVar; return [`${t}.pbRecoverHP(${t}.totalhp * ${Number(p.num) || 1} / ${Number(p.den) || 1}) if ${t}`]; }
+    },
+    damageFraction: {
+        label: 'Take __/__ of max HP from __', category: 'Battle Actions', params: [
+            { key: 'num', type: 'number', default: 1, min: 1 }, { key: 'den', type: 'number', default: 8, min: 1 },
+            { key: 'target', type: 'select', options: TARGETS, default: 'foe' }
+        ],
+        sd: (c, p) => { const t = p.target === 'foe' ? c.foeVar : c.selfVar; const n = Number(p.num) || 1; return [`this.damage(${t}.baseMaxhp${n === 1 ? '' : ` * ${n}`} / ${Number(p.den) || 1}, ${t}, ${c.selfVar});`]; },
+        es: (c, p) => { const t = p.target === 'foe' ? c.foeVar : c.selfVar; return [`${t}.pbReduceHP(${t}.totalhp * ${Number(p.num) || 1} / ${Number(p.den) || 1}) if ${t}`]; }
+    },
+    chainModify: {
+        label: 'Multiply the value by __/__ (__)', category: 'Calculation', params: [
+            { key: 'num', type: 'number', default: 1.5, step: 0.1 }, { key: 'den', type: 'number', default: 1, min: 1 },
+            { key: 'answer', type: 'select', options: [{ value: 'yes', label: 'and stop here' }, { value: 'no', label: 'and carry on' }], default: 'yes' }
+        ],
+        sd: (_c, p) => { const den = Number(p.den) || 1; const call = `this.chainModify(${den === 1 ? (Number(p.num) || 1) : `[${Number(p.num) || 1}, ${den}]`});`; return [p.answer === 'no' ? call : `return ${call}`]; },
+        es: (_c, p) => [`mults[:power_multiplier] *= ${(Number(p.num) || 1) / (Number(p.den) || 1)}`]
+    },
+    stopEffect: {
+        label: 'Stop here and answer __', category: 'Functions', params: [{ key: 'answer', type: 'select', options: ['nothing', 'false', 'null', 'true', 'NOT_FAIL', '0'].map(v => ({ value: v, label: v })), default: 'nothing' }],
+        sd: (_c, p) => { const a = String(p.answer ?? 'nothing'); return [a === 'nothing' ? 'return;' : a === 'NOT_FAIL' ? 'return this.NOT_FAIL;' : /^(null|false|true|-?\d+)$/.test(a) ? `return ${a};` : 'return;']; },
+        es: (_c, p) => [p.answer === 'false' || p.answer === 'null' ? 'next false' : 'next']
+    },
+    moveNeverMisses: {
+        label: 'This move cannot miss', category: 'Battle Actions', params: [] as any[],
+        sd: (c) => [`${c.moveVar || 'move'}.accuracy = true;`],
+        es: (c) => [`# ${c.moveVar || 'move'} cannot miss`]
+    },
+    setMoveField: {
+        label: 'Set the move’s __ to __', category: 'Battle Actions', params: [{ key: 'field', type: 'text', default: 'priority' }, { key: 'value', type: 'text', default: '1' }],
+        sd: (c, p) => {
+            const value = String(p.value ?? '');
+            const safe = /^(-?\d+(\.\d+)?|true|false|["'][\w-]+["'])$/.test(value) ? value : 'null';
+            return [`${c.moveVar || 'move'}.${safeProperty(p.field)} = ${safe};`];
+        },
+        es: (c, p) => [`# set ${safeProperty(p.field)} on ${c.moveVar || 'move'}`]
+    },
+    battleLog: {
+        label: 'Add to the battle log: __', category: 'Other / Output', params: [{ key: 'args', type: 'text', default: '"-message", "Hello"' }],
+        sd: (_c, p) => [`this.add(${String(p.args || '"-message"')});`],
+        es: (_c, p) => SD_ONLY([`this.add(${String(p.args || '')});`])
+    },
+    battleHint: {
+        label: 'Show a hint: __', category: 'Other / Output', params: [{ key: 'args', type: 'text', default: '"Hello"' }],
+        sd: (_c, p) => [`this.hint(${String(p.args || '""')});`],
+        es: (_c, p) => SD_ONLY([`this.hint(${String(p.args || '')});`])
+    },
+    pokemonAct: {
+        label: '__ does __', category: 'Battle Actions', params: [
+            { key: 'target', type: 'select', options: TARGETS, default: 'self' },
+            { key: 'verb', type: 'select', options: [{ value: 'clearBoosts', label: 'clear its stat stages' }, { value: 'useItem', label: 'use its item' }, { value: 'eatItem', label: 'eat its item' }, { value: 'takeItem', label: 'lose its item' }, { value: 'faint', label: 'faint' }, { value: 'forceSwitch', label: 'switch out' }], default: 'useItem' }
+        ],
+        sd: (c, p) => [`${p.target === 'foe' ? c.foeVar : c.selfVar}.${['clearBoosts', 'useItem', 'eatItem', 'takeItem', 'faint', 'forceSwitch'].includes(p.verb) ? p.verb : 'useItem'}();`],
+        es: (c, p) => SD_ONLY([`${p.target === 'foe' ? c.foeVar : c.selfVar}.${p.verb}();`])
+    },
+    setEffectMemory: {
+        label: 'Remember __ as __', category: 'Variables', params: [{ key: 'field', type: 'text', default: 'triggered' }, { key: 'value', type: 'text', default: 'true' }],
+        sd: (_c, p) => [`this.effectState.${safeProperty(p.field)} = ${/^(true|false|-?\d+)$/.test(String(p.value)) ? p.value : 'true'};`],
+        es: (_c, p) => SD_ONLY([`this.effectState.${safeProperty(p.field)} = ${p.value};`])
+    },
+    addEffect: {
+        label: 'Give __ the effect __ (from __)', category: 'Battle Effects', params: [
+            { key: 'target', type: 'select', options: TARGETS, default: 'foe' }, { key: 'id', type: 'text', default: 'flinch' },
+            { key: 'source', type: 'select', options: [{ value: 'none', label: 'no one named' }, ...TARGETS], default: 'none' }
+        ],
+        sd: (c, p) => { const t = p.target === 'foe' ? c.foeVar : c.selfVar; const from = p.source === 'self' ? c.selfVar : p.source === 'foe' ? c.foeVar : ''; return [`${t}.addVolatile('${safeEffectId(p.id)}'${from ? `, ${from}` : ''});`]; },
+        es: (c, p) => SD_ONLY([`addVolatile('${safeEffectId(p.id)}')`])
+    },
+    removeEffect: {
+        label: 'Take the effect __ off __', category: 'Battle Effects', params: [{ key: 'id', type: 'text', default: 'flinch' }, { key: 'target', type: 'select', options: TARGETS, default: 'self' }],
+        sd: (c, p) => [`${p.target === 'foe' ? c.foeVar : c.selfVar}.removeVolatile('${safeEffectId(p.id)}');`],
+        es: (c, p) => SD_ONLY([`removeVolatile('${safeEffectId(p.id)}')`])
+    },
+    battleAttr: {
+        label: 'Mark the last move in the log: __', category: 'Other / Output', params: [{ key: 'args', type: 'text', default: '"[still]"' }],
+        sd: (_c, p) => [`this.attrLastMove(${codeArgs(p.args, '"[still]"')});`],
+        es: (_c, p) => SD_ONLY([`this.attrLastMove(${codeArgs(p.args)});`])
+    },
+    answerMovePower: {
+        label: 'Answer the move’s power x __', category: 'Calculation', params: [{ key: 'factor', type: 'number', default: 2, step: 0.1 }],
+        sd: (c, p) => { const f = Number(p.factor) || 1; const mv = c.moveVar || 'move'; return [f === 1 ? `return ${mv}.basePower;` : `return ${mv}.basePower * ${f};`]; },
+        es: (_c, p) => [`next power * ${Number(p.factor) || 1}`]
+    },
+    answerRisingPower: {
+        label: 'Answer __ x the hit number', category: 'Calculation', params: [{ key: 'base', type: 'number', default: 20, min: 0 }],
+        sd: (c, p) => [`return ${Number(p.base) || 0} * ${c.moveVar || 'move'}.hit;`],
+        es: (_c, p) => SD_ONLY([`return ${Number(p.base) || 0} * move.hit;`])
+    },
+    answerNumber: {
+        label: 'Answer the number __', category: 'Calculation', params: [{ key: 'value', type: 'number', default: 0 }],
+        sd: (_c, p) => [`return ${Number(p.value) || 0};`],
+        es: (_c, p) => [`next ${Number(p.value) || 0}`]
+    },
+    moveStatus: { label: 'Give the target __', category: 'Move effects', params: [condParam('status', 'status', 'par')], sd: MOVE_EFFECT_SD, es: (_c, p) => [`# effect: status ${p.status}`] },
+    moveVolatile: { label: 'Give the target the effect __', category: 'Move effects', params: [{ key: 'volatile', type: 'text', default: 'confusion' }], sd: MOVE_EFFECT_SD, es: (_c, p) => [`# effect: ${p.volatile}`] },
+    moveBoost: { label: 'Change the target’s __ by __', category: 'Move effects', params: [{ key: 'stat', type: 'select', options: MOVE_STATS, default: 'atk' }, { key: 'stages', type: 'number', default: -1, min: -6, max: 6 }], sd: MOVE_EFFECT_SD, es: (_c, p) => [`# effect: ${p.stat} ${p.stages}`] },
+    moveSelfBoost: { label: 'Change the user’s __ by __', category: 'Move effects', params: [{ key: 'stat', type: 'select', options: MOVE_STATS, default: 'atk' }, { key: 'stages', type: 'number', default: 1, min: -6, max: 6 }], sd: MOVE_EFFECT_SD, es: (_c, p) => [`# effect: user ${p.stat} ${p.stages}`] },
+    moveDrain: { label: 'Heal the user by __/__ of the damage', category: 'Move effects', params: [{ key: 'num', type: 'number', default: 1, min: 1 }, { key: 'den', type: 'number', default: 2, min: 1 }], sd: MOVE_EFFECT_SD, es: (_c, p) => [`# effect: drain ${p.num}/${p.den}`] },
+    moveRecoil: { label: 'Hurt the user by __/__ of the damage', category: 'Move effects', params: [{ key: 'num', type: 'number', default: 1, min: 1 }, { key: 'den', type: 'number', default: 3, min: 1 }], sd: MOVE_EFFECT_SD, es: (_c, p) => [`# effect: recoil ${p.num}/${p.den}`] },
+    moveHeal: { label: 'Heal by __/__ of max HP', category: 'Move effects', params: [{ key: 'num', type: 'number', default: 1, min: 1 }, { key: 'den', type: 'number', default: 2, min: 1 }], sd: MOVE_EFFECT_SD, es: (_c, p) => [`# effect: heal ${p.num}/${p.den}`] },
+    moveCritRatio: { label: 'Critical-hit stage __', category: 'Move effects', params: [{ key: 'ratio', type: 'number', default: 2, min: 1, max: 6 }], sd: MOVE_EFFECT_SD, es: (_c, p) => [`# effect: crit stage ${p.ratio}`] },
+    moveWeather: { label: 'Start the weather __', category: 'Move effects', params: [{ key: 'id', type: 'text', default: 'raindance' }], sd: MOVE_EFFECT_SD, es: (_c, p) => [`# effect: weather ${p.id}`] },
+    moveTerrain: { label: 'Start the terrain __', category: 'Move effects', params: [{ key: 'id', type: 'text', default: 'electricterrain' }], sd: MOVE_EFFECT_SD, es: (_c, p) => [`# effect: terrain ${p.id}`] },
+    moveSideCondition: { label: 'Put __ on a side of the field', category: 'Move effects', params: [{ key: 'id', type: 'text', default: 'stealthrock' }], sd: MOVE_EFFECT_SD, es: (_c, p) => [`# effect: side ${p.id}`] },
+    moveSwitchUser: { label: 'The user switches out', category: 'Move effects', params: [] as any[], sd: MOVE_EFFECT_SD, es: () => ['# effect: the user switches out'] },
+    moveForceSwitch: { label: 'The target is forced out', category: 'Move effects', params: [] as any[], sd: MOVE_EFFECT_SD, es: () => ['# effect: the target is forced out'] },
+    moveChanceStatus: { label: '__% chance to give the target __', category: 'Move effects', params: [{ key: 'chance', type: 'number', default: 30, min: 1, max: 100 }, condParam('status', 'status', 'brn')], sd: MOVE_EFFECT_SD, es: (_c, p) => [`# effect: ${p.chance}% ${p.status}`] },
+    moveChanceVolatile: { label: '__% chance to give the target the effect __', category: 'Move effects', params: [{ key: 'chance', type: 'number', default: 30, min: 1, max: 100 }, { key: 'volatile', type: 'text', default: 'flinch' }], sd: MOVE_EFFECT_SD, es: (_c, p) => [`# effect: ${p.chance}% ${p.volatile}`] },
+    moveChanceBoost: { label: '__% chance to change __ by __ on __', category: 'Move effects', params: [{ key: 'chance', type: 'number', default: 10, min: 1, max: 100 }, { key: 'stat', type: 'select', options: MOVE_STATS, default: 'spd' }, { key: 'stages', type: 'number', default: -1, min: -6, max: 6 }, { key: 'target', type: 'select', options: TARGETS, default: 'foe' }], sd: MOVE_EFFECT_SD, es: (_c, p) => [`# effect: ${p.chance}% ${p.stat} ${p.stages}`] },
+    moveDataRaw: { label: 'Move data: __ is __', category: 'Move effects', params: [{ key: 'field', type: 'text', default: 'selfdestruct' }, { key: 'value', type: 'text', default: '"always"' }], sd: MOVE_EFFECT_SD, es: (_c, p) => [`# data: ${safeProperty(p.field)}`] }
+});
+
 // Give every event the same broad visual vocabulary. The target-specific
 // compiler may still emit starter comments for operations that need engine
 // customization.
@@ -1618,8 +1862,9 @@ const BLOCK_GROUPS = [
     { label:'Battle Actions', color:'blue', items:['damage','heal','boostStat','setStatValue','changeStatValue','setStatus','inflictStatus','changeType','changeAbility','changeForm','switchPokemon','setWeather','setTerrain','setWeatherTerrain','setHazard','removeHazard','clearTerrainWeather','changePriority','addVolatile','setVolatile','removeVolatile','setShield','changeTypeToMoveType','setMoveType','multiplyMovePower','setMovePower','absorbMove','redirectMove','resetStatStages','copyStatStages','setAbility','suppressAbility'] },
     { label:'Battle Effects', color:'blue', items:['applyBattleEffect','removeBattleEffect','setBattleEffectProperty'] },
     { label:'Items', color:'blue', items:['setItem','removeItem','swapItems','restoreItem'] },
-    { label:'Raw Code', color:'gray', items:['customCode'] },
-    { label:'Calculation', color:'blue', items:['multiplyStat','multiplyDamage','multiplyAccuracy','ignoreStatStages'] },
+    { label:'Move effects', color:'blue', items:['moveStatus','moveVolatile','moveBoost','moveSelfBoost','moveDrain','moveRecoil','moveHeal','moveCritRatio','moveWeather','moveTerrain','moveSideCondition','moveSwitchUser','moveForceSwitch','moveChanceStatus','moveChanceVolatile','moveChanceBoost','moveDataRaw'] },
+    { label:'Raw Code', color:'gray', items:['customCode','showdownCode','battleLog','battleHint','battleAttr'] },
+    { label:'Calculation', color:'blue', items:['multiplyStat','multiplyDamage','multiplyAccuracy','ignoreStatStages','chainModify','answerMovePower','answerRisingPower','answerNumber','healFraction','damageFraction','stopEffect','moveNeverMisses','setMoveField','pokemonAct','setEffectMemory','addEffect','removeEffect'] },
     { label:'Other / Output', color:'gray', items:['cureStatus','showMessage','dealDamage','healDamage','setWeather','setTerrain','changeType'] }
 ];
 // The palette listed twelve event keys, and TRIGGERS defined none of them --
@@ -1631,7 +1876,7 @@ const EVENT_GROUP = { label:'Events', color:'gold', items:[
     'beforeMove', 'afterMove', 'damagingHit', 'onContact', 'onFaint', 'onStatus',
     'statModify', 'damageModify', 'accuracyModify', 'statStageIgnore', 'moveImmunity',
     'moveTypeChange', 'moveIncoming', 'drawIn',
-    'moveUsed', 'moveHit',
+    'moveData', 'moveUsed', 'moveHit', 'movePower', 'moveChange', 'sdHook',
     'condStart', 'condEachTurn', 'condBeforeMove', 'condMovePower', 'condEnd'
 ] };
 const EVENT_KEYS = new Set(EVENT_GROUP.items);
@@ -1827,9 +2072,9 @@ function compileShowdownMove(move) {
         `\t\taccuracy: ${move.accuracy === true || move.accuracy === null ? 'true' : (Number(move.accuracy) || 100)},`,
         `\t\tpp: ${Number(move.pp) || 10},`,
         `\t\tpriority: ${Number(move.priority) || 0},`,
-        `\t\tflags: ${JSON.stringify(move.flags || {})},`,
+        `\t\tflags: ${JSON.stringify(showdownMoveFlags(move))},`,
         `\t\tshortDesc: "${esc(move.desc)}",`,
-        `\t\ttarget: "normal",`,
+        `\t\ttarget: "${esc(move.target || 'normal')}",`,
         ...showdownMultihitLines(move, move.rawCode)
     ];
     const blockBody = compileShowdownMoveBlocks(move);
@@ -1843,8 +2088,9 @@ function compileShowdownMove(move) {
 // the triggers and both backends are shared (see abKind) -- so this is only
 // here to reuse it without duplicating the grouping logic.
 function compileShowdownMoveBlocks(move) {
-    const events = getAbilityEvents(move?.blocks);
-    if (!events.length) return null;
+    const dataLines = moveDataLines(move?.blocks);
+    const events = getAbilityEvents(move?.blocks).filter(ev => !TRIGGERS[ev.trigger]?.dataOnly);
+    if (!events.length) return dataLines.length ? dataLines.join('\n').replace(/,$/, '') : null;
     const groups = new Map();
     const extraHandlers: any[] = [];
     events.forEach(ev => {
@@ -1863,7 +2109,23 @@ function compileShowdownMoveBlocks(move) {
     // These are members of an object literal: joined on a bare
     // newline they emitted TypeScript that would not parse.
     }).join(',\n\n');
-    return [handlers, ...extraHandlers].filter(Boolean).join(',\n\n');
+    const code = [handlers, ...extraHandlers].filter(Boolean).join(',\n\n');
+    return [dataLines.join('\n').replace(/,$/, ''), code].filter(Boolean).join(',\n');
+}
+
+/** A move's flags as Showdown means them. The editor's protect, reflectable and snatch say it bypasses them. */
+function showdownMoveFlags(move) {
+    const flags = { ...(move?.flags || {}) };
+    const isStatus = move?.category === 'Status';
+    const out: Record<string, number> = {};
+    for (const [k, on] of Object.entries(flags)) {
+        if (!on || k === 'multihit' || k === 'highcrit' || k === 'pivot' || k === 'protect' || k === 'reflectable' || k === 'snatch') continue;
+        out[k === 'thawing' ? 'defrost' : k === 'bypasssub' ? 'bypasssub' : k] = 1;
+    }
+    if (!flags.protect) out.protect = 1;
+    if (isStatus && !flags.reflectable) out.reflectable = 1;
+    if (isStatus && !flags.snatch) out.snatch = 1;
+    return out;
 }
 
 function compileShowdownItem(item) {
@@ -2021,6 +2283,9 @@ function showdownSourceFromRaw(rawCode, indent = '\t\t') {
                 ? src
                 : `${key}: ${src}`;
             lines.push(member.split('\n').map((l, i) => (i === 0 ? indent + l : indent + l)).join('\n') + ',');
+        } else if (holdsFunction(value)) {
+            // a move's condition, or an item's: JSON would drop the hooks inside it
+            lines.push(toSource(key, value).split('\n').map(l => indent + l).join('\n') + ',');
         } else {
             let json;
             try { json = JSON.stringify(value); } catch { continue; }
@@ -2775,7 +3040,34 @@ function renderAbilityBlockEditor(sync = false) {
     if (sync) notifySync(); else notify();
 }
 
+const BLOCK_COMPILER: BlockCompiler = {
+    action: (name, ctx, params) => ACTIONS[name]?.sd ? ACTIONS[name].sd(ctx, params) : [],
+    condition: (name, ctx, params) => CONDITIONS[name]?.sd ? String(CONDITIONS[name].sd(ctx, params)) : '',
+    trigger: (key, params) => TRIGGERS[key]?.sd ? TRIGGERS[key].sd({ triggerParams: params }) : null,
+    conditionValue: (kind, sdId) => VANILLA_CONDITIONS[kind].find(v => v.sd === sdId)?.id ?? null,
+    isVolatile: (id) => VOLATILES.some(v => v.value === id && v.value !== 'custom'),
+    isFlag: (id) => ['contact', 'bite', 'bullet', 'sound', 'powder', 'punch', 'pulse', 'recharge', 'wind', 'heal', 'protect', 'reflectable', 'defrost', 'dance'].includes(id)
+};
+
+/** Blocks for a Showdown entry. Its code is only read as text. See js/editor/code-to-blocks.ts. */
+function translateToBlocks(entry: any, kind: EntryKind, conditionKind: ConditionKind = 'status') {
+    compilingCondition = conditionKind;
+    try { return translateEntry(entry, kind, BLOCK_COMPILER); }
+    finally { compilingCondition = 'status'; }
+}
+
+/** Puts a translated program on the open board, in place of what is there. */
+function applyBlocksToBoard(blocks: any, rawCode = '') {
+    if (!abState) return;
+    abState = normalizeAbilityBlocks(blocks, abKind === 'condition' ? 'condStart' : 'switchIn');
+    getAbilityRootEvents().forEach(ev => normalizeAbilityIfBranches(ev.body));
+    const entry = abEntry();
+    if (entry && rawCode) entry.rawCode = entry.rawCode ? `${entry.rawCode},\n${rawCode}` : rawCode;
+    renderAbilityBlockEditor();
+}
+
 export {
+    translateToBlocks, applyBlocksToBoard,
     abilityBlockView, updateAbilityEventParam,
     handleConnectionDragOver, handleConnectionDragLeave, handleConnectionDrop,
     handleBlockConnectionDragStart, handleBlockConnectionDragEnd, addAbilityEvent,

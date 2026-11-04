@@ -10,6 +10,7 @@ export const STAT_IDS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'];
 export const BOOST_IDS = ['atk', 'def', 'spa', 'spd', 'spe', 'accuracy', 'evasion'];
 
 import { toId } from '../../core/html.ts';
+import { moveDataFields } from '../../editor/code-to-blocks.ts';
 export { toId };
 
 // duplicated from data.ts's NATURE_DATA, pre-converted to multipliers
@@ -185,7 +186,9 @@ function num(v, fallback) {
     return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
-function normalizeCustomMove(m, fallbackId) {
+function normalizeCustomMove(entry, fallbackId) {
+    // the move's own fields win; its Move effect blocks fill in the rest
+    const m = { ...moveDataFields(entry.blocks), ...entry };
     return Object.freeze({
         id: toId(m.name) || fallbackId,
         name: m.name || 'Custom Move',
@@ -207,7 +210,7 @@ function normalizeCustomMove(m, fallbackId) {
         status: m.status || null,
         volatileStatus: m.volatileStatus || null,
         boosts: m.boosts || null,
-        secondaries: Object.freeze(m.secondaries || []),
+        secondaries: Object.freeze(m.secondaries || (m.secondary ? [m.secondary] : [])),
         multihit: m.multihit || null,
         multihitStyle: m.multihitStyle || null,
         multiaccuracy: m.multiaccuracy || false,
