@@ -11,65 +11,258 @@ html.reduce-motion, html.reduce-motion * {
     scroll-behavior: auto !important;
 }
 
-/* ==================== ability block editor ==================== */
 .ability-code-badge { display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;background:rgba(168,85,247,.15);color:#a855f7;vertical-align:middle; }
 .ability-code-badge i { width:12px;height:12px; }
 .ability-code-open { background:none;border:none;cursor:pointer;color:var(--text-secondary,#888);padding:4px;border-radius:4px;display:inline-flex;align-items:center;justify-content:center; }
 .ability-code-open:hover { background:rgba(168,85,247,.15);color:#a855f7; }
 .ability-code-open i { width:16px;height:16px; }
-.ability-block-intro { font-size:13px;opacity:.75;margin:4px 0 14px;line-height:1.5; }
-.ability-block-header { display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:10px;flex-wrap:wrap; }
-.ability-block-header h2 { margin:0; }
-.ability-block-header-actions { display:flex;gap:8px; }
-.ab-trigger-hat { display:flex;align-items:center;flex-wrap:wrap;gap:10px;background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff;padding:12px 18px;border-radius:10px 10px 5px 5px;font-weight:600;font-size:14px;box-shadow:0 3px 0 rgba(0,0,0,.15); }
-.ab-trigger-hat i { width:18px;height:18px;flex-shrink:0; }
 
-.ability-block-layout { display:grid;grid-template-columns:minmax(0,1.6fr) minmax(320px,1fr);gap:16px;align-items:start; }
-@media(max-width:980px){.ability-block-layout{grid-template-columns:1fr}.ability-block-preview{min-height:300px}}
+/* ==================== the block editor ====================
+   js/app/pages/AbilityBlockEditorPage.tsx and js/app/components/blocks/.
+   A dialog that slides down over the page: a head (title, Code, Cancel,
+   Save), then the palette, the board and the code side by side.
 
-/* a real whiteboard: scrolls both directions, blocks positioned independently rather than forced into a stack */
-.ability-block-canvas { position:relative;min-width:0;min-height:540px;padding:0;overflow:hidden;border:1px solid var(--border);border-radius:9px;background:var(--bg-panel);box-shadow:inset 0 1px 0 rgba(255,255,255,.4); }
-.ab-board-shell { display:grid;grid-template-columns:190px minmax(0,1fr);height:clamp(540px,65vh,760px);min-height:540px; }
-.ab-palette { padding:14px 12px;border-right:1px solid var(--border);background:color-mix(in srgb,var(--bg-card) 88%,transparent);overflow:auto; }
-.ab-palette-title { font-size:12px;font-weight:800;letter-spacing:.1em;color:var(--text-primary); }
-.ab-palette-help { margin:6px 0 14px;color:var(--text-muted);font-size:10px;line-height:1.45; }
-.ab-palette-group { margin-bottom:14px; }
-.ab-palette-label { margin-bottom:6px;color:var(--text-muted);font-size:9px;font-weight:800;letter-spacing:.12em; }
-.ab-palette-item { width:100%;display:flex;align-items:center;gap:8px;padding:8px 9px;margin-bottom:5px;text-align:left;border:1px solid var(--border);border-radius:5px;background:var(--bg-input);color:var(--text-primary);font-size:11px;line-height:1.25;cursor:pointer; }
-.ab-palette-item:hover { border-color:var(--accent);background:var(--bg-panel); }
-.ab-palette-dot { width:8px;height:8px;border-radius:50%;flex:0 0 8px;background:#3b82f6; }
-.ab-palette-if .ab-palette-dot { background:#a855f7; }
-.ab-palette-tip { margin-top:18px;padding:9px;border:1px dashed var(--border);border-radius:5px;color:var(--text-muted);font-size:9px;line-height:1.45; }
-.ab-palette-tip strong { color:var(--text-secondary); }
-.ab-workspace-scroll { min-width:0;overflow:auto;background-color:var(--bg-panel);background-image:radial-gradient(circle,color-mix(in srgb,var(--border) 62%,transparent) 1px,transparent 1px);background-size:20px 20px;cursor:default; }
-.ab-workspace { position:relative;width:max(1100px,100%);height:max(760px,100%);min-height:100%; }
-.ab-free-container { position:relative;width:100%;height:100%;min-height:760px; }
-.ab-nested-container { position:relative;min-height:78px; }
+   The blocks are content, like type badges: flat, saturated (--blk, from
+   blocks/colours.ts), white text. Every statement block has the same notch
+   in its top edge and the same tab under it, both at --ab-nx from its left,
+   so a block fits the one above it. The notch is a cut-out painted in the
+   board colour (--ab-hole); the tab of the block above paints over it.
+   Event and If blocks are C-shapes whose arms hold a stack. */
 
-.ab-block { position:absolute;z-index:2;min-width:185px;max-width:300px;border-radius:8px;padding:10px 12px;color:#fff;font-size:12px;line-height:1.45;box-shadow:0 5px 0 rgba(0,0,0,.16),0 10px 24px rgba(0,0,0,.10);touch-action:none;user-select:none;cursor:grab;transition:box-shadow .12s ease,opacity .12s ease,outline .12s ease; }
-.ab-block:hover { box-shadow:0 6px 0 rgba(0,0,0,.16),0 14px 30px rgba(0,0,0,.13); }
-.ab-action-block { background:linear-gradient(135deg,#3b82f6,#2563eb); }
-.ab-if-block { background:linear-gradient(135deg,#a855f7,#9333ea);padding-bottom:8px; }
-.ab-block-main { display:flex;align-items:flex-start;justify-content:space-between;gap:8px; }
-.ab-block-drag { display:inline-flex;align-items:center;flex-shrink:0;cursor:grab;opacity:.7;padding-top:1px; }
-.ab-block-drag:active { cursor:grabbing; }
-.ab-block-drag i { width:14px;height:14px; }
-.ab-block-text { flex:1;min-width:0; }
-.ab-block-kind { display:inline-block;font-size:9px;letter-spacing:.08em;opacity:.7;margin-right:4px; }
-.ab-block-controls { display:flex;align-items:center;gap:2px;flex-shrink:0; }
-.ab-block-controls button { background:rgba(255,255,255,.18);border:none;color:#fff;border-radius:4px;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;cursor:pointer; }
-.ab-block-controls button:hover { background:rgba(255,255,255,.34); }
-.ab-block-controls i { width:13px;height:13px; }
-.ab-block.ab-dragging { opacity:.62;z-index:50;box-shadow:0 12px 0 rgba(0,0,0,.12),0 22px 42px rgba(0,0,0,.2); }
-.ab-if-then,.ab-if-else { position:relative;margin-top:8px;padding:7px 8px 8px 12px;border-left:3px solid rgba(255,255,255,.38);min-height:78px; }
-.ab-if-label { display:block;font-size:9px;font-weight:800;opacity:.8;margin-bottom:4px;letter-spacing:.08em; }
+#ability-block-editor-view {
+    position: fixed; inset: 0;
+    /* above the header (12000) and the editor sheet, under the confirm dialog (13000) */
+    z-index: 12700;
+    --ab-board: var(--bg-panel);
+    --ab-hole: var(--ab-board);
+    --ab-nx: 12px;
+    --ab-nw: 20px;
+    --ab-nh: 5px;
+    --ab-arm: 14px;
+}
+body.ab-editor-open { overflow: hidden; }
 
-.ab-inline-input { display:inline-block;font-size:11px;font-weight:600;border-radius:4px;border:none;padding:2px 6px;margin:0 2px;background:rgba(255,255,255,.94);color:#1f2937;max-width:145px; }
-.ab-inline-number { width:54px; }
-.ab-inline-text { width:140px; }
-.ab-trigger-hat .ab-inline-input { background:rgba(255,255,255,.95); }
-/* labels the dropdown, since two bare selects side by side gave no clue which was which */
-.ab-trigger-hat .ab-param-label { font-size:11px; font-weight:700; letter-spacing:.03em; opacity:.85; margin-right:-4px; }
+.ab-overlay {
+    position: absolute; inset: 0;
+    display: flex; justify-content: center; align-items: flex-start;
+    padding: var(--sp-5);
+    background: rgba(17, 17, 20, .42);
+    animation: ab-fade .2s ease both;
+}
+.ab-modal {
+    width: min(1480px, 100%);
+    height: calc(100dvh - 2 * var(--sp-5));
+    display: flex; flex-direction: column;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    outline: none;
+    /* backwards, not both: a transform held after the slide would make the
+       dialog the frame for position: fixed, and a dragged block would sit
+       off the pointer by the dialog's own offset */
+    animation: ab-drop .34s cubic-bezier(.16, 1, .3, 1) backwards;
+}
+#ability-block-editor-view.is-closing .ab-overlay { animation: ab-fade-out .18s ease-in both; }
+#ability-block-editor-view.is-closing .ab-modal { animation: ab-lift .18s cubic-bezier(.55, 0, 1, .45) both; }
+@keyframes ab-fade { from { opacity: 0; } }
+@keyframes ab-fade-out { to { opacity: 0; } }
+@keyframes ab-drop { from { opacity: 0; transform: translateY(-36px); } }
+@keyframes ab-lift { to { opacity: 0; transform: translateY(-24px); } }
+.reduce-motion .ab-modal, .reduce-motion #ability-block-editor-view.is-closing .ab-modal { animation-name: ab-fade; }
+@media (prefers-reduced-motion: reduce) { .ab-modal, #ability-block-editor-view.is-closing .ab-modal { animation-name: ab-fade; } }
+
+/* ---- head ---- */
+.ab-modal-head {
+    display: flex; align-items: center; justify-content: space-between; gap: var(--sp-4);
+    padding: var(--sp-3) var(--sp-4) var(--sp-3) var(--sp-5);
+    border-bottom: 1px solid var(--border-light);
+}
+.ab-modal-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.ab-modal-title > svg { flex: 0 0 auto; color: var(--accent); }
+.ab-modal-title h2 { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 16px/1.3 var(--font-sans); }
+.ab-modal-noun { margin-right: 8px; font-weight: 500; color: var(--text-secondary); }
+.ab-unsaved {
+    flex: 0 0 auto; padding: 2px 8px; border-radius: 999px;
+    background: color-mix(in srgb, var(--warning) 14%, var(--bg-card)); color: var(--warning);
+    font: 700 11px var(--font-sans);
+}
+.ab-modal-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+.ab-code-toggle { gap: 6px; }
+.ab-code-toggle.is-on { background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 40%, var(--border)); color: var(--accent); }
+
+/* ---- body: palette | board | code ---- */
+.ab-modal-body { flex: 1 1 auto; min-height: 0; display: grid; grid-template-columns: 248px minmax(0, 1fr); }
+.ab-modal.with-code .ab-modal-body { grid-template-columns: 248px minmax(0, 1fr) minmax(300px, 380px); }
+
+/* ---- palette ---- */
+.ab-palette { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--border-light); }
+.ab-pal-search { position: relative; display: flex; align-items: center; margin: var(--sp-3); }
+.ab-pal-search svg { position: absolute; left: 10px; color: var(--text-muted); pointer-events: none; }
+.ab-pal-search input { width: 100%; height: 34px; padding-left: 32px; }
+.ab-pal-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 var(--sp-3) var(--sp-4); }
+.ab-pal-group + .ab-pal-group { margin-top: var(--sp-4); }
+.ab-pal-group h3 { display: flex; align-items: center; gap: 7px; margin: 0 0 var(--sp-2); font: 700 12px var(--font-sans); color: var(--text-secondary); }
+.ab-pal-swatch { width: 10px; height: 10px; border-radius: 3px; }
+.ab-pal-block {
+    display: block; width: 100%; margin: 0 0 5px;
+    padding: 7px 10px;
+    border: 0; border-radius: 6px;
+    background: var(--blk); color: #fff;
+    font: 600 12.5px/1.35 var(--font-sans); text-align: left;
+    cursor: grab;
+    transition: filter .12s ease, transform .12s ease;
+}
+.ab-pal-block.is-hat { border-radius: 12px 12px 6px 6px; }
+.ab-pal-block:hover { filter: brightness(1.1); }
+.ab-pal-block:active { cursor: grabbing; transform: scale(.98); }
+.ab-pal-block:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ab-pal-empty { margin: var(--sp-3) 2px; font-size: 13px; color: var(--text-muted); }
+
+/* ---- board ---- */
+.ab-board-scroll { position: relative; min-width: 0; min-height: 0; overflow: auto; background: var(--ab-board); }
+.ab-workspace { position: relative; width: max(1400px, 100%); height: max(900px, 100%); }
+/* the two free layers cover the board; only their blocks take the pointer */
+.ab-free { position: absolute; inset: 0; pointer-events: none; }
+.ab-free > .ab-block { position: absolute; pointer-events: auto; }
+.ab-board-hint {
+    position: sticky; left: 50%; bottom: var(--sp-5);
+    width: fit-content; max-width: min(520px, calc(100% - 40px)); margin: 0;
+    display: flex; align-items: center; gap: 8px;
+    transform: translate(-50%, -100%);
+    padding: 8px 14px; border-radius: 999px;
+    background: var(--bg-card); color: var(--text-secondary); box-shadow: var(--shadow-md);
+    font-size: 12.5px; pointer-events: none;
+}
+.ab-board-hint svg { flex: 0 0 auto; color: var(--accent); }
+
+/* ---- blocks ---- */
+.ab-block { color: #fff; font: 600 13px/1.4 var(--font-sans); touch-action: none; user-select: none; cursor: grab; }
+.ab-block strong { font-weight: 800; }
+.ab-block-text { flex: 1 1 auto; min-width: 0; }
+.ab-block.ab-dragging { cursor: grabbing; filter: drop-shadow(0 10px 18px rgba(17, 17, 20, .28)); }
+
+/* a statement block, and the notch and tab every statement shares */
+.ab-stmt {
+    position: relative;
+    display: flex; align-items: center; gap: 8px;
+    min-width: 220px; max-width: 380px; min-height: 38px;
+    padding: calc(7px + var(--ab-nh) / 2) 8px 7px 12px;
+    background: var(--blk); border-radius: 6px;
+}
+.ab-stmt::before, .ab-stmt-top::before {
+    content: ""; position: absolute; top: 0; left: var(--ab-nx);
+    width: var(--ab-nw); height: var(--ab-nh);
+    background: var(--ab-hole); border-radius: 0 0 4px 4px;
+}
+.ab-stmt::after, .ab-stmt-bottom::after {
+    content: ""; position: absolute; top: 100%; left: var(--ab-nx); z-index: 2;
+    width: var(--ab-nw); height: var(--ab-nh);
+    background: var(--blk); border-radius: 0 0 4px 4px;
+}
+
+/* C-shapes: a head, an arm per stack (a bar down the left, the stack beside it), a foot */
+.ab-c-block { display: flex; flex-direction: column; min-width: 260px; }
+.ab-c-head, .ab-c-mid { position: relative; display: flex; align-items: center; gap: 8px; background: var(--blk); }
+.ab-c-head { min-height: 40px; padding: calc(8px + var(--ab-nh) / 2) 8px 8px 12px; border-radius: 6px 6px 0 0; }
+.ab-c-mid { padding: 6px 12px; font-size: 12px; }
+/* the head and the "otherwise" bar each hand a tab to the first block of the stack under them */
+.ab-c-head::after, .ab-c-mid::after {
+    content: ""; position: absolute; top: 100%; left: calc(var(--ab-arm) + var(--ab-nx)); z-index: 2;
+    width: var(--ab-nw); height: var(--ab-nh);
+    background: var(--blk); border-radius: 0 0 4px 4px;
+}
+.ab-c-arm { position: relative; border-left: var(--ab-arm) solid var(--blk); background: var(--ab-hole); }
+.ab-c-foot { position: relative; height: 14px; background: var(--blk); border-radius: 0 0 6px 6px; }
+.ab-event-block .ab-c-head { min-height: 46px; padding: 10px 8px 10px 14px; border-radius: 14px 14px 0 0; }
+.ab-event-block .ab-c-head > svg { flex: 0 0 auto; }
+
+/* a stack: blocks touch, so each tab sits in the notch below it */
+.ab-stack { display: flex; flex-direction: column; align-items: flex-start; min-width: 200px; padding-right: 10px; }
+.ab-stack > .ab-block { position: relative; }
+
+/* the gap at the end of a stack */
+.ab-connection-slot {
+    align-self: stretch;
+    margin: calc(var(--ab-nh) + 4px) 0 6px;
+    min-height: 10px;
+    border-radius: 6px;
+    transition: background-color .12s ease, box-shadow .12s ease, min-height .12s ease;
+}
+.ab-connection-slot.is-empty {
+    margin: 8px 0;
+    display: flex; align-items: center; min-height: 34px; padding: 0 12px;
+    box-shadow: inset 0 0 0 1.5px var(--border-strong);
+    color: var(--text-muted); font: 600 12px var(--font-sans);
+}
+body.ab-is-dragging .ab-connection-slot.ab-connect-available { min-height: 30px; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 55%, transparent); background: var(--accent-soft); }
+.ab-connection-slot.ab-drop-valid { min-height: 30px; box-shadow: inset 0 0 0 2px var(--accent); background: var(--accent-soft); }
+.ab-connection-slot.ab-drop-invalid, body.ab-is-dragging .ab-connection-slot.ab-connect-unavailable { opacity: .45; }
+
+/* where a dragged block will join a stack (showSnapMarker in ability-blocks.ts) */
+#ab-snap-marker {
+    position: fixed; z-index: 12800; height: 4px; margin-top: -2px;
+    border-radius: 2px; background: var(--accent);
+    box-shadow: 0 0 0 2px var(--bg-card);
+    pointer-events: none;
+}
+#ab-snap-marker[hidden] { display: none; }
+
+/* ---- inside a block: fields and the hover tools ---- */
+.ab-inline-input {
+    display: inline-block; vertical-align: middle;
+    height: 24px; max-width: 160px; margin: 1px 3px; padding: 0 6px;
+    border: 0; border-radius: 5px;
+    background: rgba(255, 255, 255, .95); color: #1d2433;
+    font: 600 12px var(--font-sans);
+}
+.ab-inline-input:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.ab-inline-number { width: 58px; }
+.ab-inline-text { width: 140px; }
+.ab-inline-code {
+    display: block; width: 100%; min-width: 260px; margin-top: 6px; padding: 8px 10px;
+    border: 0; border-radius: 5px; background: rgba(255, 255, 255, .96); color: #111;
+    font: 12px/1.55 var(--font-mono); resize: vertical;
+}
+.ab-inline-code:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.ab-param { white-space: nowrap; }
+.ab-param-label { margin-left: 4px; font-size: 11px; font-weight: 700; opacity: .85; }
+
+.ab-block-controls { display: flex; gap: 2px; flex: 0 0 auto; margin-left: auto; opacity: 0; transition: opacity .12s ease; }
+.ab-stmt:hover > .ab-block-controls, .ab-c-head:hover > .ab-block-controls, .ab-block-controls:focus-within { opacity: 1; }
+.ab-block-controls button {
+    width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center;
+    border: 0; border-radius: 5px; background: rgba(0, 0, 0, .18); color: #fff; cursor: pointer;
+}
+.ab-block-controls button:hover { background: rgba(0, 0, 0, .32); }
+.ab-block-controls button:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+.ab-block-controls svg { width: 14px; height: 14px; }
+@media (hover: none) { .ab-block-controls { opacity: 1; } }
+
+.ab-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- code ---- */
+.ab-code { display: flex; flex-direction: column; min-width: 0; min-height: 0; border-left: 1px solid var(--border-light); }
+.ab-code-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: var(--sp-3); }
+.ab-code-tabs button { width: auto; padding: 0 12px; font: 600 12.5px var(--font-sans); }
+.ab-code-text {
+    flex: 1 1 auto; min-height: 0; margin: 0; overflow: auto;
+    padding: var(--sp-3) var(--sp-4) var(--sp-5);
+    background: var(--bg-panel); color: var(--text-primary);
+    font: 12.5px/1.6 var(--font-mono); white-space: pre-wrap; word-break: break-word; tab-size: 4;
+}
+
+/* ---- phones: the whole screen, the palette over the board ---- */
+@media (max-width: 760px) {
+    .ab-overlay { padding: 0; }
+    .ab-modal { height: 100dvh; border: 0; border-radius: 0; }
+    .ab-modal-head { padding: calc(6px + env(safe-area-inset-top, 0px)) 8px 6px 12px; }
+    .ab-modal-noun, .ab-code-toggle span { display: none; }
+    .ab-modal-body, .ab-modal.with-code .ab-modal-body { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto; }
+    .ab-palette { max-height: 168px; border-right: 0; border-bottom: 1px solid var(--border-light); }
+    .ab-code { max-height: 38dvh; border-left: 0; border-top: 1px solid var(--border-light); }
+}
 
 /* ---- Battle effect: blocks or code, in the move / ability / item / condition dialogs ----
    js/app/components/editor/BattleEffect.tsx. A rule above it, then a heading
@@ -122,324 +315,3 @@ html.reduce-motion, html.reduce-motion * {
     padding: 2px 6px; border-radius: 4px;
     background: var(--bg-panel); color: var(--text-secondary); white-space: nowrap;
 }
-
-/* needs room to hold real source code */
-.ab-inline-code {
-    display:block; width:100%; min-width:260px; margin-top:6px; padding:8px 10px;
-    border:1px solid rgba(0,0,0,.15); border-radius:5px; background:rgba(255,255,255,.95);
-    color:#111; font-family:var(--font-mono); font-size:11.5px; line-height:1.55; resize:vertical;
-}
-.ab-inline-code:focus { outline:none; border-color:var(--accent); }
-
-.ability-block-preview { display:flex;flex-direction:column;min-height:540px; }
-.ability-block-preview-tabs { display:flex;gap:4px;margin-bottom:6px; }
-.ability-block-tab { font-size:12px;font-weight:600;padding:6px 14px;border-radius:5px 5px 0 0;cursor:pointer;border:none;background:var(--bg-panel);color:var(--text-secondary); }
-.ability-block-tab.active { background:#1f2937;color:#fff; }
-.ability-block-code { flex:1;margin:0;background:#1f2937;color:#e5e7eb;padding:14px;border-radius:0 5px 5px 5px;font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;font-size:12px;line-height:1.55;overflow:auto;max-height:none;white-space:pre-wrap;word-break:break-word; }
-@media(max-width:720px){.ab-board-shell{grid-template-columns:1fr;height:560px}.ab-palette{max-height:165px;border-right:0;border-bottom:1px solid var(--border);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;overflow:auto}.ab-palette-title,.ab-palette-help{grid-column:1/-1}.ab-palette-group{margin:0}.ab-palette-tip{display:none}.ab-workspace{width:900px;height:700px}.ab-free-container{min-height:700px}.ability-block-preview{min-height:360px}}
-
-/* Ability whiteboard visibility + Scratch-like block connections */
-.ability-block-canvas { background: var(--bg-panel) !important; }
-.ab-workspace-scroll {
-    position: relative;
-    overflow: auto;
-    background-color: var(--bg-panel) !important;
-    background-image: radial-gradient(circle at 1px 1px, rgba(120,120,120,.34) 1.25px, transparent 1.35px) !important;
-    background-size: 20px 20px !important;
-}
-[data-theme="dark"] .ab-workspace-scroll {
-    background-image: radial-gradient(circle at 1px 1px, rgba(220,220,220,.22) 1.25px, transparent 1.35px) !important;
-}
-.ab-workspace { isolation: isolate; }
-.ab-board-connections {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 1;
-    pointer-events: none;
-    overflow: visible;
-    color: #64748b;
-}
-.ab-connector-line {
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 3;
-    stroke-linecap: round;
-    opacity: .65;
-}
-.ab-block { z-index: 2; }
-/* subtle Scratch-style socket/tab silhouettes */
-.ab-action-block::before,
-.ab-if-block::before {
-    content: "";
-    position: absolute;
-    left: 18px;
-    top: -5px;
-    width: 28px;
-    height: 9px;
-    background: inherit;
-    border-radius: 0 0 5px 5px;
-    opacity: .96;
-}
-.ab-action-block::after,
-.ab-if-block::after {
-    content: "";
-    position: absolute;
-    left: 50%;
-    bottom: -7px;
-    width: 30px;
-    height: 9px;
-    transform: translateX(-50%);
-    background: inherit;
-    clip-path: polygon(0 0, 38% 0, 38% 55%, 62% 55%, 62% 0, 100% 0, 100% 100%, 0 100%);
-}
-/* nested stacks are connected Scratch-like stacks, not independent floating boards */
-.ab-nested-container {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    min-height: 44px;
-    padding: 2px 0 4px;
-}
-.ab-nested-container > .ab-block {
-    position: relative !important;
-    left: auto !important;
-    top: auto !important;
-    width: 100%;
-    min-width: 0;
-    max-width: none;
-    margin: 0;
-    border-radius: 5px;
-    box-shadow: 0 2px 0 rgba(0,0,0,.14);
-    cursor: grab;
-}
-.ab-nested-container > .ab-block::before { display:none; }
-.ab-nested-container > .ab-block::after { display:none; }
-.ab-nested-container > .ab-block + .ab-block { margin-top: 3px; }
-.ab-if-then, .ab-if-else {
-    background: rgba(255,255,255,.08);
-    border-left: 4px solid rgba(255,255,255,.5);
-    border-radius: 4px;
-    padding: 8px 8px 8px 12px;
-}
-
-.ab-palette-item { user-select: none; }
-
-/* Scratch-style ability block catalog */
-.ab-palette-group { border-left: 3px solid var(--border); padding-left: 8px; }
-.ab-palette-events { border-left-color: #f59e0b; }
-.ab-palette-purple { border-left-color: #a855f7; }
-.ab-palette-orange { border-left-color: #f97316; }
-.ab-palette-green { border-left-color: #22c55e; }
-.ab-palette-cyan { border-left-color: #06b6d4; }
-.ab-palette-blue { border-left-color: #3b82f6; }
-.ab-palette-gray { border-left-color: #6b7280; }
-.ab-palette-item { transition: transform .1s ease, border-color .1s ease, background .1s ease; }
-.ab-palette-item:active { transform: scale(.98); }
-.ab-palette-item.active { outline: 2px solid #f59e0b; outline-offset: 1px; }
-.ab-palette-item.ab-palette-orange .ab-palette-dot { background:#f97316; }
-.ab-palette-item.ab-palette-green .ab-palette-dot { background:#22c55e; }
-.ab-palette-item.ab-palette-cyan .ab-palette-dot { background:#06b6d4; }
-.ab-palette-item.ab-palette-blue .ab-palette-dot { background:#3b82f6; }
-.ab-palette-item.ab-palette-gray .ab-palette-dot { background:#6b7280; }
-.ab-palette-item.ab-palette-purple .ab-palette-dot { background:#a855f7; }
-.ab-palette-item.ab-event-item .ab-palette-dot { background:#f59e0b; }
-.ab-category-variables { background:linear-gradient(135deg,#f97316,#ea580c); }
-.ab-category-values { background:linear-gradient(135deg,#22c55e,#16a34a); }
-.ab-category-functions { background:linear-gradient(135deg,#06b6d4,#0891b2); }
-/* these four categories previously only had color defined for nested blocks; loose blocks fell back to generic blue */
-.ab-category-battle-actions { background:linear-gradient(135deg,#3b82f6,#2563eb); }
-.ab-category-logic { background:linear-gradient(135deg,#a855f7,#9333ea); }
-.ab-category-other-output { background:linear-gradient(135deg,#6b7280,#4b5563); }
-.ab-category-events { background:linear-gradient(135deg,#f59e0b,#ea580c); }
-
-/* ======================================================================
-   Scratch-style block sockets / connection affordances
-   ====================================================================== */
-
-/* top notch + bottom tab so connection direction reads like Scratch, not a stack of unrelated cards */
-.ab-block { overflow: visible; }
-.ab-block-top-connector,
-.ab-block-bottom-connector {
-    position:absolute;
-    left:22px;
-    width:30px;
-    height:9px;
-    z-index:3;
-    pointer-events:none;
-}
-.ab-block-top-connector {
-    top:-7px;
-    border-radius:3px 3px 0 0;
-    background:inherit;
-    clip-path:polygon(0 100%,18% 0,82% 0,100% 100%);
-}
-.ab-block-bottom-connector {
-    bottom:-7px;
-    border-radius:0 0 3px 3px;
-    background:inherit;
-    clip-path:polygon(18% 0,82% 0,100% 100%,0 100%);
-}
-.ab-action-block::after {
-    content:"";
-    position:absolute;
-    left:27px;
-    bottom:-14px;
-    width:20px;
-    height:10px;
-    border-left:2px solid rgba(255,255,255,.34);
-    border-right:2px solid rgba(255,255,255,.34);
-    pointer-events:none;
-}
-
-/* The nested branch is a real receiving socket, not an add-button row. */
-.ab-connection-slot {
-    position:relative;
-    min-height:34px;
-    margin:8px 4px 3px 24px;
-    padding:8px 12px 8px 28px;
-    border:2px dashed rgba(255,255,255,.22);
-    border-radius:6px;
-    color:rgba(255,255,255,.52);
-    background:rgba(255,255,255,.045);
-    font-size:10px;
-    font-weight:700;
-    letter-spacing:.03em;
-    transition: var(--t-ui);
-}
-.ab-connection-slot::before {
-    content:"";
-    position:absolute;
-    left:9px;
-    top:50%;
-    width:12px;
-    height:12px;
-    transform:translateY(-50%);
-    border:2px solid currentColor;
-    border-radius:3px;
-    opacity:.7;
-}
-.ab-connection-slot .ab-slot-notch { display:none; }
-.ab-connection-slot.ab-connect-available {
-    border-color:rgba(255,255,255,.85);
-    color:#fff;
-    background:rgba(255,255,255,.15);
-    box-shadow:0 0 0 2px rgba(255,255,255,.08), inset 0 0 18px rgba(255,255,255,.06);
-    transform:translateX(2px);
-}
-.ab-connection-slot.ab-connect-available::before {
-    border-radius:50%;
-    background:currentColor;
-}
-.ab-connection-slot.ab-connect-unavailable {
-    opacity:.18;
-    filter:saturate(.3);
-}
-.ab-connection-slot.ab-drop-valid {
-    border-style:solid;
-    border-color:#fff;
-    color:#fff;
-    background:rgba(255,255,255,.20);
-    transform:scale(1.015);
-}
-.ab-connection-slot.ab-drop-invalid { opacity:.25; }
-
-/* A little inline hint while dragging, similar to Scratch's snap cues. */
-
-/* Branches visually read as sockets/slots rather than mini boards. */
-.ab-nested-container {
-    min-height:42px;
-    padding:5px 2px 8px 0;
-    border-left:3px solid rgba(255,255,255,.18);
-    margin-left:8px;
-}
-.ab-nested-container > .ab-block {
-    position:relative !important;
-    left:auto !important;
-    top:auto !important;
-    width:calc(100% - 2px);
-    max-width:none;
-    margin:0 0 4px 0;
-}
-.ab-nested-container > .ab-block + .ab-block::before {
-    content:"";
-    position:absolute;
-    left:22px;
-    top:-7px;
-    width:30px;
-    height:9px;
-    background:inherit;
-    clip-path:polygon(18% 0,82% 0,100% 100%,0 100%);
-    pointer-events:none;
-}
-
-/* hides old text-oriented add controls in case any saved render path still produces one */
-
-@media (max-width:720px) {
-    .ab-connection-slot { margin-left:18px; }
-}
-
-/* Multi-trigger Scratch-style event stacks */
-.ab-event-block {
-    min-width:320px;
-    max-width:380px;
-    padding:0 0 10px;
-    background:linear-gradient(135deg,#f59e0b,#ea580c);
-    border-radius:10px;
-}
-.ab-event-block > .ab-trigger-hat {
-    border-radius:10px 10px 5px 5px;
-    min-height:42px;
-    padding:10px 12px;
-    box-sizing:border-box;
-}
-.ab-event-block .ab-trigger-hat .ab-block-controls { margin-left:auto; }
-.ab-event-body { padding:0 8px 2px; }
-.ab-event-body > .ab-nested-container {
-    border-left:0;
-    margin:0;
-    padding:7px 2px 4px;
-    background:rgba(255,255,255,.06);
-    border-radius:5px;
-}
-.ab-event-body .ab-connection-slot { margin-left:10px; margin-right:10px; }
-.ab-event-block .ab-nested-container > .ab-block { background:linear-gradient(135deg,#3b82f6,#2563eb); }
-
-/* Ability editor v12: connected blocks retain their semantic Scratch colors. */
-.ab-event-block .ab-nested-container > .ab-action-block { background: linear-gradient(135deg,#3b82f6,#2563eb); }
-.ab-event-block .ab-nested-container > .ab-if-block { background: linear-gradient(135deg,#a855f7,#9333ea); }
-.ab-event-block .ab-nested-container > .ab-category-variables { background: linear-gradient(135deg,#f97316,#ea580c); }
-.ab-event-block .ab-nested-container > .ab-category-values { background: linear-gradient(135deg,#22c55e,#16a34a); }
-.ab-event-block .ab-nested-container > .ab-category-functions { background: linear-gradient(135deg,#06b6d4,#0891b2); }
-.ab-event-block .ab-nested-container > .ab-category-battle-actions { background: linear-gradient(135deg,#3b82f6,#2563eb); }
-.ab-event-block .ab-nested-container > .ab-category-logic { background: linear-gradient(135deg,#a855f7,#9333ea); }
-.ab-event-block .ab-nested-container > .ab-category-events { background: linear-gradient(135deg,#f59e0b,#ea580c); }
-
-/* Do not let connected stacks inherit the parent's event orange. */
-.ab-event-block .ab-nested-container > .ab-block { color:#fff; }
-
-/* The board itself is a valid detach target. Make the drop area visually obvious. */
-
-/* Controls stay clickable even though the block itself is draggable. */
-.ab-block-controls, .ab-block-controls button, .ab-inline-input { position:relative; z-index:8; }
-
-/* v12: semantic Scratch colors survive when blocks are connected. */
-.ab-nested-container > .ab-category-variables { background:linear-gradient(135deg,#f97316,#ea580c) !important; }
-.ab-nested-container > .ab-category-values { background:linear-gradient(135deg,#22c55e,#16a34a) !important; }
-.ab-nested-container > .ab-category-functions { background:linear-gradient(135deg,#06b6d4,#0891b2) !important; }
-.ab-nested-container > .ab-category-battle-actions { background:linear-gradient(135deg,#3b82f6,#2563eb) !important; }
-.ab-nested-container > .ab-category-other-output { background:linear-gradient(135deg,#6b7280,#4b5563) !important; }
-.ab-nested-container > .ab-if-block { background:linear-gradient(135deg,#a855f7,#9333ea) !important; }
-.ab-nested-container > .ab-event-block { background:linear-gradient(135deg,#f59e0b,#ea580c) !important; }
-
-/* A connected block can be released anywhere on the board to detach it. */
-.ab-workspace { position:relative; }
-.ab-workspace .ab-block { user-select:none; }
-.ab-workspace .ab-block.ab-dragging { cursor:grabbing; }
-
-/* Keep controls above the draggable surface. */
-.ab-block-controls,
-.ab-block-controls button,
-.ab-inline-input { z-index:20; position:relative; }
-

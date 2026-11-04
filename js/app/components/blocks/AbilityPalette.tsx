@@ -1,18 +1,22 @@
-// The block palette beside the ability block board: drag an entry onto the
-// board, or click it to add it. Which entries show: ability-palette-model.ts.
+// The block palette beside the board: each entry looks like the block it
+// makes. Drag one onto the board or into a gap, or click it to add it (an
+// event goes on the board, any other block parks there until you move it
+// into an event). Which entries show: ability-palette-model.ts.
 
-import type { DragEvent, MouseEvent } from 'react';
+import { useState, type CSSProperties, type DragEvent } from 'react';
 import { buildPaletteModel } from '../../../editor/ability-palette-model.ts';
 import {
     addAbilityBlock, addAbilityEvent, handlePaletteDragStart, handlePaletteEventDragStart
 } from '../../../editor/ability-blocks.ts';
+import { Icon } from '../Icon.tsx';
+import { BLOCK_COLOURS } from './colours.ts';
 
-function PaletteButton({ className, label, onDragStart, onClick }: {
-    className: string; label: string; onDragStart: (e: DragEvent) => void; onClick: (e: MouseEvent) => void;
+function Entry({ label, colour, hat, onDragStart, onAdd }: {
+    label: string; colour: string; hat?: boolean; onDragStart: (e: DragEvent) => void; onAdd: () => void;
 }) {
     return (
-        <button type="button" draggable className={className} onDragStart={onDragStart} onClick={onClick}>
-            <span className="ab-palette-dot" />
+        <button type="button" draggable className={`ab-pal-block${hat ? ' is-hat' : ''}`} style={{ '--blk': colour } as CSSProperties}
+            title={`${label}: drag it, or click to add it`} onDragStart={onDragStart} onClick={onAdd}>
             {label}
         </button>
     );
@@ -20,39 +24,39 @@ function PaletteButton({ className, label, onDragStart, onClick }: {
 
 /** tables carries TRIGGERS / ACTIONS / BLOCK_GROUPS / EVENT_GROUP. */
 export function AbilityPalette({ kind, tables }: { kind: 'ability' | 'move' | 'item' | 'condition'; tables: any }) {
+    const [query, setQuery] = useState('');
+    const q = query.trim().toLowerCase();
     const { events, groups } = buildPaletteModel(tables, kind);
+    const match = (label: string) => !q || label.toLowerCase().includes(q);
+    const shownEvents = events.filter(e => match(e.label));
+    const shownGroups = groups.map(g => ({ ...g, items: g.items.filter(i => match(i.label)) })).filter(g => g.items.length);
+
     return (
         <>
-            <div className="ab-palette-title">Blocks</div>
-            <div className="ab-palette-help">
-                Drag orange Events onto the board. Each event gets its own Scratch-style stack,
-                so one ability can react to many triggers.
-            </div>
-
-            <div className="ab-palette-group ab-palette-events">
-                <div className="ab-palette-label">Events</div>
-                {events.map(({ key, label }) => (
-                    <PaletteButton key={key} className="ab-palette-item ab-event-item" label={label}
-                        onDragStart={e => handlePaletteEventDragStart(e, key)}
-                        onClick={e => { e.stopPropagation(); addAbilityEvent(key); }} />
+            <label className="ab-pal-search">
+                <Icon name="magnifying-glass" size={15} />
+                <input type="search" placeholder="Find a block" value={query} onChange={e => setQuery(e.target.value)} aria-label="Find a block" />
+            </label>
+            <div className="ab-pal-list">
+                {shownEvents.length > 0 && (
+                    <section className="ab-pal-group">
+                        <h3><span className="ab-pal-swatch" style={{ background: BLOCK_COLOURS.gold }} />When</h3>
+                        {shownEvents.map(({ key, label }) => (
+                            <Entry key={key} hat label={label} colour={BLOCK_COLOURS.gold}
+                                onDragStart={e => handlePaletteEventDragStart(e, key)} onAdd={() => addAbilityEvent(key)} />
+                        ))}
+                    </section>
+                )}
+                {shownGroups.map(group => (
+                    <section className="ab-pal-group" key={group.label}>
+                        <h3><span className="ab-pal-swatch" style={{ background: BLOCK_COLOURS[group.color] || BLOCK_COLOURS.blue }} />{group.label}</h3>
+                        {group.items.map(({ type, label }) => (
+                            <Entry key={type} label={label} colour={BLOCK_COLOURS[group.color] || BLOCK_COLOURS.blue}
+                                onDragStart={e => handlePaletteDragStart(e, type)} onAdd={() => addAbilityBlock('root', type)} />
+                        ))}
+                    </section>
                 ))}
-            </div>
-
-            {groups.map(group => (
-                <div className="ab-palette-group" key={group.label}>
-                    <div className="ab-palette-label">{group.label}</div>
-                    {group.items.map(({ type, label }) => (
-                        <PaletteButton key={type} className={`ab-palette-item ab-palette-${group.color}`} label={label}
-                            onDragStart={e => handlePaletteDragStart(e, type)}
-                            onClick={() => addAbilityBlock('root', type)} />
-                    ))}
-                </div>
-            ))}
-
-            <div className="ab-palette-tip">
-                <strong>Tip</strong><br />
-                Drag actions into an event block.
-                Add as many event triggers as you need.
+                {!shownEvents.length && !shownGroups.length && <p className="ab-pal-empty">No block matches “{query}”.</p>}
             </div>
         </>
     );

@@ -87,24 +87,3 @@ export function splitParamTemplate(template, paramDefs: any[] = []): {text: stri
         return { text, param: paramDefs[next++] || null };
     });
 }
-
-/**
- * Curves drawn between consecutive event blocks, showing execution order.
- * @param boxes (null for a block not on screen; its curves are skipped)
- * @returns SVG path `d` attributes
- */
-export function buildConnectorPaths(boxes: Array<{x:number,y:number,width:number,height:number} | null>): string[] {
-    const paths: any[] = [];
-    for (let i = 0; i < boxes.length - 1; i++) {
-        const a = boxes[i], b = boxes[i + 1];
-        if (!a || !b) continue;
-        const x1 = a.x + a.width / 2;
-        const y1 = a.y + a.height;
-        const x2 = b.x + b.width / 2;
-        const y2 = b.y;
-        // bow out by at least 18px so near-level blocks still get a visible arc
-        const mid = y1 + Math.max(18, (y2 - y1) / 2);
-        paths.push(`M ${x1} ${y1} C ${x1} ${mid}, ${x2} ${mid}, ${x2} ${y2}`);
-    }
-    return paths;
-}

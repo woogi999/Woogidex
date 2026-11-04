@@ -624,6 +624,8 @@ document.addEventListener('click', (event) => {
 document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape' || event.defaultPrevented) return;
     if (!document.body.classList.contains('editor-sheet-open')) return;
+    // the block editor over the sheet takes its own Esc (js/editor/ability-blocks.ts)
+    if (document.body.classList.contains('ab-editor-open')) return;
     if (document.querySelector('.modal-overlay.active, .move-detail-popup')) return;
     // a menu or picker inside the sheet takes the first Esc
     if (document.activeElement?.closest?.('.global-search, .export-as-wrap, .type-dropdown.open')) return;

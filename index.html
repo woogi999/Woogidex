@@ -183,8 +183,6 @@
             <div id="battle-view" style="display:none;"></div>
 
 
-            <!-- ability battle-effect block editor view -->
-            <div id="ability-block-editor-view" style="display:none;"></div>
 
             <!-- editor view -->
             <div id="editor-view" style="display: none;"></div>
@@ -223,6 +221,10 @@
 
         </div>
     </div>
+
+    <!-- the block editor: a dialog that slides down over any page (js/app/pages/AbilityBlockEditorPage.tsx).
+         Outside .app-container, whose stacking context sits under the header. -->
+    <div id="ability-block-editor-view" style="display:none;"></div>
 
     <!-- every dialog is rendered by React into #react-dialogs (js/app/dialogs.tsx) -->
     <div class="toast-container" id="toast-container"></div>

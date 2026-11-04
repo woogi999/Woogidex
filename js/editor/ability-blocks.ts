@@ -1,5 +1,7 @@
 import { log } from '../core/log.ts';
 import { effectiveZoom } from '../core/ui-scale.ts';
+import { reducedMotion } from '../core/motion.ts';
+import { confirmDialog } from '../core/confirm-dialog.ts';
 import { state, api } from '../core/app.ts';
 import { SELECTABLE_TYPES } from '../core/data.ts';
 // the same parser the battle engine uses, so exporters and pasted code can
@@ -2054,7 +2056,7 @@ let abContainerRegistry: Record<string, any> = {};
 let abDragId: any = null;
 let abDragGrabOffset: any = null; // where the cursor grabbed the currently-dragged block, relative to its top-left
 let abPreviewTab: 'sd' | 'es' = 'sd';
-let abPrevViewId: any = null;  // which top-level view ('editor-view' / 'collection-view') to restore on close
+let abOpenSnapshot = '';       // the program as it was when the editor opened, to tell unsaved changes apart
 
 // opens the ability block editor as its own full page/view rather than a
 // small modal; the ability library modal is closed first and reopened once
@@ -2096,18 +2098,21 @@ function openAbilityBlockEditor(customAbilityId, kind: 'ability' | 'move' | 'ite
     abState = normalizeAbilityBlocks(ability.blocks, kind === 'condition' ? 'condStart' : 'switchIn');
     getAbilityRootEvents().forEach(ev => normalizeAbilityIfBranches(ev.body));
     abPreviewTab = 'sd';
+    abOpenSnapshot = JSON.stringify(abState);
 
+    // the block editor is a dialog that slides down over the page you are on
+    // (js/app/pages/AbilityBlockEditorPage.tsx); the dialog it came from
+    // closes now and opens again when this one closes
     ['custom-ability', 'custom-move', 'custom-item', 'custom-condition', 'custom-entity-chooser'].forEach(closeDialog);
-    const editorView = document.getElementById('editor-view');
-    abPrevViewId = editorView && editorView.style.display !== 'none' ? 'editor-view' : 'collection-view';
-    // Entering the ability editor is itself a top-level navigation transition,
-    // but we must preserve this editor's state while activating its view.
-    const view = api.activateTopLevelView?.('ability-block-editor-view', { preserveAbilityEditor: true })
-        || document.getElementById('ability-block-editor-view');
-    if (view) view.style.display = 'block';
-
+    const view = document.getElementById('ability-block-editor-view');
+    if (view) { view.classList.remove('is-closing'); view.style.display = 'block'; }
+    document.body.classList.add('ab-editor-open');
     renderAbilityBlockEditor();
-    api.setRoute?.(`ability-editor/${encodeURIComponent(customAbilityId)}`, `Code ${ability.name}`);
+}
+
+/** Whether the board differs from what was saved when the editor opened. */
+function abilityBlocksDirty() {
+    return !!abState && JSON.stringify(abState) !== abOpenSnapshot;
 }
 function onTopLevelNavigation() {
     // called by the central app navigator whenever another full-page route
@@ -2116,12 +2121,12 @@ function onTopLevelNavigation() {
     const view = document.getElementById('ability-block-editor-view');
     if (!view || view.style.display === 'none') return;
     view.style.display = 'none';
+    document.body.classList.remove('ab-editor-open');
     ['custom-ability', 'custom-entity-chooser'].forEach(closeDialog);
     abState = null;
     abAbilityId = null;
     abKind = 'ability';
     abContainerRegistry = {};
-    abPrevViewId = null;
     notify();
 }
 
@@ -2129,23 +2134,34 @@ function onTopLevelNavigation() {
 // central activateTopLevelView() lifecycle in app.ts.
 function hideAbilityBlockEditorForNavigation() { onTopLevelNavigation(); }
 
-function closeAbilityBlockEditor() {
-    const view = document.getElementById('ability-block-editor-view');
-    if (view) view.style.display = 'none';
-    const restoreId = abPrevViewId || 'collection-view';
-    const restoreEl = document.getElementById(restoreId);
-    if (restoreEl) restoreEl.style.display = 'block';
-    api.setRoute?.('collection', null);
-    // hop back into the library modal this came from so the user can keep
-    // editing the name/description right where they left off.
-    if (abAbilityId) {
-        if (abKind === 'move') api.openCustomMoveLibraryModal?.(abAbilityId);
-        else if (abKind === 'item') api.openCustomItemModal?.(abAbilityId);
-        else if (abKind === 'condition') api.openCustomConditionEditor?.(abAbilityId);
-        else api.openCustomAbilityLibraryModal?.(abAbilityId);
+/**
+ * Closes the block editor: it slides back up, and the dialog it came from
+ * opens again. Unsaved changes ask first, unless `discard` says not to.
+ */
+async function closeAbilityBlockEditor({ discard = false }: { discard?: boolean } = {}) {
+    if (!abState) return;
+    if (!discard && abilityBlocksDirty()) {
+        const ok = await confirmDialog({ title: 'Close without saving?', message: 'Your changes to these blocks are not saved yet.', confirmLabel: 'Close without saving', cancelLabel: 'Keep editing' });
+        if (!ok) return;
     }
-    abState = null; abAbilityId = null; abKind = 'ability'; abContainerRegistry = {}; abPrevViewId = null;
-    notify();
+    const id = abAbilityId, kind = abKind;
+    const view = document.getElementById('ability-block-editor-view');
+    const hide = () => {
+        if (view) { view.style.display = 'none'; view.classList.remove('is-closing'); }
+        document.body.classList.remove('ab-editor-open');
+        // back into the dialog this came from, to keep editing the name and description
+        if (id) {
+            if (kind === 'move') api.openCustomMoveLibraryModal?.(id);
+            else if (kind === 'item') api.openCustomItemModal?.(id);
+            else if (kind === 'condition') api.openCustomConditionEditor?.(id);
+            else api.openCustomAbilityLibraryModal?.(id);
+        }
+        abState = null; abAbilityId = null; abKind = 'ability'; abContainerRegistry = {};
+        notify();
+    };
+    if (!view || reducedMotion()) { hide(); return; }
+    view.classList.add('is-closing');
+    setTimeout(hide, 180);
 }
 function saveAbilityBlockEditor() {
     if (!abState || !abAbilityId) return;
@@ -2155,7 +2171,7 @@ function saveAbilityBlockEditor() {
     if (abKind !== 'condition') api.settleVanillaCopy?.({ move: 'moves', item: 'items' }[abKind] || 'abilities', entry);
     api.saveToStorage?.();
     api.showToast?.(`${abKindInfo().Noun} battle code saved!`, 'success');
-    closeAbilityBlockEditor();
+    closeAbilityBlockEditor({ discard: true });
 }
 
 function setAbilityBlockTrigger(key) {
@@ -2182,9 +2198,10 @@ function addAbilityBlock(containerId, type) {
     // silently insert themselves into the first event; the user chooses the
     // event/branch by dragging the block there.
     if (containerId === 'root' || containerId === 'loose') {
-        const loose = getAbilityLooseBlocks();
-        block.pos = { x: 80 + (loose.length % 3) * 280, y: 80 + Math.floor(loose.length / 3) * 140 };
-        loose.push(block);
+        // parked right of the events, under the blocks already parked there
+        block.pos = freeSpot('loose');
+        getAbilityLooseBlocks().push(block);
+        showNewBlock(block.id);
     } else {
         const arr = abContainerRegistry[containerId];
         if (!arr) return;
@@ -2274,19 +2291,6 @@ function setAbilityBlockPreviewTab(tab) {
 // The page is js/app/pages/AbilityBlockEditorPage.tsx, drawn from
 // abilityBlockView(); the board's layout rules are in ./ability-board-model.ts.
 
-
-(function ensureAbilityPointerDragCSS() {
-    if (document.getElementById('ab-pointer-drag-css')) return;
-    const style = document.createElement('style');
-    style.id = 'ab-pointer-drag-css';
-    style.textContent = `
-        #ab-workspace { position: relative; }
-        #ab-workspace .ab-block { touch-action: none; }
-        #ab-workspace .ab-block.ab-dragging { cursor: grabbing; }
-    `;
-    document.head.appendChild(style);
-})();
-
 // ==================== freeform whiteboard interaction ====================
 // visual x/y position is presentation-only; the AST array still controls
 // execution order, so moving a block never silently changes behavior
@@ -2338,6 +2342,7 @@ function startAbilityBlockMove(event, id, containerId) {
     el.style.zIndex = '10000';
     el.style.pointerEvents = 'none';
     el.classList.add('ab-dragging');
+    document.body.classList.add('ab-is-dragging');
 
     try { el.setPointerCapture(event.pointerId); } catch (e: any) {}
     highlightConnectionTargets(block, true);
@@ -2368,17 +2373,72 @@ function moveAbilityBlockPointer(event) {
     el.style.left = `${left / z}px`;
     el.style.top = `${top / z}px`;
 
-    // Keep board coordinates synchronized for loose blocks / detach.
-    const workspace = document.getElementById('ab-workspace');
-    if (workspace) {
-        const wr = workspace.getBoundingClientRect();
-        block.pos = block.pos || { x: 12, y: 12 };
-        // board positions are CSS pixels; the pointer, the rect and the grab point are window pixels
-        block.pos.x = Math.max(12, (event.clientX - wr.left - drag.grabX) / z + workspace.scrollLeft);
-        block.pos.y = Math.max(12, (event.clientY - wr.top - drag.grabY) / z + workspace.scrollTop);
-    }
+    // where it would join a stack, shown as a line, if its notch is close to one
+    drag.snap = block.kind === 'event' ? null : nearestSnap(block, el);
+    showSnapMarker(drag.snap);
+}
 
-    highlightConnectionTargets(block, true);
+// ---- snapping ----
+// A statement block joins a stack at its top-left notch. The places it can go
+// are every gap in every stack it may join: above each block, and after the
+// last one. The nearest gap within reach of the dragged block's top-left
+// corner wins. Rects are window pixels; the marker is drawn in CSS pixels.
+const SNAP_REACH = 44;
+type Snap = { containerId: string; beforeId: string | null; x: number; y: number; width: number };
+
+function snapTargets(block): Snap[] {
+    const out: Snap[] = [];
+    const inside = collectDescendantContainerIdsForDrop(block);
+    document.querySelectorAll<HTMLElement>('#ab-workspace .ab-stack[data-container-id]').forEach(stack => {
+        const cid = stack.dataset.containerId || '';
+        if (!isValidStatementDrop(block, cid) || inside.includes(cid)) return;
+        const kids = Array.from(stack.children).filter(k => k.classList.contains('ab-block') && (k as HTMLElement).dataset.id !== block.id) as HTMLElement[];
+        for (const k of kids) {
+            const r = k.getBoundingClientRect();
+            out.push({ containerId: cid, beforeId: k.dataset.id || null, x: r.left, y: r.top, width: r.width });
+        }
+        const end = stack.querySelector<HTMLElement>(':scope > .ab-connection-slot')?.getBoundingClientRect() || stack.getBoundingClientRect();
+        out.push({ containerId: cid, beforeId: null, x: end.left, y: end.top, width: end.width });
+    });
+    return out;
+}
+
+function nearestSnap(block, el: HTMLElement): Snap | null {
+    const r = el.getBoundingClientRect();
+    const reach = SNAP_REACH * effectiveZoom();
+    let best: Snap | null = null, bestD = Infinity;
+    for (const t of snapTargets(block)) {
+        const d = Math.hypot(r.left - t.x, r.top - t.y);
+        if (d < reach && d < bestD) { best = t; bestD = d; }
+    }
+    return best;
+}
+
+function showSnapMarker(snap: Snap | null) {
+    let marker = document.getElementById('ab-snap-marker');
+    if (!snap) { if (marker) marker.hidden = true; return; }
+    if (!marker) {
+        marker = document.createElement('div');
+        marker.id = 'ab-snap-marker';
+        marker.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(marker);
+    }
+    const z = effectiveZoom();
+    marker.hidden = false;
+    marker.style.left = `${snap.x / z}px`;
+    marker.style.top = `${snap.y / z}px`;
+    marker.style.width = `${Math.min(snap.width / z, 260)}px`;
+}
+
+/** A pointer position as board coordinates (CSS pixels from the board's top-left), for a block grabbed at grabX/grabY. */
+function boardPoint(event, drag) {
+    const workspace = document.getElementById('ab-workspace');
+    if (!workspace) return null;
+    const wr = workspace.getBoundingClientRect(), z = effectiveZoom();
+    return {
+        x: Math.max(12, (event.clientX - wr.left - drag.grabX) / z),
+        y: Math.max(12, (event.clientY - wr.top - drag.grabY) / z)
+    };
 }
 
 function finishAbilityBlockMove(event) {
@@ -2389,49 +2449,14 @@ function finishAbilityBlockMove(event) {
     const block = getAbilityBlockById(id);
     const el = drag.el;
 
-    const under = document.elementFromPoint(event.clientX, event.clientY);
-    const slot = under?.closest?.<HTMLElement>('.ab-connection-slot');
-
+    // the gap its notch was near when let go, as the marker showed it
     let movedInto = false;
-    if (slot && block) {
-        const cid = slot.dataset.containerId;
-        if (
-            isValidStatementDrop(block, cid) &&
-            !collectDescendantContainerIdsForDrop(block).includes(cid)
-        ) {
-            movedInto = moveBlockIntoContainer(id, cid);
-        }
-    }
+    if (drag.moved && drag.snap && block) movedInto = moveBlockIntoContainer(id, drag.snap.containerId, drag.snap.beforeId);
 
-    // If a connected block was dragged out and not dropped on a socket,
-    // detach it onto the main whiteboard.
-    if (
-        !movedInto &&
-        block &&
-        drag.moved &&
-        drag.containerId !== 'root' &&
-        drag.containerId !== 'loose'
-    ) {
-        const workspace = document.getElementById('ab-workspace');
-        if (workspace) {
-            const wr = workspace.getBoundingClientRect();
-            detachAbilityBlockToBoard(
-                id,
-                event.clientX - wr.left + workspace.scrollLeft - drag.grabX,
-                event.clientY - wr.top + workspace.scrollTop - drag.grabY
-            );
-        }
-    } else if (!movedInto && block && (drag.containerId === 'root' || drag.containerId === 'loose')) {
-        // Root/loose blocks simply retain their new board position.
-        const workspace = document.getElementById('ab-workspace');
-        if (workspace) {
-            const wr = workspace.getBoundingClientRect();
-            block.pos = {
-                x: Math.max(12, event.clientX - wr.left + workspace.scrollLeft - drag.grabX),
-                y: Math.max(12, event.clientY - wr.top + workspace.scrollTop - drag.grabY)
-            };
-        }
-    }
+    // Not dropped into a stack: an event or a loose block keeps its new place
+    // on the board, and a block pulled out of a stack becomes a loose one there.
+    const at = !movedInto && block && drag.moved ? boardPoint(event, drag) : null;
+    if (at) detachAbilityBlockToBoard(id, at.x, at.y);
 
     if (el) {
         el.classList.remove('ab-dragging');
@@ -2446,12 +2471,21 @@ function finishAbilityBlockMove(event) {
     try { el?.releasePointerCapture?.(event.pointerId); } catch (e: any) {}
 
     highlightConnectionTargets(null, false);
+    showSnapMarker(null);
+    document.body.classList.remove('ab-is-dragging');
     abPointerDrag = null;
     renderAbilityBlockEditor();
+    // a block that joined a stack can be far from where it was parked
+    if (movedInto) showNewBlock(id);
 }
 
 document.addEventListener('keydown', (event) => {
     if (!abState) return;
+    if (event.key === 'Escape' && !event.defaultPrevented && !document.querySelector('.modal-overlay.active')) {
+        event.preventDefault();
+        closeAbilityBlockEditor();
+        return;
+    }
     if (event.key !== 'Delete' && event.key !== 'Backspace') return;
     const active = document.activeElement;
     if (active && active.closest('input,select,textarea,[contenteditable="true"]')) return;
@@ -2485,13 +2519,14 @@ function handleWorkspaceDrop(event) {
         eventType = event.dataTransfer.getData('text/ability-event');
         id = event.dataTransfer.getData('text/ability-block-id') || event.dataTransfer.getData('text/plain') || abDragId || '';
     } catch (e: any) { id = abDragId || ''; }
-    const rect = workspace.getBoundingClientRect();
+    const rect = workspace.getBoundingClientRect(), z = effectiveZoom();
     // Use the offset captured where the user actually grabbed the block (if
     // any) so it lands under the cursor instead of snapping its top-left
-    // corner to a fixed offset regardless of grab point.
-    const offset = abDragGrabOffset || { x: 90, y: 24 };
-    const x = Math.max(12, event.clientX - rect.left + workspace.scrollLeft - offset.x);
-    const y = Math.max(12, event.clientY - rect.top + workspace.scrollTop - offset.y);
+    // corner to a fixed offset regardless of grab point. Board positions are
+    // CSS pixels; the pointer and the rect are window pixels.
+    const offset = abDragGrabOffset || { x: 90 * z, y: 24 * z };
+    const x = Math.max(12, (event.clientX - rect.left - offset.x) / z);
+    const y = Math.max(12, (event.clientY - rect.top - offset.y) / z);
     if (eventType) {
         const block = makeEventBlock(eventType);
         if (block) { block.pos = { x, y }; getAbilityRootEvents().push(block); }
@@ -2530,11 +2565,36 @@ const BOARD_TABLES = {
 
 function addAbilityEvent(trigger) {
     if (!abState || !TRIGGERS[trigger]) return;
-    const events = getAbilityRootEvents();
     const block = makeEventBlock(trigger);
-    block.pos = { x: 32 + (events.length % 3) * 360, y: 32 + Math.floor(events.length / 3) * 280 };
-    events.push(block);
+    block.pos = freeSpot('event');
+    getAbilityRootEvents().push(block);
     renderAbilityBlockEditor();
+    showNewBlock(block.id);
+}
+
+/**
+ * A free place on the board for a new block, in board coordinates (CSS
+ * pixels). An event goes right of every event. A parked block goes right of
+ * the events, under the parked blocks. Measured from the drawn board, since
+ * a block's size depends on what it holds.
+ */
+function freeSpot(kind: 'event' | 'loose') {
+    const workspace = document.getElementById('ab-workspace');
+    if (!workspace) return { x: 32, y: 32 };
+    const wr = workspace.getBoundingClientRect(), z = effectiveZoom();
+    const boxes = (layer: string) => Array.from(workspace.querySelectorAll(`.ab-free[data-container-id="${layer}"] > .ab-block`))
+        .map(el => { const r = el.getBoundingClientRect(); return { right: (r.right - wr.left) / z, bottom: (r.bottom - wr.top) / z }; });
+    const events = boxes('root-events');
+    const right = Math.max(0, ...events.map(b => b.right));
+    if (kind === 'event') return { x: Math.max(32, right + 40), y: 32 };
+    const loose = boxes('loose');
+    return { x: Math.max(32, right + 40), y: Math.max(32, ...loose.map(b => b.bottom + 20)) };
+}
+
+/** Scrolls the board to a block just added, once it is drawn. */
+function showNewBlock(id: string) {
+    requestAnimationFrame(() => document.querySelector(`#ab-workspace .ab-block[data-id="${CSS.escape(id)}"]`)
+        ?.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' }));
 }
 
 function handlePaletteEventDragStart(event, trigger) {
@@ -2688,11 +2748,11 @@ function abilityBlockPreview() {
 /**
  * Everything the block editor page shows, or null when nothing is open.
  */
-function abilityBlockView(): null | { kind: 'ability'|'move'|'item'|'condition', Noun: string, name: string, events: any[], loose: any[], tables: any, previewTab: 'sd'|'es', sd: string, es: string } {
+function abilityBlockView(): null | { kind: 'ability'|'move'|'item'|'condition', Noun: string, name: string, dirty: boolean, events: any[], loose: any[], tables: any, previewTab: 'sd'|'es', sd: string, es: string } {
     if (!abState) return null;
     const info = abKindInfo();
     return {
-        kind: abKind, Noun: info.Noun, name: abEntry()?.name || '',
+        kind: abKind, Noun: info.Noun, name: abEntry()?.name || '', dirty: abilityBlocksDirty(),
         events: getAbilityRootEvents(), loose: getAbilityLooseBlocks(), tables: BOARD_TABLES,
         previewTab: abPreviewTab, ...abilityBlockPreview()
     };

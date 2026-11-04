@@ -3,17 +3,17 @@
 // draws the tree it holds. React reconciling the tree (rather than rebuilding
 // it from strings) means a drag doesn't reset the board's scroll position.
 
-import { useLayoutEffect, useRef, useState, type SyntheticEvent, type TextareaHTMLAttributes, type InputHTMLAttributes } from 'react';
+import { type SyntheticEvent, type TextareaHTMLAttributes, type InputHTMLAttributes } from 'react';
 import { Icon } from '../Icon.tsx';
 import {
-    ensureBlockPosition, isFreeContainer, blockCategory, categoryClass, splitParamTemplate, buildConnectorPaths
+    ensureBlockPosition, isFreeContainer, blockCategory, categoryClass, splitParamTemplate
 } from '../../../editor/ability-board-model.ts';
+import { BLOCK_COLOURS, blockColour } from './colours.ts';
 import {
     allowWorkspaceDrop, handleBlockConnectionDragEnd, handleBlockConnectionDragStart, handleConnectionDragLeave,
     handleConnectionDragOver, handleConnectionDrop, handleWorkspaceDrop, moveAbilityBlock, removeAbilityBlock,
     startAbilityBlockMove, updateAbilityBlockParam, updateAbilityEventParam, updateAbilityIfCondParam, updateAbilityIfCondition
 } from '../../../editor/ability-blocks.ts';
-import { effectiveZoom } from '../../../core/ui-scale.ts';
 
 /** The AST node types are the editor's own; loosely typed here. */
 type Block = any;
@@ -83,36 +83,39 @@ function ParamLabel({ template, paramDefs, values, onCommit, resolveOptions }: {
 }
 
 // ==================== structure ====================
+// Every statement block has the same notch at its top-left and the same tab
+// under it (css/ability-blocks.css, --ab-notch-*), so a block that follows
+// another in a stack fits it exactly. Event and If blocks are C-shapes: their
+// arms hold a stack. A stack ends in a gap to drop the next block into; a
+// dragged block also snaps into any gap near its notch (nearestSnap in
+// js/editor/ability-blocks.ts finds stacks by .ab-stack).
 
-function ConnectionSlot({ containerId, label }: { containerId: string; label: string }) {
+function ConnectionSlot({ containerId, empty }: { containerId: string; empty: boolean }) {
     return (
-        <div className="ab-connection-slot" data-container-id={containerId} data-accept="statement"
+        <div className={`ab-connection-slot${empty ? ' is-empty' : ''}`} data-container-id={containerId} data-accept="statement"
             onDragOver={e => handleConnectionDragOver(e, containerId)}
             onDragLeave={e => handleConnectionDragLeave(e)}
             onDrop={e => handleConnectionDrop(e, containerId)}>
-            <span className="ab-slot-notch" />
-            <span>{label}</span>
+            {empty ? 'Drop a block here' : <span className="ab-sr">Drop a block here</span>}
         </div>
     );
 }
 
-function Container({ list, containerId, depth, tables }: { list: Block[]; containerId: string; depth: number; tables: Tables }) {
-    const free = containerId === 'root';
+/** A stack inside an event or an If: its blocks one under the other, then the gap for the next one. */
+function Stack({ list, containerId, depth, tables }: { list: Block[]; containerId: string; depth: number; tables: Tables }) {
     list.forEach((b, i) => ensureBlockPosition(b, i, depth));
     return (
-        <div className={`ab-container ${free ? 'ab-free-container' : 'ab-nested-container'}`} data-container-id={containerId} data-depth={depth}>
+        <div className="ab-stack" data-container-id={containerId} data-depth={depth}>
             {list.map((block, i) => (
                 <AnyBlock key={block.id} block={block} containerId={containerId} index={i} depth={depth} tables={tables} />
             ))}
-            {/* root is an open whiteboard; nested containers expose a real socket */}
-            {!free && <ConnectionSlot containerId={containerId} label={list.length ? 'Drop another block here' : 'Drop a block inside'} />}
+            <ConnectionSlot containerId={containerId} empty={!list.length} />
         </div>
     );
 }
 
-/** Attributes every block shares: pointer-drag, drop target, and absolute
- *  positioning when on the free board rather than in a socket. */
-function blockFrameProps(block: Block, containerId: string) {
+/** Attributes every block shares: pointer-drag, drop target, and its place when it sits on the board itself. */
+function blockFrameProps(block: Block, containerId: string, colour: string) {
     return {
         'data-id': block.id,
         draggable: false,
@@ -121,7 +124,7 @@ function blockFrameProps(block: Block, containerId: string) {
         onDragEnd: (e: React.DragEvent<HTMLDivElement>) => handleBlockConnectionDragEnd(e),
         onDragOver: (e: React.DragEvent<HTMLDivElement>) => allowWorkspaceDrop(e),
         onDrop: (e: React.DragEvent<HTMLDivElement>) => handleWorkspaceDrop(e),
-        style: isFreeContainer(containerId) ? { left: block.pos.x, top: block.pos.y } : undefined
+        style: { '--blk': colour, ...(isFreeContainer(containerId) ? { left: block.pos.x, top: block.pos.y } : {}) } as React.CSSProperties
     };
 }
 
@@ -130,11 +133,11 @@ function BlockControls({ id, canReorder = true }: { id: string; canReorder?: boo
         <span className="ab-block-controls">
             {canReorder && (
                 <>
-                    <button type="button" title="Move earlier" onClick={e => { stop(e); moveAbilityBlock(id, -1); }}><Icon name="chevron-up" /></button>
-                    <button type="button" title="Move later" onClick={e => { stop(e); moveAbilityBlock(id, 1); }}><Icon name="chevron-down" /></button>
+                    <button type="button" title="Move up" aria-label="Move up" onClick={e => { stop(e); moveAbilityBlock(id, -1); }}><Icon name="chevron-up" /></button>
+                    <button type="button" title="Move down" aria-label="Move down" onClick={e => { stop(e); moveAbilityBlock(id, 1); }}><Icon name="chevron-down" /></button>
                 </>
             )}
-            <button type="button" title="Delete block" onClick={e => { stop(e); removeAbilityBlock(id); }}><Icon name="trash-2" /></button>
+            <button type="button" title="Delete" aria-label="Delete" onClick={e => { stop(e); removeAbilityBlock(id); }}><Icon name="trash-2" /></button>
         </span>
     );
 }
@@ -145,27 +148,24 @@ function EventBlock({ block, index, tables }: { block: Block; index: number; tab
     ensureBlockPosition(block, index, 0);
     const defs: ParamDef[] = def.params || [];
     return (
-        <div className="ab-block ab-event-block" {...blockFrameProps(block, 'root-events')}>
-            <div className="ab-trigger-hat">
-                <span className="ab-block-drag"><Icon name="grip-vertical" /></span>
-                <Icon name={def.icon || 'zap'} />
-                <strong>When</strong>
-                <span>{def.label}</span>
-                {defs.map(p => (
-                    <span key={p.key}>
-                        {/* only label when there's more than one dropdown, to avoid ambiguity */}
-                        {defs.length > 1 && p.label && <span className="ab-param-label">{p.label}</span>}
-                        <ParamControl pdef={p} value={(block.triggerParams || {})[p.key]} values={block.triggerParams}
-                            resolveOptions={tables.resolveOptions} onCommit={v => updateAbilityEventParam(block.id, p.key, v)} />
-                    </span>
-                ))}
-                <span className="ab-block-controls">
-                    <button type="button" title="Delete event" onClick={e => { stop(e); removeAbilityBlock(block.id); }}><Icon name="trash-2" /></button>
+        <div className="ab-block ab-c-block ab-event-block" {...blockFrameProps(block, 'root-events', BLOCK_COLOURS.gold)}>
+            <div className="ab-c-head ab-hat">
+                <Icon name={def.icon || 'bolt'} size={16} />
+                <span className="ab-block-text">
+                    <strong>When</strong> {String(def.label).charAt(0).toLowerCase() + String(def.label).slice(1)}
+                    {defs.map(p => (
+                        <span key={p.key} className="ab-param">
+                            {/* only labelled when there is more than one, so two bare dropdowns are told apart */}
+                            {defs.length > 1 && p.label && <span className="ab-param-label">{p.label}</span>}
+                            <ParamControl pdef={p} value={(block.triggerParams || {})[p.key]} values={block.triggerParams}
+                                resolveOptions={tables.resolveOptions} onCommit={v => updateAbilityEventParam(block.id, p.key, v)} />
+                        </span>
+                    ))}
                 </span>
+                <BlockControls id={block.id} canReorder={false} />
             </div>
-            <div className="ab-event-body">
-                <Container list={block.body || []} containerId={block.id + ':body'} depth={1} tables={tables} />
-            </div>
+            <div className="ab-c-arm"><Stack list={block.body || []} containerId={block.id + ':body'} depth={1} tables={tables} /></div>
+            <div className="ab-c-foot" />
         </div>
     );
 }
@@ -176,17 +176,12 @@ function ActionBlock({ block, containerId, index, tables }: { block: Block; cont
     ensureBlockPosition(block, index, containerId === 'root' ? 0 : 1);
     const category = blockCategory(block.action, tables);
     return (
-        <div className={`ab-block ab-action-block ${categoryClass(category)}`} {...blockFrameProps(block, containerId)}>
-            <div className="ab-block-main">
-                <span className="ab-block-drag" title="Drag anywhere on the block"><Icon name="grip-vertical" /></span>
-                <span className="ab-block-text">
-                    <strong className="ab-block-kind">{category}</strong>{' '}
-                    <ParamLabel template={def.label} paramDefs={def.params} values={block.params} resolveOptions={tables.resolveOptions}
-                        onCommit={(key, v) => updateAbilityBlockParam(block.id, key, v)} />
-                </span>
-                <BlockControls id={block.id} />
-            </div>
-            <span className="ab-block-bottom-connector" aria-hidden="true" />
+        <div className={`ab-block ab-stmt ab-action-block ${categoryClass(category)}`} title={category} {...blockFrameProps(block, containerId, blockColour(block.action, tables.BLOCK_GROUPS))}>
+            <span className="ab-block-text">
+                <ParamLabel template={def.label} paramDefs={def.params} values={block.params} resolveOptions={tables.resolveOptions}
+                    onCommit={(key, v) => updateAbilityBlockParam(block.id, key, v)} />
+            </span>
+            <BlockControls id={block.id} />
         </div>
     );
 }
@@ -196,14 +191,12 @@ function IfBlock({ block, containerId, index, depth, tables }: { block: Block; c
     const def = CONDITIONS[block.condition] || CONDITIONS[Object.keys(CONDITIONS)[0]] || {};
     ensureBlockPosition(block, index, containerId === 'root' ? 0 : 1);
     return (
-        <div className="ab-block ab-if-block" {...blockFrameProps(block, containerId)}>
-            <span className="ab-block-top-connector" aria-hidden="true" />
-            <div className="ab-block-main">
-                <span className="ab-block-drag" title="Drag anywhere on the block"><Icon name="grip-vertical" /></span>
+        <div className="ab-block ab-c-block ab-if-block" {...blockFrameProps(block, containerId, BLOCK_COLOURS.purple)}>
+            <div className="ab-c-head ab-stmt-top">
                 <span className="ab-block-text">
-                    <strong className="ab-block-kind">Control</strong> If{' '}
+                    <strong>If</strong>{' '}
                     <select className="ab-inline-input" value={block.condition ?? ''} onChange={e => updateAbilityIfCondition(block.id, e.target.value)}
-                        onClick={stop} onPointerDown={stop}>
+                        onClick={stop} onPointerDown={stop} aria-label="Condition">
                         {Object.entries(CONDITIONS).map(([key, c]) => (
                             <option key={key} value={key}>{String(c.label || key).replace(/__/g, '…')}</option>
                         ))}
@@ -215,15 +208,10 @@ function IfBlock({ block, containerId, index, depth, tables }: { block: Block; c
                 </span>
                 <BlockControls id={block.id} />
             </div>
-            <div className="ab-if-then">
-                <span className="ab-if-label">then</span>
-                <Container list={block.then || []} containerId={block.id + ':then'} depth={depth + 1} tables={tables} />
-            </div>
-            <div className="ab-if-else">
-                <span className="ab-if-label">else</span>
-                <Container list={block.else || []} containerId={block.id + ':else'} depth={depth + 1} tables={tables} />
-            </div>
-            <span className="ab-block-bottom-connector" aria-hidden="true" />
+            <div className="ab-c-arm"><Stack list={block.then || []} containerId={block.id + ':then'} depth={depth + 1} tables={tables} /></div>
+            <div className="ab-c-mid"><strong>Otherwise</strong></div>
+            <div className="ab-c-arm"><Stack list={block.else || []} containerId={block.id + ':else'} depth={depth + 1} tables={tables} /></div>
+            <div className="ab-c-foot ab-stmt-bottom" />
         </div>
     );
 }
@@ -235,58 +223,21 @@ function AnyBlock({ block, containerId, index, depth, tables }: { block: Block; 
     return null;
 }
 
-// ==================== execution-order connectors ====================
-// Curves from each event block to the next. Drawn after layout since they need
-// measured geometry (buildConnectorPaths() does the actual math).
-
-function BoardConnections({ events }: { events: Block[] }) {
-    const ref = useRef<SVGSVGElement>(null);
-    const [paths, setPaths] = useState<string[]>([]);
-    // Signature rather than the array itself: drag code mutates event objects
-    // in place, so identity alone wouldn't reflect a move.
-    const signature = events.map(e => `${e.id}@${e.pos?.x},${e.pos?.y}`).join('|');
-
-    useLayoutEffect(() => {
-        const workspace = ref.current?.parentElement;
-        if (!workspace) return;
-        // the svg draws in CSS pixels; rects are window pixels (js/core/ui-scale.ts)
-        const root = workspace.getBoundingClientRect(), z = effectiveZoom(workspace);
-        const boxes = events.map(ev => {
-            const el = workspace.querySelector(`.ab-block[data-id="${CSS.escape(ev.id)}"]`);
-            if (!el) return null;
-            const r = el.getBoundingClientRect();
-            return { x: (r.left - root.left) / z, y: (r.top - root.top) / z, width: r.width / z, height: r.height / z };
-        });
-        setPaths(buildConnectorPaths(boxes));
-    }, [signature]);
-
-    return (
-        <svg ref={ref} className="ab-board-connections" id="ab-board-connections" aria-hidden="true">
-            <defs>
-                <marker id="ab-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse">
-                    <path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor" />
-                </marker>
-            </defs>
-            {paths.map((d, i) => <path key={i} d={d} className="ab-connector-line" markerEnd="url(#ab-arrow)" />)}
-        </svg>
-    );
-}
-
 // ==================== the board ====================
 
 /**
- * events: top-level event stacks, in execution order; loose: blocks parked on
- * the board outside any event; tables: TRIGGERS / ACTIONS / CONDITIONS /
+ * events: the event blocks, each with its own stack (a program can react to
+ * many events); loose: blocks parked on the board outside any event, which
+ * do nothing until they join one; tables: TRIGGERS / ACTIONS / CONDITIONS /
  * BLOCK_GROUPS, plus resolveOptions() for dynamic selects.
  */
 export function BlockBoard({ events, loose, tables }: { events: Block[]; loose: Block[]; tables: Tables }) {
     return (
         <>
-            <BoardConnections events={events} />
-            <div className="ab-container ab-event-root-container" data-container-id="root-events">
+            <div className="ab-free" data-container-id="root-events">
                 {events.map((block, i) => <AnyBlock key={block.id} block={block} containerId="root-events" index={i} depth={0} tables={tables} />)}
             </div>
-            <div className="ab-container ab-loose-container" data-container-id="loose">
+            <div className="ab-free" data-container-id="loose">
                 {loose.map((block, i) => <AnyBlock key={block.id} block={block} containerId="loose" index={i} depth={0} tables={tables} />)}
             </div>
         </>
