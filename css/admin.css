@@ -1,4 +1,4 @@
-/* BDO Grotesk, the site's font (woogidex-core public/fonts/) */
+/* BDO Grotesk, the site's font (Woogidex public/fonts/) */
 @font-face { font-family: 'BDO Grotesk'; font-style: normal; font-weight: 300 900; font-display: swap; src: url('/fonts/BDOGrotesk-VF.woff2') format('woff2'); }
 
 /* a user's account type (UsersTab.tsx AccountType) */

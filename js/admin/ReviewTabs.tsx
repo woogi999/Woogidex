@@ -358,7 +358,7 @@ export function SignalsTab() {
             </div>
             <p className="admin-section-sub">
                 <strong>Copy rings</strong> come from the live duplicate check. <strong>Style</strong>, <strong>duplicate</strong> and <strong>timing</strong> pairs come from the offline lab
-                (woogidex-backend/moderation-lab): export the corpus (public posts and comments only, under pseudonyms), run <code>python -m woogimod analyze</code>, and import the result.
+                (Woogidex-DB/moderation-lab): export the corpus (public posts and comments only, under pseudonyms), run <code>python -m woogimod analyze</code>, and import the result.
                 Bands compare a pair with every other pair in the same corpus: they are percentiles, not probabilities. {LIMITS_NOTE}
             </p>
             <div className="admin-search-bar">

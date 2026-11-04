@@ -3,7 +3,7 @@
 // feed shows posts from your groups. Owners and moderators approve join
 // requests, remove people and posts, and edit the group.
 //
-// The tables and rules are in woogidex-backend
+// The tables and rules are in Woogidex-DB
 // supabase/migrations/20261026040105_community_groups.sql and
 // 20261026150000_community_groups.sql. Every write is an RPC there.
 // The UI is js/app/components/groups.tsx, on the hub's Groups panel.

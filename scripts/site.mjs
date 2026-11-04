@@ -9,7 +9,7 @@
 //   npm run site -- --check              typecheck before it starts
 //
 // What it does, in order:
-//   1. Makes sure woogidex-backend sits next to this repo. If it is
+//   1. Makes sure Woogidex-DB sits next to this repo. If it is
 //      missing, it is cloned. --sync also pulls both repos
 //      (scripts/sync.mjs, which skips a repo with uncommitted changes).
 //   2. Installs packages when node_modules is missing (npm ci).
@@ -23,7 +23,7 @@
 //        <url> any other Supabase project, for example a local one.
 //   4. Starts the dev server, or builds and serves dist/.
 //
-// The Worker (woogidex-backend/worker) does not run here: its link previews,
+// The Worker (Woogidex-DB/worker) does not run here: its link previews,
 // /sheets and TURN need Cloudflare and its secrets. The dev server stands in
 // for its /sb proxy.
 
@@ -59,7 +59,7 @@ const tool = (pkg, file) => resolve(root, 'node_modules', pkg, file);
 const vite = (...a) => [tool('vite', 'bin/vite.js'), ...a];
 
 // ---- 1. the repos ----
-const missing = ['woogidex-backend'].filter(name => !existsSync(resolve(parent, name, '.git')));
+const missing = ['Woogidex-DB'].filter(name => !existsSync(resolve(parent, name, '.git')));
 if (flag('sync') || missing.length) {
     if (missing.length) console.log(`[site] getting ${missing.join(' and ')}`);
     try { run(process.execPath, [resolve(root, 'scripts/sync.mjs')]); }

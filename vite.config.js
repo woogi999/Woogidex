@@ -9,7 +9,7 @@ const config = woogidexConfig({
     react,
     loadEnv,
     inputs: { admin: resolve(import.meta.dirname, 'admin.html') },
-    // /sb is the same-origin Supabase proxy (the Worker, in woogidex-backend);
+    // /sb is the same-origin Supabase proxy (the Worker, in Woogidex-DB);
     // the dev server stands in for it locally. scripts/site.mjs sets
     // WOOGIDEX_SUPABASE to point it at the mock backend or another project.
     supabase: process.env.WOOGIDEX_SUPABASE || 'https://qstbascfeolkyxtrqqwv.supabase.co'

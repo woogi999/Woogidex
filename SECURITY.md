@@ -4,7 +4,7 @@
 
 Do not open a public issue for a security problem.
 
-1. Open a private report: [Report a vulnerability](https://github.com/woogi999/woogidex-core/security/advisories/new).
+1. Open a private report: [Report a vulnerability](https://github.com/woogi999/Woogidex/security/advisories/new).
 2. If you cannot use GitHub, send an email to **earl@woogi.xyz**.
 
 Give the steps to reproduce the problem, the address or file it affects, and what an attacker can do with it.

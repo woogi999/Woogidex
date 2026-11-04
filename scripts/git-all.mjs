@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-// Runs one git command in both repos: woogidex-core and woogidex-backend,
+// Runs one git command in both repos: Woogidex and Woogidex-DB,
 // one after the other. It is for the workspace folder (the folder that
 // holds the repos), which is not a repo itself:
 //
-//   node woogidex-core/scripts/git-all.mjs status
-//   node woogidex-core/scripts/git-all.mjs commit -am "Fix the table view"
-//   node woogidex-core/scripts/git-all.mjs push
+//   node Woogidex/scripts/git-all.mjs status
+//   node Woogidex/scripts/git-all.mjs commit -am "Fix the table view"
+//   node Woogidex/scripts/git-all.mjs push
 //
 // A shell function named git calls this script when you are in the
 // workspace folder (see README.md, "Git in both repos"). Anywhere else,
@@ -21,11 +21,11 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const WORKSPACE = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const REPOS = ['woogidex-core', 'woogidex-backend'];
+const REPOS = ['Woogidex', 'Woogidex-DB'];
 const args = process.argv.slice(2);
 
 if (!args.length) {
-    console.log('Usage: git <command> [arguments]   (runs in woogidex-core and woogidex-backend)');
+    console.log('Usage: git <command> [arguments]   (runs in Woogidex and Woogidex-DB)');
     process.exit(0);
 }
 

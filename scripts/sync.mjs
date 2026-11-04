@@ -1,7 +1,7 @@
 // Gets both Woogidex repos up to date, side by side:
 //
-//   <parent>/woogidex-core      (public, this repo: the site)
-//   <parent>/woogidex-backend   (private: the Worker and Supabase)
+//   <parent>/Woogidex      (public, this repo: the site)
+//   <parent>/Woogidex-DB   (private: the Worker and Supabase)
 //
 // A repo that is missing gets cloned. A repo that is there gets
 // "git pull --ff-only" on its current branch. A repo with uncommitted
@@ -15,7 +15,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const parent = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const repos = ['woogidex-core', 'woogidex-backend'];
+const repos = ['Woogidex', 'Woogidex-DB'];
 
 const git = (cwd, ...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
 

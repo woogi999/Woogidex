@@ -1,7 +1,7 @@
 // Business accounts: an account type only staff can set (the Woogidex
 // account is one). A business account shows a category and a contact email
 // on its profile, pins up to three posts to the top of it, and sees insights
-// about its followers and posts. Server side: woogidex-backend
+// about its followers and posts. Server side: Woogidex-DB
 // supabase/migrations/20261026140000_business_accounts.sql.
 
 import { api, state } from '../core/app.ts';

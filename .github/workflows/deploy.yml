@@ -1,9 +1,9 @@
 # Builds the site and deploys it to the woogidex Cloudflare Worker.
 #
 # The site is two repos:
-#   woogidex-core     (this, public)  the site: the Fakemon maker, battles,
+#   Woogidex     (this, public)  the site: the Fakemon maker, battles,
 #                                     accounts, Community Hub, events, admin
-#   woogidex-backend  (private)       the Worker (worker/index.js, wrangler.jsonc)
+#   Woogidex-DB  (private)       the Worker (worker/index.js, wrangler.jsonc)
 #                                     and Supabase (migrations, edge functions)
 #
 # Every deploy takes the latest main of both, so a change to either one
@@ -15,10 +15,10 @@
 # only main can deploy to:
 #   CLOUDFLARE_API_TOKEN    Workers Scripts: Edit on the account
 #   CLOUDFLARE_ACCOUNT_ID   the account the woogidex Worker lives in
-#   BACKEND_DEPLOY_KEY      read-only deploy key of woogidex-backend (SSH private key)
+#   BACKEND_DEPLOY_KEY      read-only deploy key of Woogidex-DB (SSH private key)
 #
 # Supabase (migrations and edge functions) is NOT deployed here. The Supabase
-# GitHub integration on woogidex-backend does it (see that repo's README).
+# GitHub integration on Woogidex-DB does it (see that repo's README).
 
 name: Deploy
 
@@ -39,7 +39,7 @@ permissions:
 
 jobs:
   deploy:
-    if: github.repository == 'woogi999/woogidex-core'
+    if: github.repository == 'woogi999/Woogidex'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     environment: production
@@ -59,13 +59,13 @@ jobs:
             exit 1
           fi
 
-      - name: Check out woogidex-core
+      - name: Check out Woogidex
         uses: actions/checkout@v5
 
-      - name: Check out woogidex-backend
+      - name: Check out Woogidex-DB
         uses: actions/checkout@v5
         with:
-          repository: woogi999/woogidex-backend
+          repository: woogi999/Woogidex-DB
           ref: main
           path: .backend
           ssh-key: ${{ secrets.BACKEND_DEPLOY_KEY }}
@@ -77,8 +77,8 @@ jobs:
             echo "### Deploying"
             echo "| repo | commit |"
             echo "|---|---|"
-            echo "| woogidex-core | \`$(git rev-parse --short HEAD)\` $(git log -1 --format=%s | head -c 80) |"
-            echo "| woogidex-backend | \`$(git -C .backend rev-parse --short HEAD)\` $(git -C .backend log -1 --format=%s | head -c 80) |"
+            echo "| Woogidex | \`$(git rev-parse --short HEAD)\` $(git log -1 --format=%s | head -c 80) |"
+            echo "| Woogidex-DB | \`$(git -C .backend rev-parse --short HEAD)\` $(git -C .backend log -1 --format=%s | head -c 80) |"
             echo
             echo "Triggered by: ${{ github.event_name }} ${{ github.event.action }}"
           } >> "$GITHUB_STEP_SUMMARY"

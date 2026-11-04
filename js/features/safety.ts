@@ -2,7 +2,7 @@
 // Reports on posts, comments, Fakémon, profiles and events; your moderation
 // history and appeals; hidden words; comment controls on your own things;
 // and the VPN check for Community Hub actions. The server decides everything
-// (migration 20261025120000_moderation_system.sql in woogidex-backend). These
+// (migration 20261025120000_moderation_system.sql in Woogidex-DB). These
 // calls only carry the request and turn errors into plain words. Wording and
 // rules: js/features/safety-model.ts. Dialogs: js/app/dialogs/safety.tsx.
 

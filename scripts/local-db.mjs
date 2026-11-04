@@ -2,17 +2,17 @@
 // schema and no live data. For work that the mock backend cannot do
 // (row-level rules, triggers, database functions, Realtime).
 //
-// The migrations in woogidex-backend cannot build a database from zero (the
+// The migrations in Woogidex-DB cannot build a database from zero (the
 // first tables were made before migrations were kept), so the local database
 // starts from a schema dump of the live one instead:
 //
-//   woogidex-backend/local/supabase/config.toml        copy of supabase/config.toml
-//   woogidex-backend/local/supabase/migrations/<v>_baseline.sql   the dump
+//   Woogidex-DB/local/supabase/config.toml        copy of supabase/config.toml
+//   Woogidex-DB/local/supabase/migrations/<v>_baseline.sql   the dump
 //
-// woogidex-backend/local/ is in that repo's .gitignore: a dump is a snapshot
+// Woogidex-DB/local/ is in that repo's .gitignore: a dump is a snapshot
 // for this machine, not history.
 //
-// Run from woogidex-core (or the parent folder: npm run local-db -- <command>):
+// Run from Woogidex (or the parent folder: npm run local-db -- <command>):
 //   node scripts/local-db.mjs setup    first time, and to take a fresh schema dump
 //   node scripts/local-db.mjs start    start it, print its address
 //   node scripts/local-db.mjs stop     stop it (the data stays)
@@ -30,7 +30,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const backend = resolve(root, '..', 'woogidex-backend');
+const backend = resolve(root, '..', 'Woogidex-DB');
 const workdir = resolve(backend, 'local');
 const migrations = resolve(workdir, 'supabase', 'migrations');
 const PROJECT_REF = 'qstbascfeolkyxtrqqwv';
@@ -69,7 +69,7 @@ function writeConfig() {
 
 export function setup() {
     needDocker();
-    if (!existsSync(resolve(backend, 'supabase', 'config.toml'))) fail(`woogidex-backend is missing at ${backend}. Run npm run sync first.`);
+    if (!existsSync(resolve(backend, 'supabase', 'config.toml'))) fail(`Woogidex-DB is missing at ${backend}. Run npm run sync first.`);
     writeConfig();
     // link once; the CLI keeps it in supabase/.temp (ignored by git)
     if (!existsSync(resolve(backend, 'supabase', '.temp', 'project-ref'))) {

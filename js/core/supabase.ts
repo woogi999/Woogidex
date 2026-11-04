@@ -4,7 +4,7 @@
 export const SUPABASE_PROJECT_URL = 'https://qstbascfeolkyxtrqqwv.supabase.co';
 export const SUPABASE_ANON_KEY = 'sb_publishable_B4jEJ--w0XFsgXDmQeJREA_xH1GRBsf';
 
-// The API: worker/index.js in woogidex-backend, in front of Supabase, behind
+// The API: worker/index.js in Woogidex-DB, in front of Supabase, behind
 // Cloudflare's rate limiting. The site's live hosts call api.woogidex.com.
 // Anywhere else (the dev server, a local preview) it is /sb on the page's own
 // origin, proxied by vite.config.js. /sb also stays on the live hosts: saved
