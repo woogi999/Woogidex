@@ -8,7 +8,8 @@
 // A second kind: a code sent to the account's email (migration
 // 20261105120000_email_two_factor.sql, edge function send-email-code). The
 // database marks the session as passed; the token stays aal1. An account
-// with an app always uses the app code. Staff tools need the app.
+// with an app always uses the app code. Staff may use either (migration
+// 20261105130000_staff_email_two_factor.sql).
 //
 // A leaf module (it only needs the Supabase client), so the staff console
 // (Woogidex-Console) uses the same code. The UI: js/app/components/TwoFactor.tsx.

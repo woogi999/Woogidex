@@ -1,0 +1,90 @@
+/* ==================== two-factor sign-in ====================
+   The forms in js/app/components/TwoFactor.tsx and the Settings group in
+   js/app/pages/SettingsTwoFactor.tsx. The staff console (Woogidex-Console)
+   loads this same file through its @site-css alias. */
+
+.modal.tf-modal { max-width: 440px; }
+.tf-form { display: flex; flex-direction: column; gap: var(--sp-4); }
+.tf-form .form-group { margin: 0; }
+
+/* the icon well and the lead at the top of each form */
+.tf-head { display: flex; align-items: flex-start; gap: var(--sp-3); }
+.tf-head-icon {
+    flex: none; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 10px;
+    background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent);
+}
+.tf-lead { margin: 0; padding-top: 2px; font-size: 14px; line-height: 1.55; color: var(--text-secondary); }
+.tf-lead strong { color: var(--text-primary); font-weight: 700; overflow-wrap: anywhere; }
+
+/* the 6-digit field: one real input over six drawn cells */
+.tf-otp { position: relative; }
+.tf-otp-input {
+    position: absolute; inset: 0; width: 100%; height: 100%; z-index: 1;
+    opacity: 0; border: 0; padding: 0; font-size: 16px; cursor: text;
+}
+.tf-otp-cells { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; }
+.tf-otp-cell {
+    display: grid; place-items: center; height: 52px; border-radius: var(--ctl-r);
+    background: var(--bg-panel); border: 1px solid transparent;
+    font: 700 24px/1 var(--font-mono, ui-monospace, monospace); font-variant-numeric: tabular-nums; color: var(--text-primary);
+    transition: border-color .15s ease, background-color .15s ease;
+}
+.tf-otp-cell.is-filled { background: color-mix(in srgb, var(--accent) 8%, var(--bg-panel)); }
+.tf-otp.is-focused .tf-otp-cell.is-caret { border-color: var(--accent); }
+.tf-otp-input:disabled + .tf-otp-cells { opacity: .55; }
+
+/* setting up an app */
+.tf-steps { margin: 0; padding: 0 0 0 1.2em; display: flex; flex-direction: column; gap: var(--sp-4); }
+.tf-steps li { display: flex; flex-direction: column; gap: 6px; padding-left: 4px; }
+.tf-steps li::marker { font-weight: 800; color: var(--accent); }
+.tf-steps strong { font-size: 14px; }
+.tf-steps li > span:not(.tf-secret) { font-size: 13px; color: var(--text-muted); }
+.tf-qr { align-self: flex-start; width: 192px; height: 192px; padding: 8px; border-radius: 12px; background: #fff; }
+.tf-qr img { display: block; width: 176px; height: 176px; }
+.tf-qr-wait { display: block; width: 176px; height: 176px; border-radius: 8px; background: var(--bg-panel); }
+.tf-secret { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; font-size: 13px; color: var(--text-secondary); }
+.tf-secret code { padding: 2px 6px; border-radius: 5px; background: var(--bg-panel); font-size: 12px; overflow-wrap: anywhere; user-select: all; }
+
+.tf-error { margin: 0; padding: 8px 12px; border-radius: var(--ctl-r); background: color-mix(in srgb, var(--danger) 12%, transparent); color: var(--danger); font-size: 13px; font-weight: 600; }
+.tf-resend { margin: 0; font-size: 13px; color: var(--text-muted); }
+.tf-link {
+    padding: 0; border: 0; background: none; font: inherit; font-weight: 700; color: var(--accent); cursor: pointer;
+    text-decoration: underline; text-underline-offset: 2px;
+}
+.tf-link:disabled { color: var(--text-muted); text-decoration: none; cursor: default; }
+.tf-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--sp-2); }
+.tf-muted { margin: 0; font-size: 13px; color: var(--text-muted); }
+
+/* the two ways to get a code: Settings rows, and the console's first setup */
+.tf-methods { list-style: none; margin: 0; padding: 0; }
+.tf-methods > li { display: flex; align-items: center; gap: var(--sp-3); padding: 14px 0; border-top: 1px solid var(--border-light); }
+.tf-methods > li:last-child { border-bottom: 1px solid var(--border-light); }
+.tf-method-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.tf-method-text strong { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.tf-method-text small { font-size: 13px; line-height: 1.45; color: var(--text-muted); }
+.tf-methods .btn { flex: none; }
+
+/* Settings > Account > Two-factor sign-in */
+.tf-card { display: flex; flex-direction: column; gap: var(--sp-3); }
+.tf-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
+.tf-badge {
+    display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border-radius: 999px;
+    background: var(--bg-panel); color: var(--text-secondary); font-size: 12px; font-weight: 700;
+}
+.tf-badge.is-on { background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); }
+.tf-chip { padding: 1px 8px; border-radius: 999px; background: var(--bg-panel); color: var(--text-muted); font-size: 11px; font-weight: 700; }
+.tf-chip.is-on { background: color-mix(in srgb, var(--success) 14%, transparent); color: var(--success); }
+.tf-apps { list-style: none; margin: 4px 0 0; padding: 0; }
+.tf-apps li { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 13px; }
+.tf-apps li > span { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.tf-apps small { font-size: 12px; color: var(--text-muted); }
+
+@media (max-width: 520px) {
+    .tf-otp-cells { gap: 6px; }
+    .tf-otp-cell { height: 46px; font-size: 20px; }
+    .tf-methods > li { flex-wrap: wrap; }
+    .tf-methods .btn { margin-left: 52px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .tf-otp-cell { transition: none; }
+}
