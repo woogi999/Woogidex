@@ -3,10 +3,11 @@
 // icon-only on narrow screens; each carries its name in title/aria-label.
 // A host adds tabs, buttons and menu rows (js/core/extend.ts).
 //
-// On a phone (css/phone.css) the tabs are a bar along the bottom, like a
-// phone app: Collection, Community, Create, Search and You. Create opens a
-// sheet of things to make; You is the account menu, as a sheet. Battle is
-// paused, so it sits in that sheet instead of taking a tab.
+// On a phone (css/phone.css) the tabs are a bar of icons along the bottom,
+// drawn like the desktop tabs (an active marker, no labels). Which tabs it
+// shows is a choice in Settings (./phoneTabs.ts): by default Collection,
+// Community, Create, Search, then You. Create opens a sheet of things to
+// make; You is the account menu, as a sheet.
 
 import { useLayoutEffect, useRef } from 'react';
 import { api } from '../../core/app.ts';
@@ -17,6 +18,8 @@ import { Link } from '../components/Link.tsx';
 import { useClickAway } from '../components/editor/fields.tsx';
 import { openContextMenu, type MenuItem } from '../components/ContextMenu.tsx';
 import { usePhone } from '../hooks.ts';
+import { notificationsView } from '../../core/notifications.ts';
+import { phoneTabs, type PhoneTab } from './phoneTabs.ts';
 import { notify, useStore } from '../store.ts';
 
 registerNav({ page: 'collection-view', label: 'Collection', title: 'My Collection', icon: 'library', order: 10, path: 'collection' });
@@ -91,34 +94,60 @@ export function Header() {
             </div>
             <nav className="header-nav" aria-label="Main navigation" ref={nav}>
                 <span className="header-nav-ink" aria-hidden="true" />
-                {ext.nav.filter(n => !(phone && n.page === 'battle-view')).map(n => {
-                    const badge = n.badge?.() || 0;
-                    return (
-                        <Link key={n.page} to={n.path} className={`header-nav-btn${section === n.page ? ' active' : ''}`}
-                            title={n.title} aria-label={n.title} aria-current={section === n.page ? 'page' : undefined}>
-                            <Icon name={n.icon} /><span className="header-nav-label">{n.label}</span>
-                            {badge > 0 && <span className="header-nav-badge">{countLabel(badge)}</span>}
-                        </Link>
-                    );
-                })}
-                {phone && (
-                    <>
-                        <button type="button" className="header-nav-btn header-nav-create" onClick={openCreateSheet} aria-haspopup="menu" title="Create" aria-label="Create">
-                            <Icon name="plus" /><span className="header-nav-label">Create</span>
-                        </button>
-                        <Link to="search" className={`header-nav-btn${section === 'search-view' ? ' active' : ''}`} title="Search" aria-label="Search"
-                            aria-current={section === 'search-view' ? 'page' : undefined}>
-                            <Icon name="search" /><span className="header-nav-label">Search</span>
-                        </Link>
-                        <AccountMenu tab />
-                    </>
-                )}
+                {phone
+                    ? <>{phoneTabs().map(t => <PhoneTabButton key={t} tab={t} section={section} />)}<AccountMenu tab /></>
+                    : ext.nav.map(n => <NavTab key={n.page} n={n} section={section} />)}
             </nav>
             <div className="header-actions">
                 {slots(ext.headerActions).map((Slot, i) => <Slot key={i} />)}
                 {!phone && <AccountMenu />}
             </div>
         </>
+    );
+}
+
+/** One place in the tab row: an icon, a hidden name, and its count. */
+function NavTab({ n, section }: { n: (typeof ext.nav)[number]; section: string }) {
+    const badge = n.badge?.() || 0;
+    return (
+        <Link to={n.path} className={`header-nav-btn${section === n.page ? ' active' : ''}`}
+            title={n.title} aria-label={n.title} aria-current={section === n.page ? 'page' : undefined}>
+            <Icon name={n.icon} /><span className="header-nav-label">{n.label}</span>
+            {badge > 0 && <span className="header-nav-badge">{countLabel(badge)}</span>}
+        </Link>
+    );
+}
+
+const NAV_PAGE: Partial<Record<PhoneTab, string>> = { collection: 'collection-view', community: 'community-view', battle: 'battle-view' };
+
+/** A tab of the phone's bottom bar. Messages and notifications need an account; signed out they are left out. */
+function PhoneTabButton({ tab, section }: { tab: PhoneTab; section: string }) {
+    const page = NAV_PAGE[tab];
+    if (page) {
+        const n = ext.nav.find(x => x.page === page);
+        return n ? <NavTab n={n} section={section} /> : null;
+    }
+    if (tab === 'create') {
+        return (
+            <button type="button" className="header-nav-btn header-nav-create" onClick={openCreateSheet} aria-haspopup="menu" title="Create" aria-label="Create">
+                <Icon name="plus-circle" /><span className="header-nav-label">Create</span>
+            </button>
+        );
+    }
+    const signedIn = !!api.isLoggedIn?.();
+    if ((tab === 'messages' || tab === 'notifications') && !signedIn) return null;
+    const spec = {
+        search: { to: 'search', view: 'search-view', icon: 'search', title: 'Search', count: 0 },
+        messages: { to: 'messages', view: 'messages-view', icon: 'chat-bubble-oval-left-ellipsis', title: 'Messages', count: Number(api.unreadMessageTotal?.() || 0) },
+        notifications: { to: 'notifications', view: 'notifications-view', icon: 'bell', title: 'Notifications', count: notificationsView().unread }
+    }[tab as 'search' | 'messages' | 'notifications'];
+    const on = section === spec.view;
+    return (
+        <Link to={spec.to} className={`header-nav-btn${on ? ' active' : ''}`} title={spec.title}
+            aria-label={spec.count ? `${spec.title}, ${spec.count} unread` : spec.title} aria-current={on ? 'page' : undefined}>
+            <Icon name={spec.icon} /><span className="header-nav-label">{spec.title}</span>
+            {spec.count > 0 && <span className="header-nav-badge">{countLabel(spec.count)}</span>}
+        </Link>
     );
 }
 

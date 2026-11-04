@@ -426,3 +426,9 @@ label.st-row:hover { background: color-mix(in srgb, var(--bg-panel) 60%, var(--b
 .st-scale input[type="range"]:active::-webkit-slider-thumb { transform: scale(1.12); }
 .st-scale input[type="range"]:focus-visible { outline: none; }
 .st-scale input[type="range"]:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 4px var(--accent-glow); }
+
+/* ---- Appearance > Phone tab bar (PhoneTabsGroup) ---- */
+.st-phone-tab { grid-template-columns: auto minmax(0, 1fr) auto; }
+.st-phone-tab-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: var(--bg-panel); color: var(--text-secondary); }
+.st-phone-tab.is-locked .st-switch { opacity: .5; }
+.st-phone-tab-reset { margin-top: var(--sp-3); }

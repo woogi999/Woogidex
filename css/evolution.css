@@ -6,7 +6,8 @@
 .species-evo-row { display:flex; gap:14px; align-items:flex-end; }
 .species-field-wrap { flex:1 1 auto; min-width:0; }
 .species-evo-toggles { display:flex; gap:10px; flex:0 0 auto; padding-bottom:1px; flex-wrap:wrap; justify-content:flex-end; }
-.compact-toggle-label { display:flex; align-items:center; gap:7px; font-size:11px; font-weight:600; color:var(--text-secondary); white-space:nowrap; cursor:pointer; }
+/* two classes: .form-group label (display:block) must not win */
+.species-evo-toggles .compact-toggle-label { display:flex; align-items:center; gap:7px; font-size:11px; font-weight:600; color:var(--text-secondary); white-space:nowrap; cursor:pointer; }
 .compact-toggle-label input { width:15px; height:15px; accent-color:var(--accent); }
 #fakemon-species:disabled { opacity:.48; cursor:not-allowed; background:var(--bg-panel); }
 .evolution-section { margin-top:var(--sp-5); padding-top:var(--sp-5); border-top:1px solid var(--border-light); }

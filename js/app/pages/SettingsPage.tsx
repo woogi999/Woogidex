@@ -16,6 +16,7 @@ import { ext, type SettingsGroup as Group, type SettingsItem as Item, type Setti
 import { resetTours } from '../../features/onboarding.ts';
 import { LANDING_PAGE } from '../../core/flags.ts';
 import { UI_SCALE_DEFAULT, UI_SCALE_MAX, UI_SCALE_MIN, UI_SCALE_STEP, getUiScale, setUiScale } from '../../core/ui-scale.ts';
+import { PHONE_TAB_CHOICES, PHONE_TABS_MAX, PHONE_TABS_MIN, phoneTabs, resetPhoneTabs, togglePhoneTab } from '../shell/phoneTabs.ts';
 
 // A row: `setting` names a boolean in app.ts's BOOLEAN_SETTINGS (it gets a
 // switch); otherwise `control` draws whatever sits on the right. A group is
@@ -29,6 +30,7 @@ const CORE_SECTIONS: Section[] = [
         groups: [
             { id: 'theme', title: 'Theme', render: () => <ThemePicker />, keywords: 'theme dark mode light mode colors night' },
             { id: 'size', title: 'Interface size', render: () => <UiScaleGroup />, keywords: 'interface size zoom scale bigger smaller text font ui accessibility' },
+            { id: 'phone-tabs', title: 'Phone tab bar', render: () => <PhoneTabsGroup />, keywords: 'phone mobile tab bar bottom navigation icons tabs' },
             {
                 id: 'effects', title: 'Motion & effects',
                 desc: () => isLowEndDevice()
@@ -372,6 +374,34 @@ function ThemePicker() {
 }
 
 // ---- appearance: interface size ----
+
+/** Which tabs the phone's bottom bar shows (js/app/shell/phoneTabs.ts). This device only. */
+function PhoneTabsGroup() {
+    useStore();
+    const on = phoneTabs();
+    return (
+        <section className="st-group">
+            <GroupHead title="Phone tab bar" desc={`The icons along the bottom on a phone, ${PHONE_TABS_MIN} to ${PHONE_TABS_MAX}. Your picture (the account menu) is always last. This device only.`} />
+            <div className="st-card">
+                {PHONE_TAB_CHOICES.map(([key, label, icon]) => {
+                    const checked = on.includes(key);
+                    const locked = checked ? on.length <= PHONE_TABS_MIN : on.length >= PHONE_TABS_MAX;
+                    const id = `phone-tab-${key}`;
+                    return (
+                        <div key={key} className={`st-row st-phone-tab${locked ? ' is-locked' : ''}`}>
+                            <span className="st-phone-tab-icon" aria-hidden="true"><Icon name={icon} size={18} /></span>
+                            <span className="st-row-text"><span className="st-label" id={id}>{label}</span></span>
+                            <span className="st-row-control">
+                                <Switch checked={checked} labelledBy={id} onChange={v => { if (!locked) togglePhoneTab(key, v); }} />
+                            </span>
+                        </div>
+                    );
+                })}
+            </div>
+            <button type="button" className="btn btn-secondary btn-sm st-phone-tab-reset" onClick={resetPhoneTabs}>Back to the default tabs</button>
+        </section>
+    );
+}
 
 /** A slider for the whole site's size (js/core/ui-scale.ts). It applies when you let go, so the slider doesn't move under your finger. */
 function UiScaleGroup() {

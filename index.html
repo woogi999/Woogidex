@@ -34,7 +34,18 @@
             if ('%VITE_LANDING_PAGE%' === '1' && cut === -1 && window.location.pathname.replace(/\/+$/, '') === dir.join('/')) document.documentElement.setAttribute('data-boot', 'landing');
         })();
     </script>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <!-- iPhone and iPad Safari zoom the page in when a text field under 16px
+         gets focus, and leave it zoomed. maximum-scale=1 stops that zoom only:
+         Safari still lets people pinch-zoom (it ignores the cap for pinch).
+         Other browsers never zoom on focus and would lose pinch-zoom, so they
+         keep the plain tag. -->
+    <script>
+        (function () {
+            var ios = /iP(hone|od|ad)/.test(navigator.platform) || (navigator.userAgent.indexOf('Mac') !== -1 && navigator.maxTouchPoints > 1);
+            if (ios) document.querySelector('meta[name="viewport"]').setAttribute('content', 'width=device-width, initial-scale=1.0, maximum-scale=1, viewport-fit=cover');
+        })();
+    </script>
     <title>Woogidex</title>
     <meta name="description" content="Woogidex is a fan-made Fakemon creator: design custom Pokemon, publish them to the Community Hub, and battle them out in a 3D simulator.">
     <!-- link-preview metadata; update og:url if the domain changes again -->

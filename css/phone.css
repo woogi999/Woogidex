@@ -1,19 +1,23 @@
 /* ==================== phone ====================
    The phone layout, as a phone app would draw it (up to 760px wide). Loaded
    after css/mobile.css, so it wins. css/mobile.css keeps the card grids and
-   the touch rules for cards; this file sets the frame and the sizes:
+   the touch rules for cards; this file sets the frame and the sizes.
 
-   - a slim top bar (logo, messages, notifications) with plain icons;
-   - a bottom tab bar: Collection, Community, Create, Search, You
-     (js/app/shell/Header.tsx). Create and You open sheets;
-   - menus are sheets along the bottom, in reach of the thumb
-     (js/app/components/ContextMenu.tsx);
-   - soft filled controls instead of outlined boxes, so a screen full of
-     controls stays quiet;
-   - text fields at 16px: iPhone Safari zooms the page in on a smaller one
-     and leaves it zoomed, which made the whole site look huge and squashed;
+   The rule of the scale: small things, more air. Controls are 34px, fields
+   36px with 14px text, body text 14px, titles 20px, and the space between
+   parts grows instead (the spacing tokens are bigger here). The old phone
+   look had big controls packed close, like a phone for grandparents.
+
+   - a slim top bar (logo, messages, notifications) with plain gray icons;
+   - a bottom tab bar of icons, drawn like the desktop tabs (a marker on the
+     active one, no labels). Which tabs it has is a setting
+     (js/app/shell/phoneTabs.ts). Create and You open sheets;
+   - menus and dialogs are sheets along the bottom, in reach of the thumb;
+   - soft filled controls instead of outlined boxes;
    - the editor takes the whole screen.
 
+   iPhone Safari zooms in on a focused field under 16px: index.html stops
+   that zoom with maximum-scale=1 on iOS only, so the fields can be 14px.
    The breakpoint is PHONE in js/app/hooks.ts: keep the two in step.
    ==================== */
 
@@ -24,29 +28,37 @@
 @media (max-width: 760px) {
     :root {
         --header-h: 48px;
-        --bottom-nav-h: 52px;
+        --bottom-nav-h: 50px;
         --sheet-r: 14px;
+        /* small controls */
+        --ctl-h: 34px;
+        --ctl-h-sm: 28px;
+        /* more air between them */
+        --sp-3: 12px;
+        --sp-4: 16px;
+        --sp-5: 24px;
+        --sp-6: 32px;
+        --sp-7: 44px;
     }
+    body { font-size: 14px; }
+    .app-container, body[data-page="collection-view"] .app-container { padding: 0 var(--sp-4) var(--sp-6); }
+    #main-content { padding-top: calc(var(--header-h) + var(--sp-4)); }
 
     /* ==================== the top bar ==================== */
-    .header { padding: 0 6px 0 12px; gap: 4px; }
-    .logo img, .logo-button img { height: 24px; width: auto; }
+    .header { padding: 0 8px 0 var(--sp-4); gap: 4px; }
+    .logo img, .logo-button img { height: 22px; width: auto; }
     /* search is a tab in the bottom bar */
     .header .global-search { display: none; }
-    .header-actions { gap: 2px; }
-    /* plain icons, like a phone app: no filled circles */
-    .header .notifications-bell-btn,
-    .header .header-messages-btn {
-        width: 40px; height: 40px;
+    .header-actions { gap: 0; }
+    .header .notifications-bell-btn {
+        width: 38px; height: 38px;
         background: transparent;
-        color: var(--text-primary);
     }
-    .header .notifications-bell-btn:hover,
-    .header .header-messages-btn:hover { background: var(--bg-panel); }
-    .header .notifications-bell-btn svg,
-    .header .header-messages-btn svg { width: 24px; height: 24px; }
-    .header .notifications-bell-btn.active,
-    .header .header-messages-btn.active { color: var(--accent); }
+    .header .notifications-bell-btn:hover { background: var(--bg-panel); }
+    .header .notifications-bell-btn svg { width: 22px; height: 22px; }
+    /* a tab in the bottom bar leaves the top bar (js/app/shell/phoneTabs.ts) */
+    html[data-phone-tabs~="messages"] .header-actions .header-messages-btn,
+    html[data-phone-tabs~="notifications"] .header-actions .header-bell-btn { display: none; }
 
     /* ==================== the bottom tab bar ==================== */
     .header-nav {
@@ -54,22 +66,16 @@
         border-top: 1px solid var(--border-light);
         box-shadow: none;
     }
-    .header-nav-ink { display: none; }
-    .header-nav-btn { gap: 2px; color: var(--text-secondary); }
-    .header-nav-btn::before { display: none; }
+    .header-nav-btn { color: var(--text-secondary); }
+    .header-nav-btn::before { inset: 6px 10px; }
     .header-nav-btn svg { width: 24px; height: 24px; }
     .header-nav-btn:active svg { transform: scale(.9); }
-    .header-nav-label { font: 600 10px/1.2 var(--font-sans); letter-spacing: .01em; }
+    /* icons only, like the desktop tabs: the name is in aria-label and title */
+    .header-nav-label { display: none !important; }
     .header-nav-btn.active { color: var(--accent); }
-    .header-nav-btn.active .header-nav-label { font-weight: 800; }
-    .header-nav-badge { top: 3px; left: calc(50% + 5px); }
-    /* Create: the one filled button in the bar */
-    .header-nav-create { color: var(--text-primary); }
-    .header-nav-create svg {
-        width: 34px; height: 26px; padding: 3px 8px;
-        border-radius: 8px;
-        background: var(--accent); color: #fff;
-    }
+    /* the desktop's marker, on the bar's top edge */
+    .header-nav-ink { display: block; top: -1px; bottom: auto; height: 3px; border-radius: 0 0 3px 3px; --ink-inset: 0.3; }
+    .header-nav-badge { top: 6px; left: calc(50% + 6px); }
     /* You: your picture in place of an icon */
     .header-profile-wrap.is-tab { position: static; display: flex; flex: 1 1 0; min-width: 0; }
     .header-profile-wrap.is-tab .header-profile-btn {
@@ -79,9 +85,8 @@
     .header-profile-wrap.is-tab .header-profile-avatar {
         width: 26px; height: 26px; flex: 0 0 26px;
         font-size: 11px;
-        box-shadow: 0 0 0 1.5px var(--bg-card), 0 0 0 2.5px transparent;
     }
-    .header-profile-wrap.is-tab .header-profile-btn[aria-expanded="true"] .header-profile-avatar { box-shadow: 0 0 0 1.5px var(--bg-card), 0 0 0 3px var(--text-primary); }
+    .header-profile-wrap.is-tab .header-profile-btn[aria-expanded="true"] .header-profile-avatar { box-shadow: 0 0 0 1.5px var(--bg-card), 0 0 0 3px var(--accent); }
     .header-profile-wrap.is-tab .header-profile-avatar svg { width: 18px; height: 18px; }
 
     /* ==================== sheets ====================
@@ -97,7 +102,7 @@
     .no-overlay-blur .ctx-backdrop, .no-overlay-blur .header-profile-backdrop { background: rgba(17, 17, 20, .2); }
     .ctx-grip {
         display: block; flex: 0 0 auto;
-        width: 36px; height: 4px; margin: 4px auto 8px;
+        width: 36px; height: 4px; margin: 4px auto 10px;
         border-radius: 2px; background: var(--border-strong);
     }
     .ctx-menu.is-sheet,
@@ -106,39 +111,40 @@
         width: auto; min-width: 0; max-width: none;
         max-height: min(78vh, 640px);
         overflow-y: auto; overscroll-behavior: contain;
-        padding: 6px 8px calc(10px + env(safe-area-inset-bottom, 0px));
+        padding: 6px 10px calc(12px + env(safe-area-inset-bottom, 0px));
         border: 0; border-top: 1px solid var(--border-light);
         border-radius: var(--sheet-r) var(--sheet-r) 0 0;
         background: var(--bg-card);
         box-shadow: 0 -12px 40px rgba(0, 0, 0, .14);
     }
-    .ctx-menu.is-sheet .ctx-head { padding: 2px 12px 10px; margin-bottom: 4px; }
-    .ctx-menu.is-sheet .ctx-head strong { font-size: 15px; }
-    .ctx-menu.is-sheet .ctx-head span { font-size: 12.5px; }
+    .ctx-menu.is-sheet .ctx-head { padding: 2px 12px 10px; margin-bottom: 6px; }
+    .ctx-menu.is-sheet .ctx-head strong { font-size: 14.5px; }
+    .ctx-menu.is-sheet .ctx-head span { font-size: 12px; }
     .ctx-menu.is-sheet .ctx-item,
     .header-profile-wrap.is-tab .header-profile-popover-item {
-        height: 48px; gap: 14px; padding: 0 12px;
+        height: 44px; gap: 14px; padding: 0 12px;
         border-radius: 10px;
-        font: 600 15px var(--font-sans);
+        font: 500 14px var(--font-sans);
     }
-    .ctx-menu.is-sheet .ctx-icon { width: 24px; }
+    .ctx-menu.is-sheet .ctx-icon { width: 22px; }
     .ctx-menu.is-sheet .ctx-icon svg,
-    .header-profile-wrap.is-tab .header-profile-popover-item svg { width: 21px; height: 21px; }
+    .header-profile-wrap.is-tab .header-profile-popover-item svg { width: 19px; height: 19px; }
     /* keyboard shortcuts mean nothing to a thumb */
     .ctx-menu.is-sheet .ctx-hint { display: none; }
     .ctx-menu.is-sheet .ctx-sub { margin-left: 22px; }
-    .ctx-menu.is-sheet .ctx-sub .ctx-item { height: 44px; font-size: 14.5px; }
+    .ctx-menu.is-sheet .ctx-sub .ctx-item { height: 40px; font-size: 13.5px; }
     .ctx-menu.is-sheet .ctx-sep { margin: 6px 12px; }
     .header-profile-wrap.is-tab .header-profile-popover { animation: sheet-up .32s var(--ease-out) both; }
     .header-profile-wrap.is-tab .header-profile-popover-identity { padding: 10px 12px; border-radius: 10px; }
 
     /* ==================== type ==================== */
-    .page-title { font-size: 22px; letter-spacing: -0.015em; }
-    .page-header { margin-bottom: var(--sp-4); gap: var(--sp-3); }
+    .page-title { font-size: 20px; letter-spacing: -0.015em; }
+    .page-header { margin-bottom: var(--sp-5); gap: var(--sp-3); }
 
-    /* ==================== controls: soft fills, no outlines ==================== */
-    .btn { font-size: 13.5px; }
-    .btn-sm { font-size: 12.5px; height: 32px; }
+    /* ==================== controls: small, soft fills, no outlines ==================== */
+    .btn { font-size: 13px; padding: 0 var(--sp-3); }
+    .btn svg { width: 15px; height: 15px; }
+    .btn-sm { font-size: 12px; padding: 0 10px; }
     .btn-secondary {
         background: var(--bg-panel);
         border-color: transparent;
@@ -151,20 +157,34 @@
            input[type="search"], input[type="url"], input[type="datetime-local"], input[type="date"], input[type="time"], input:not([type]), select, textarea) {
         background: var(--bg-panel);
         border-color: transparent;
+        font-size: 14px;
     }
     :where(input[type="text"], input[type="number"], input[type="email"], input[type="password"],
            input[type="search"], input[type="url"], input[type="datetime-local"], input[type="date"], input[type="time"], input:not([type]), select) {
-        height: 40px;
+        height: 36px;
     }
     :where(input, select, textarea):focus-visible { background: var(--bg-input); }
+    .form-group { margin-bottom: var(--sp-5); }
+    .form-group label { font-size: 12px; margin-bottom: 6px; }
+    /* the dice next to a field: a soft fill like the field, no outline */
+    .name-roll-btn { width: 36px; border-color: transparent; background: var(--bg-panel); }
+    .species-evo-toggles { gap: var(--sp-4); }
+    /* the Stats tab's own fields: the same soft fill as every other field */
+    .stat-template-row .stat-template-select, .stat-template-row .stat-template-bst-input, .editor-stat-input { border-color: transparent; background: var(--bg-panel); }
     /* tabs: a quieter strip */
-    .tab { font-size: 13.5px; padding: 10px var(--sp-3); }
+    .tabs { margin-bottom: var(--sp-5); gap: 0; }
+    .tab { font-size: 13px; padding: 10px var(--sp-3); }
 
     /* ==================== My Collection ==================== */
-    .collection-search input { height: 40px; border-radius: 10px; }
-    .collection-sort select, .collection-sort .btn { height: 40px; }
-    .collection-sort .btn { flex-basis: 40px; width: 40px; }
+    .collection-header-actions { gap: 8px !important; }
+    .collection-header-actions .btn { height: 34px; }
+    .collection-search input { height: 36px; border-radius: 10px; }
+    .collection-nav .collection-toolbar { gap: 8px; margin-bottom: var(--sp-4); }
+    .collection-sort select, .collection-sort .btn { height: 34px; }
+    #collection-sort-by { flex: 1 1 auto; min-width: 0; }
+    #collection-sort-order { flex: 0 0 34px; width: 34px; }
     #collection-shiny-toggle[aria-pressed="true"] { border-color: transparent; }
+    .collection-grid:not(.collection-list) { gap: 12px; }
 
     /* areas that swipe between tabs (useSwipeTabs in js/app/hooks.ts) reach the
        bottom of the screen, so a swipe below short content still lands */
@@ -175,63 +195,73 @@
     /* ==================== Community Hub ==================== */
     /* Publish lives in the Create tab now; guests keep their Join button */
     .hub:not(.is-guest) .hub-publish { display: none; }
-    .hub-nav { gap: var(--sp-3); }
-    .hub-nav-list { gap: 6px; }
-    .hub-nav-item { height: 32px; padding: 0 14px; border-radius: 999px; font-size: 13.5px; }
+    .hub-nav { gap: var(--sp-4); margin-bottom: var(--sp-2); }
+    .hub-nav-list { gap: 8px; }
+    .hub-nav-item { height: 30px; padding: 0 14px; border-radius: 999px; font-size: 13px; }
     .hub-nav-item:not(.active) { background: var(--bg-panel); }
     /* a post's picture runs the full width of the screen, like Instagram */
     .feed-card .feed-mon-art-btn { width: auto; margin: 0 calc(var(--sp-4) * -1); border-radius: 0; }
     .feed-card .feed-mon-art { aspect-ratio: 1 / 1; }
-    .feed-byline { padding: 10px 0; gap: 9px; }
-    .feed-card .feed-avatar, .feed-card canvas.feed-avatar, .feed-card img.feed-avatar, .feed-card .feed-avatar-fallback { width: 36px; height: 36px; }
-    .feed-byline-name { font-size: 14px; }
-    .feed-mon-name { font-size: 15px; }
-    .feed-mon-caption { font-size: 14px; }
-    .post-body { font-size: 14.5px; line-height: 1.5; }
-    .feed-card-post.is-full .post-body { font-size: 15px; }
-    .feed-action { height: 36px; padding: 0 9px; font-size: 13px; }
-    .feed-action svg { width: 21px; height: 21px; }
-    .post-composer-prompt { height: 40px; border-radius: 999px; font-size: 14px; }
-    .post-composer.is-collapsed .feed-avatar, .post-composer.is-collapsed .feed-avatar-fallback { width: 36px; height: 36px; }
+    .feed-list > * + * { margin-top: var(--sp-2); }
+    .feed-byline { padding: 12px 0 10px; gap: 10px; }
+    .feed-card .feed-avatar, .feed-card canvas.feed-avatar, .feed-card img.feed-avatar, .feed-card .feed-avatar-fallback { width: 32px; height: 32px; font-size: 13px; }
+    .feed-byline-name { font-size: 13.5px; }
+    .feed-byline-meta { font-size: 11.5px; }
+    .feed-mon-name { font-size: 14.5px; }
+    .feed-mon-caption { font-size: 13.5px; }
+    .post-body { font-size: 14px; line-height: 1.55; }
+    .feed-card-post.is-full .post-body { font-size: 14.5px; }
+    .feed-actions { gap: 2px; padding-top: 8px; }
+    .feed-action { height: 32px; padding: 0 8px; font-size: 12.5px; }
+    .feed-action svg { width: 19px; height: 19px; }
+    .feed-follow-btn { padding: 3px 10px; font-size: 11.5px; }
+    .post-composer { padding-bottom: var(--sp-4); }
+    .post-composer-prompt { height: 36px; border-radius: 999px; font-size: 13.5px; padding: 0 14px; }
+    .post-composer.is-collapsed .feed-avatar, .post-composer.is-collapsed .feed-avatar-fallback { width: 32px; height: 32px; }
 
     /* ==================== profiles ==================== */
-    .profile2-cover { height: 128px; border-radius: 0; margin: 0 calc(var(--sp-4) * -1); }
-    .profile2-head { margin-top: -48px; gap: 8px; }
+    .profile2-cover { height: 120px; border-radius: 0; margin: 0 calc(var(--sp-4) * -1); }
+    .profile2-head { margin-top: -44px; gap: 10px; }
     .profile2-avatar-wrap { padding: 3px; }
-    .profile2-avatar, canvas.profile2-avatar, img.profile2-avatar, .profile2-avatar-fallback { width: 88px; height: 88px; font-size: 36px; }
-    .profile2-identity { gap: 2px; padding-bottom: 4px; }
-    .profile2-identity h1 { font-size: 20px; letter-spacing: -0.01em; }
-    .profile2-handle { font-size: 13px; }
-    .profile2-numbers { font-size: 13.5px; }
-    /* the two main buttons share the width, like Instagram */
-    .profile2-actions { width: 100%; flex-wrap: nowrap; gap: 6px; padding-bottom: 8px; }
-    .profile2-actions > .btn:not(.btn-icon) { flex: 1 1 0; min-width: 0; height: 34px; font-size: 13.5px; }
-    .profile2-actions .btn-icon { width: 34px; height: 34px; }
-    .profile2-actions .mod-btn { flex: 0 0 auto; height: 34px; }
-    .profile2-actions .feed-menu-wrap .btn-icon { width: 34px; height: 34px; }
+    .profile2-avatar, canvas.profile2-avatar, img.profile2-avatar, .profile2-avatar-fallback { width: 80px; height: 80px; font-size: 32px; }
+    .profile2-identity { gap: 4px; padding-bottom: 4px; }
+    .profile2-identity h1 { font-size: 19px; letter-spacing: -0.01em; }
+    .profile2-handle { font-size: 12.5px; }
+    .profile2-numbers { font-size: 13px; }
+    /* the main buttons share the width, like Instagram */
+    .profile2-actions { width: 100%; flex-wrap: nowrap; gap: 8px; padding: var(--sp-2) 0 var(--sp-3); }
+    .profile2-actions > .btn:not(.btn-icon) { flex: 1 1 0; min-width: 0; height: 32px; font-size: 13px; }
+    .profile2-actions .btn-icon, .profile2-actions .feed-menu-wrap .btn-icon { width: 32px; height: 32px; }
+    .profile2-actions .mod-btn { flex: 0 0 auto; height: 32px; }
+    /* the small buttons next to Message: the same soft fill, no outline */
+    .profile2-actions .btn-icon, .profile2-actions .mod-btn { border-color: transparent; background: var(--bg-panel); }
+    .profile2-bio { font-size: 13.5px; }
 
     /* ==================== Settings: rows, not a box ==================== */
-    .st-title { font-size: 22px; }
+    .st-title { font-size: 20px; }
     .st-search { border-color: transparent; background: var(--bg-panel); }
+    .st-narrow .st-nav { display: flex; flex-direction: column; gap: var(--sp-4); }
     .st-narrow .st-nav-list { border: 0; border-radius: 0; background: transparent; }
-    .st-narrow .st-nav-item { min-height: 48px; padding: var(--sp-3) 4px; }
+    .st-narrow .st-nav-item { min-height: 44px; padding: 10px 4px; }
+    .st-narrow .st-nav-label { font-size: 14px; font-weight: 600; }
     .st-narrow .st-nav-item + .st-nav-item { border-top-color: var(--border-light); }
     .st-identity { border-radius: 12px; }
+    .st-narrow .st-row { padding: 12px var(--sp-3); }
 
     /* ==================== the editor: the whole screen ==================== */
     #editor-view { top: 0; width: 100vw; }
     #editor-view::before { top: 0; }
     .editor-sheet-head {
-        min-height: 48px;
-        padding: calc(4px + env(safe-area-inset-top, 0px)) 8px 4px 6px;
+        min-height: 46px; gap: 6px;
+        padding: calc(4px + env(safe-area-inset-top, 0px)) 8px 4px 8px;
     }
-    .editor-sheet-title { font-size: 16px; }
+    .editor-sheet-title { font-size: 15px; }
+    .editor-actionbar-group { gap: 6px; }
     /* the tabs keep their natural width and scroll sideways, like a phone app's top tabs */
-    .editor-tabs { grid-auto-columns: max-content; column-gap: 18px; padding: 0 12px; scroll-padding: 0 12px; }
-    .editor-tabs .tab { font-size: 13.5px; padding-left: 0; padding-right: 0; }
+    .editor-tabs { grid-auto-columns: max-content; column-gap: 20px; padding: 0 var(--sp-4); scroll-padding: 0 var(--sp-4); }
+    .editor-tabs .tab { font-size: 13px; padding-left: 0; padding-right: 0; }
     .editor-tabs .tab.active::after { left: 0; right: 0; }
-    .editor-sheet-body { padding: var(--sp-4) 12px calc(var(--sp-6) + env(safe-area-inset-bottom, 0px)); }
-    .form-group label { font-size: 12.5px; }
+    .editor-sheet-body { padding: var(--sp-5) var(--sp-4) calc(var(--sp-6) + env(safe-area-inset-bottom, 0px)); }
 
     /* ==================== dialogs: a sheet from the bottom ====================
        every centred dialog rises from the bottom edge instead, full width.
@@ -248,63 +278,53 @@
     .modal-overlay:not(.as-sheet):not(.confirm-dialog-overlay).active .modal { transform: none; }
     #react-dialogs .modal-overlay:not(.as-sheet):not(.confirm-dialog-overlay).active .modal { animation: sheet-up .3s var(--ease-out) both; }
     .modal-overlay:not(.as-sheet):not(.confirm-dialog-overlay) .modal::before {
-        content: ""; display: block; width: 36px; height: 4px; margin: -6px auto 10px;
+        content: ""; display: block; width: 36px; height: 4px; margin: -6px auto 12px;
         border-radius: 2px; background: var(--border-strong);
     }
-    .modal-header h3 { font-size: 16px; }
-
-    /* ==================== notifications: the whole screen under the top bar ==================== */
-    .header .notifications-panel {
-        position: fixed; top: var(--header-h); left: 0; right: 0;
-        bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px));
-        width: auto; max-width: none; max-height: none;
-        border: 0; border-top: 1px solid var(--border-light); border-radius: 0;
-        box-shadow: none;
-    }
-    .notifications-panel-header { padding: 12px 16px; font-size: 16px; }
+    .modal-header { margin-bottom: var(--sp-4); }
+    .modal-header h3 { font-size: 15.5px; }
 
     /* ==================== toasts: above the tab bar, the full width ==================== */
     .toast-container {
         left: 12px; right: 12px;
         bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + 10px);
     }
-    .toast { min-width: 0; width: 100%; }
+    .toast { min-width: 0; width: 100%; font-size: 13px; }
     body.editor-sheet-open .toast-container { bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
 
     /* ==================== search: rows on the page, not in a box ==================== */
+    .search-page-form input, .search-page-form input:where([type="search"]) { height: 38px; font-size: 14px; border-radius: 10px; }
     .search-list { border: 0; border-radius: 0; background: transparent; }
     .search-list .gs-item.search-row { padding: 10px 2px; }
-    .search-row .gs-thumb { width: 44px; height: 44px; flex-basis: 44px; }
-    .search-row .gs-title { font-size: 14.5px; }
-    .search-hashtag-jump { border-color: transparent; background: var(--bg-panel); }
-    .search-section-head h2 { font-size: 15px; }
+    .search-row .gs-thumb { width: 40px; height: 40px; flex-basis: 40px; }
+    .search-row .gs-title { font-size: 14px; }
+    .search-row .gs-sub { font-size: 12px; }
+    .search-hashtag-jump { border-color: transparent; background: var(--bg-panel); font-size: 13px; }
+    .search-section-head h2 { font-size: 14.5px; }
+
+    /* ==================== notifications page ==================== */
+    .notif-page-list .notification-item { padding: 12px 2px; gap: 12px; }
+    .notif-page-list .notification-avatar { width: 36px; height: 36px; }
+    .notif-page-list .notification-text { font-size: 13.5px; }
 
     /* ==================== the type and category pickers: soft fills like the other fields ==================== */
-    .type-dropdown-trigger, .cat-dropdown-trigger { min-height: 40px; border-color: transparent; background: var(--bg-panel); }
+    .type-dropdown-trigger, .cat-dropdown-trigger { min-height: 36px; border-color: transparent; background: var(--bg-panel); }
 
     /* ==================== Browse Moves: the filters two by two ==================== */
-    .move-browser-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .move-browser-filters { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
     /* the dialog gives some filters a fixed desktop width in its markup */
     .move-browser-filters > * { width: auto !important; min-width: 0 !important; }
     .move-browser-filters .mb-filter-name { grid-column: 1 / -1; }
-    .move-browser-filters .mb-filter-name, .move-browser-filters .mb-filter-select { height: 40px; border-color: transparent; background: var(--bg-panel); }
+    .move-browser-filters .mb-filter-name, .move-browser-filters .mb-filter-select { height: 36px; border-color: transparent; background: var(--bg-panel); font-size: 14px; }
     .move-browser-filters:has(.mb-range-label) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .move-browser-filters:has(.mb-range-label) > .btn { grid-column: 1 / -1; }
     .mb-range-label { flex-direction: column; align-items: stretch; gap: 4px; }
-    .mb-range-label input { width: 100%; height: 40px; border-color: transparent; background: var(--bg-panel); }
+    .mb-range-label input { width: 100%; height: 36px; border-color: transparent; background: var(--bg-panel); }
     .move-browser-results { max-height: none; grid-template-columns: minmax(0, 1fr); }
-
-    /* ==================== My Collection's sort: the field takes the room, the order button stays square ==================== */
-    #collection-sort-by { flex: 1 1 auto; min-width: 0; }
-    #collection-sort-order { flex: 0 0 40px; width: 40px; }
 }
 
-/* text fields at 16px on touch phones: a smaller one makes iPhone Safari
-   zoom the page in when it gets focus, and the zoom stays */
+/* a finger leaves no hover behind: a sheet row lights up only while pressed */
 @media (max-width: 760px) and (pointer: coarse) {
-    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]),
-    select, textarea { font-size: 16px !important; }
-    /* a finger leaves no hover behind: a row lights up only while pressed */
     .ctx-menu.is-sheet .ctx-item:hover, .ctx-menu.is-sheet .ctx-item:focus-visible { background: none; box-shadow: none; }
     .ctx-menu.is-sheet .ctx-item:active { background: var(--bg-panel); }
 }
