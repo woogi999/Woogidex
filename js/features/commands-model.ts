@@ -7,7 +7,7 @@
 //   /coverage fire, water             what a set of attacking types hits
 //   /learn garchomp, earthquake       whether it learns the move
 //   /randpoke 3                       random Pokémon
-//   /calc garchomp earthquake vs toxapex   a damage range
+//   /calc 252+ Atk Choice Band garchomp earthquake vs 252 HP / 4 Def toxapex   a damage range
 //   /bulk toxapex                     Scrappie's bulk numbers (HP x Def, HP x SpD)
 // Everything here is pure: commands.ts hands it the data and the move search.
 
@@ -54,7 +54,7 @@ export const COMMANDS: CommandDef[] = [
     { name: 'coverage', aliases: ['cover'], usage: '/coverage fire, water', help: 'What a set of attacking types hits super effectively.' },
     { name: 'learn', aliases: ['learnset'], usage: '/learn garchomp, earthquake', help: 'Whether a Pokémon learns a move.' },
     { name: 'randpoke', aliases: ['randompokemon'], usage: '/randpoke 3', help: 'Random Pokémon.' },
-    { name: 'calc', aliases: ['damage'], usage: '/calc garchomp earthquake vs toxapex', help: 'A damage range: 252 attacking EVs and a helpful nature, against no and full bulk.' },
+    { name: 'calc', aliases: ['damage'], usage: '/calc 252+ Atk Choice Band garchomp earthquake vs 252 HP / 4 Def toxapex', help: 'A damage range, written like Showdown\'s calc: EVs and nature, then items and abilities, then the Pokémon. Leave the EVs out for 252+ against no and full bulk.' },
     { name: 'bulk', aliases: [], usage: '/bulk toxapex', help: 'Bulk numbers: HP × Def and HP × SpD, uninvested and fully invested.' }
 ];
 
@@ -215,36 +215,125 @@ export function damageRange(basePower: number, attack: number, defense: number, 
     return [Math.floor(Math.floor(base * 85 / 100) * mod), Math.floor(base * mod)];
 }
 
+// The items and abilities /calc knows: the ones that change damage. The
+// numbers follow Showdown's calc; its 4096-based rounding can make a result
+// differ from Showdown's by a point or so.
+interface CalcCtx { move: DexMove; physical: boolean; contact: boolean; eff: number; stab: number; bp: number; atk: number; def: number; final: number; immune: string }
+type Mod = { name: string; side: 'attacker' | 'defender'; apply: (c: CalcCtx) => void };
+const immuneTo = (type: string, name: string): Mod['apply'] => c => { if (c.move.type === type) c.immune = name; };
+const CALC_MODS: Record<string, Mod> = {
+    choiceband: { name: 'Choice Band', side: 'attacker', apply: c => { if (c.physical) c.atk *= 1.5; } },
+    choicespecs: { name: 'Choice Specs', side: 'attacker', apply: c => { if (!c.physical) c.atk *= 1.5; } },
+    lifeorb: { name: 'Life Orb', side: 'attacker', apply: c => { c.final *= 5324 / 4096; } },
+    expertbelt: { name: 'Expert Belt', side: 'attacker', apply: c => { if (c.eff > 1) c.final *= 4915 / 4096; } },
+    muscleband: { name: 'Muscle Band', side: 'attacker', apply: c => { if (c.physical) c.bp *= 1.1; } },
+    wiseglasses: { name: 'Wise Glasses', side: 'attacker', apply: c => { if (!c.physical) c.bp *= 1.1; } },
+    hugepower: { name: 'Huge Power', side: 'attacker', apply: c => { if (c.physical) c.atk *= 2; } },
+    purepower: { name: 'Pure Power', side: 'attacker', apply: c => { if (c.physical) c.atk *= 2; } },
+    hustle: { name: 'Hustle', side: 'attacker', apply: c => { if (c.physical) c.atk *= 1.5; } },
+    adaptability: { name: 'Adaptability', side: 'attacker', apply: c => { if (c.stab > 1) c.stab = 2; } },
+    technician: { name: 'Technician', side: 'attacker', apply: c => { if (c.bp <= 60) c.bp *= 1.5; } },
+    toughclaws: { name: 'Tough Claws', side: 'attacker', apply: c => { if (c.contact) c.bp *= 1.3; } },
+    tintedlens: { name: 'Tinted Lens', side: 'attacker', apply: c => { if (c.eff > 0 && c.eff < 1) c.final *= 2; } },
+    assaultvest: { name: 'Assault Vest', side: 'defender', apply: c => { if (!c.physical) c.def *= 1.5; } },
+    eviolite: { name: 'Eviolite', side: 'defender', apply: c => { c.def *= 1.5; } },
+    furcoat: { name: 'Fur Coat', side: 'defender', apply: c => { if (c.physical) c.def *= 2; } },
+    multiscale: { name: 'Multiscale', side: 'defender', apply: c => { c.final *= 0.5; } },
+    shadowshield: { name: 'Shadow Shield', side: 'defender', apply: c => { c.final *= 0.5; } },
+    icescales: { name: 'Ice Scales', side: 'defender', apply: c => { if (!c.physical) c.final *= 0.5; } },
+    thickfat: { name: 'Thick Fat', side: 'defender', apply: c => { if (c.move.type === 'Fire' || c.move.type === 'Ice') c.atk *= 0.5; } },
+    filter: { name: 'Filter', side: 'defender', apply: c => { if (c.eff > 1) c.final *= 0.75; } },
+    solidrock: { name: 'Solid Rock', side: 'defender', apply: c => { if (c.eff > 1) c.final *= 0.75; } },
+    prismarmor: { name: 'Prism Armor', side: 'defender', apply: c => { if (c.eff > 1) c.final *= 0.75; } },
+    fluffy: { name: 'Fluffy', side: 'defender', apply: c => { if (c.contact) c.final *= 0.5; if (c.move.type === 'Fire') c.final *= 2; } },
+    levitate: { name: 'Levitate', side: 'defender', apply: immuneTo('Ground', 'Levitate') },
+    eartheater: { name: 'Earth Eater', side: 'defender', apply: immuneTo('Ground', 'Earth Eater') },
+    waterabsorb: { name: 'Water Absorb', side: 'defender', apply: immuneTo('Water', 'Water Absorb') },
+    stormdrain: { name: 'Storm Drain', side: 'defender', apply: immuneTo('Water', 'Storm Drain') },
+    dryskin: { name: 'Dry Skin', side: 'defender', apply: immuneTo('Water', 'Dry Skin') },
+    voltabsorb: { name: 'Volt Absorb', side: 'defender', apply: immuneTo('Electric', 'Volt Absorb') },
+    lightningrod: { name: 'Lightning Rod', side: 'defender', apply: immuneTo('Electric', 'Lightning Rod') },
+    motordrive: { name: 'Motor Drive', side: 'defender', apply: immuneTo('Electric', 'Motor Drive') },
+    flashfire: { name: 'Flash Fire', side: 'defender', apply: immuneTo('Fire', 'Flash Fire') },
+    sapsipper: { name: 'Sap Sipper', side: 'defender', apply: immuneTo('Grass', 'Sap Sipper') }
+};
+
+interface CalcSide { hpEv: number | null; ev: number | null; nature: number; evText: string; mods: Mod[]; rest: string }
+/**
+ * Reads one side of a calc, Showdown's way: EVs and nature first ("252+ Atk",
+ * "252 HP / 4 Def"), then items and abilities, then the Pokémon (and, for the
+ * attacker, the move).
+ */
+function parseCalcSide(text: string, side: Mod['side']): CalcSide {
+    const out: CalcSide = { hpEv: null, ev: null, nature: 1, evText: '', mods: [], rest: text.trim() };
+    const evParts: string[] = [];
+    for (let m: RegExpMatchArray | null; (m = out.rest.match(/^(\d{1,3})\s*([+-]?)\s*(hp|atk|spa|def|spd)\b\s*\/?\s*/i));) {
+        const ev = Math.min(252, Number(m[1]));
+        if (m[3].toLowerCase() === 'hp') out.hpEv = ev;
+        else { out.ev = ev; out.nature = m[2] === '+' ? 1.1 : m[2] === '-' ? 0.9 : 1; }
+        evParts.push(`${ev}${m[2]} ${m[3].length === 2 ? 'HP' : m[3][0].toUpperCase() + m[3].slice(1).toLowerCase()}`);
+        out.rest = out.rest.slice(m[0].length);
+    }
+    out.evText = evParts.join(' / ');
+    // the longest run of words (up to three) that names a known item or ability
+    for (let found = true; found;) {
+        found = false;
+        const words = out.rest.split(/\s+/);
+        for (let n = Math.min(3, words.length - 1); n > 0; n--) {
+            const mod = CALC_MODS[toId(words.slice(0, n).join(''))];
+            if (mod && mod.side === side) { out.mods.push(mod); out.rest = words.slice(n).join(' '); found = true; break; }
+        }
+    }
+    return out;
+}
+
 function calc(dex: Dex, args: string): Result {
     const m = args.match(/^(.+?)\s+vs\.?\s+(.+)$/i);
-    if (!m) return { error: 'Use /calc <attacker> <move> vs <defender>, like /calc garchomp earthquake vs toxapex.' };
-    const words = m[1].trim().split(/\s+/);
+    if (!m) return { error: 'Use /calc <attacker> <move> vs <defender>, like /calc 252+ Atk Choice Band garchomp earthquake vs 252 HP / 4 Def toxapex.' };
+    const a = parseCalcSide(m[1], 'attacker'), d = parseCalcSide(m[2], 'defender');
+    const words = a.rest.split(/\s+/);
     // the longest name that is a Pokémon, the rest is the move
     let attacker: DexMon | undefined, moveName = '';
     for (let i = words.length - 1; i > 0 && !attacker; i--) {
         attacker = findMon(dex, words.slice(0, i).join(' '));
         moveName = words.slice(i).join(' ');
     }
-    const defender = findMon(dex, m[2]);
+    const defender = findMon(dex, d.rest);
     const move = findMove(dex, moveName);
     if (!attacker || !defender || !move) return { error: `I could not find ${!attacker ? 'the attacker' : !move ? 'the move' : 'the defender'}.` };
     if (move.category === 'Status' || !move.basePower) return { error: `${move.name} does no direct damage.` };
     const physical = move.category === 'Physical';
-    const atk = statAt(physical ? attacker.stats.atk : attacker.stats.spa, 252, 1.1);
-    const stab = attacker.types.includes(move.type) ? 1.5 : 1;
-    const eff = effectiveness(dex, move.type, defender.types);
-    const mod = stab * eff;
-    const bulk = (hpEv: number, defEv: number, nature: number) => {
+    const statName = physical ? 'Atk' : 'SpA', defName = physical ? 'Def' : 'SpD';
+    // no EVs named: 252 with a helpful nature, as before
+    const atkEv = a.ev ?? 252, atkNature = a.ev == null ? 1.1 : a.nature;
+    const run = (hpEv: number, defEv: number, nature: number) => {
+        const c: CalcCtx = {
+            move, physical, contact: !!move.flags?.contact, eff: effectiveness(dex, move.type, defender.types),
+            stab: attacker.types.includes(move.type) ? 1.5 : 1, bp: move.basePower,
+            atk: statAt(physical ? attacker.stats.atk : attacker.stats.spa, atkEv, atkNature),
+            def: statAt(physical ? defender.stats.def : defender.stats.spd, defEv, nature), final: 1, immune: ''
+        };
+        for (const mod of [...a.mods, ...d.mods]) mod.apply(c);
         const hp = statAt(defender.stats.hp, hpEv, 1, true);
-        const def = statAt(physical ? defender.stats.def : defender.stats.spd, defEv, nature);
-        const [lo, hi] = damageRange(move.basePower, atk, def, mod);
-        return `${fmt(lo / hp * 100)}% to ${fmt(hi / hp * 100)}% (${lo}-${hi} of ${hp} HP)`;
+        if (c.eff === 0 || c.immune) return { c, text: '' };
+        const [lo, hi] = damageRange(Math.floor(c.bp), Math.floor(c.atk), Math.floor(c.def), c.stab * c.eff * c.final);
+        return { c, text: `${fmt(lo / hp * 100)}% to ${fmt(hi / hp * 100)}% (${lo}-${hi} of ${hp} HP)` };
     };
-    return { head: `252+ ${physical ? 'Atk' : 'SpA'} ${attacker.name} ${move.name} vs ${defender.name}`, lines: [
-        eff === 0 ? `No effect: ${defender.name} is immune.` : `Type: ×${eff}${stab > 1 ? ', STAB ×1.5' : ''}`,
-        ...(eff === 0 ? [] : [`0 HP / 0 ${physical ? 'Def' : 'SpD'}: ${bulk(0, 0, 1)}`, `252 HP / 252+ ${physical ? 'Def' : 'SpD'}: ${bulk(252, 252, 1.1)}`]),
-        'Level 100, 31 IVs, no items, abilities or weather.'
-    ] };
+    const atkLabel = [a.evText || `252+ ${statName}`, ...a.mods.map(x => x.name), attacker.name, move.name].join(' ');
+    const defMods = d.mods.map(x => x.name).join(' ');
+    const lines: string[] = [];
+    // the defender's EVs named: that one spread; none: no and full bulk
+    const spreads: Array<[string, number, number, number]> = d.evText
+        ? [[d.evText, d.hpEv ?? 0, d.ev ?? 0, d.nature]]
+        : [[`0 HP / 0 ${defName}`, 0, 0, 1], [`252 HP / 252+ ${defName}`, 252, 252, 1.1]];
+    const first = run(spreads[0][1], spreads[0][2], spreads[0][3]).c;
+    if (first.immune || first.eff === 0) lines.push(`No effect: ${first.immune ? `${defender.name}'s ${first.immune}` : `${defender.name} is immune`}.`);
+    else {
+        lines.push(`Type: ×${first.eff}${first.stab > 1 ? `, STAB ×${first.stab}` : ''}`);
+        for (const [label, hpEv, defEv, nature] of spreads) lines.push(`${label}${defMods ? ` ${defMods}` : ''}: ${run(hpEv, defEv, nature).text}`);
+    }
+    lines.push('Level 100, 31 IVs, no weather, terrain or stat boosts.');
+    return { head: `${atkLabel} vs ${defender.name}`, lines };
 }
 
 function bulkCmd(dex: Dex, args: string): Result {

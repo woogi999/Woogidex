@@ -99,3 +99,22 @@ test('/calc: STAB, immunity, status moves, and bad input', () => {
     assert.match(runCommand(dex, cmd('calc'), 'toxapex recover vs garchomp').error, /no direct damage/);
     assert.match(runCommand(dex, cmd('calc'), 'garchomp earthquake').error, /Use \/calc/);
 });
+
+// the top of a "lo-hi of HP" range
+const maxOf = line => Number(line.match(/\((\d+)-(\d+) of/)[2]);
+
+test('/calc: EVs, items and abilities, written like Showdown', () => {
+    const plain = runCommand(dex, cmd('calc'), '252+ Atk garchomp earthquake vs 252 HP / 252+ Def toxapex');
+    assert.equal(plain.lines.length, 3, 'named EVs on the defender: one spread, not two');
+    assert.match(plain.lines[1], /^252 HP \/ 252\+ Def: /);
+    const band = runCommand(dex, cmd('calc'), '252+ Atk Choice Band garchomp earthquake vs 252 HP / 252+ Def toxapex');
+    assert.match(band.head, /^252\+ Atk Choice Band Garchomp Earthquake vs Toxapex$/);
+    assert.ok(maxOf(band.lines[1]) > maxOf(plain.lines[1]) * 1.4, 'Choice Band is about ×1.5');
+    const scale = runCommand(dex, cmd('calc'), '252+ Atk garchomp earthquake vs 252 HP / 252+ Def multiscale toxapex');
+    assert.ok(Math.abs(maxOf(scale.lines[1]) - maxOf(plain.lines[1]) / 2) <= 1, 'Multiscale halves it');
+    const weak = runCommand(dex, cmd('calc'), '0- Atk garchomp earthquake vs 252 HP / 252+ Def toxapex');
+    assert.ok(maxOf(weak.lines[1]) < maxOf(plain.lines[1]));
+    assert.match(runCommand(dex, cmd('calc'), 'garchomp earthquake vs levitate toxapex').lines[0], /Toxapex's Levitate/);
+    // an item for the other side, or one /calc does not know, is not a Pokémon name
+    assert.match(runCommand(dex, cmd('calc'), 'garchomp earthquake vs choice band toxapex').error, /defender/);
+});
