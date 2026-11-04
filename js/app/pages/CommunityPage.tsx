@@ -55,9 +55,8 @@ export function CommunityPage() {
         <div ref={swipe} className={`hub${guest ? ' is-guest' : ''}`}>
             {/* the hub's sections, as a sidebar (a scrolling row of chips on a phone) */}
             <aside className="hub-nav" aria-label="Community Hub">
-                {guest
-                    ? <button className="btn btn-primary hub-publish" type="button" onClick={() => api.openAuthModal?.('signup')}><Icon name="user-plus" /><span>Join Woogidex</span></button>
-                    : <button className="btn btn-primary hub-publish" type="button" onClick={() => api.openCommunityPublishModal()}><Icon name="upload" /><span>Publish a Fakémon</span></button>}
+                {/* guests get one sign-up prompt: the GuestHero on the feed */}
+                {!guest && <button className="btn btn-primary hub-publish" type="button" onClick={() => api.openCommunityPublishModal()}><Icon name="upload" /><span>Publish a Fakémon</span></button>}
                 <nav className="hub-nav-list" id="community-tabs" role="tablist" aria-orientation="vertical">
                     {TABS.map(([key, label]) => (
                         <Link key={key} to={api.communityPanelPath(key)} className={`hub-nav-item${panel === key ? ' active' : ''}`} role="tab" aria-selected={panel === key}>{label}</Link>

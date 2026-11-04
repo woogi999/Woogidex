@@ -196,15 +196,16 @@
     }
 
     /* ==================== Community Hub ==================== */
-    /* Publish lives in the Create tab now; guests keep their Join button */
-    .hub:not(.is-guest) .hub-publish { display: none; }
+    /* Publish lives in the Create tab now */
+    .hub-publish { display: none; }
     .hub-nav { gap: var(--sp-4); margin-bottom: var(--sp-2); }
     .hub-nav-list { gap: 8px; }
     .hub-nav-item { height: 30px; padding: 0 14px; border-radius: 999px; font-size: 13px; }
     .hub-nav-item:not(.active) { background: var(--bg-panel); }
-    /* a post's picture runs the full width of the screen, like Instagram */
-    .feed-card .feed-mon-art-btn { width: auto; margin: 0 calc(var(--sp-4) * -1); border-radius: 0; }
-    .feed-card .feed-mon-art { aspect-ratio: 1 / 1; }
+    /* posts sit in from the screen edges, and a picture is a short frame,
+       so one post does not fill the whole screen */
+    .feed-list > .feed-card { padding-left: var(--sp-3); padding-right: var(--sp-3); }
+    .feed-card .feed-mon-art { aspect-ratio: 16 / 11; }
     .feed-list > * + * { margin-top: var(--sp-2); }
     .feed-byline { padding: 12px 0 10px; gap: 10px; }
     .feed-card .feed-avatar, .feed-card canvas.feed-avatar, .feed-card img.feed-avatar, .feed-card .feed-avatar-fallback { width: 32px; height: 32px; font-size: 13px; }
