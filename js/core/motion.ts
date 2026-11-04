@@ -49,20 +49,21 @@ const lowEnd = () => document.documentElement.classList.contains('low-end');
 /**
  * The parts of a view that enter one after another: under any lone wrappers,
  * each child, and the children of a child that holds a few blocks (a column
- * of panels, a header row). In page order, at most 14. Nothing is measured:
- * that would force a layout of the new content before its first frame.
+ * of panels, a header row). In page order, every part: the caller staggers
+ * the first ones and moves the rest together. Nothing is measured: that would
+ * force a layout of the new content before its first frame.
  */
+const STAGGERED_PARTS = 14;
 function entranceParts(root: Element): Element[] {
     let el = root;
     for (let depth = 0; depth < 4 && el.children.length === 1; depth++) el = el.children[0];
     const out: Element[] = [];
     for (const child of Array.from(el.children)) {
         const n = child.children.length;
-        if (n > 1 && n <= 8 && out.length + n <= 14) out.push(...Array.from(child.children));
+        if (n > 1 && n <= 8 && out.length + n <= STAGGERED_PARTS) out.push(...Array.from(child.children));
         else out.push(child);
-        if (out.length >= 14) break;
     }
-    return out.length ? out.slice(0, 14) : [root];
+    return out.length ? out : [root];
 }
 
 /**
@@ -84,8 +85,29 @@ export function slideIn(el: Element | null | undefined, dir: number, axis: 'x' |
     const from = d === 0 ? 'translateY(10px)' : axis === 'x' ? `translateX(${d * reach}px)` : `translateY(${d * reach}px)`;
     const frames = [{ transform: from, opacity: 0 }, { transform: 'none', opacity: 1 }];
     if (lowEnd()) { enter(el, frames, { duration: 280, easing: OUT3 }); return; }
-    // "backwards" holds each part at its start until its turn comes
-    entranceParts(el).forEach((part, i) => enter(part, frames, { duration: 320, delay: i * 45, easing: OUT3, fill: 'backwards' }));
+    // "backwards" holds each part at its start until its turn comes. The parts
+    // past the stagger move with the last one: left out, they showed at once
+    // while the parts above them were still hidden.
+    entranceParts(el).forEach((part, i) => enter(part, frames, { duration: 320, delay: Math.min(i, STAGGERED_PARTS - 1) * 45, easing: OUT3, fill: 'backwards' }));
+}
+
+/**
+ * The view leaving before `change` swaps it: a short fade the other way from
+ * where the next view comes in (dir as in slideIn, on the y axis). The swap
+ * waits only the length of the fade; slideIn then brings the new view in.
+ */
+export function slideOutThen(el: Element | null | undefined, dir: number, change: () => void) {
+    if (!el || reducedMotion() || lowEnd()) { change(); return; }
+    const d = Math.sign(dir);
+    const out = (el as HTMLElement).animate?.(
+        [{ opacity: 1, transform: 'none' }, { opacity: 0, transform: `translateY(${d === 0 ? 0 : -d * 10}px)` }],
+        { duration: 110, easing: 'cubic-bezier(.55, 0, 1, .45)', fill: 'forwards' });
+    if (!out) { change(); return; }
+    out.onfinish = () => {
+        change();
+        // the new view draws in this frame; its parts hold their own start (slideIn), so the wrapper can show again
+        requestAnimationFrame(() => out.cancel());
+    };
 }
 
 /** Where `next` sits against `prev` in an ordered list: 1 after, -1 before, 0 same or unknown. */
@@ -182,15 +204,19 @@ export function fadeSwap(el: Element | null | undefined, change: () => void) {
         .to(el, { opacity: 1, duration: 0.22, ease: 'power1.out', clearProps: 'opacity' });
 }
 
-/** A grid of cards arriving: a short stagger, capped, first screen only. */
+/**
+ * A grid of cards arriving: a short stagger over the first 24, then the cards
+ * after them (up to 72, a big first screen) arrive with the last one, so no
+ * card shows before the ones above it. Cards further down are off screen.
+ */
 export function staggerIn(items: Element[]) {
     if (!items.length || reducedMotion() || lowEnd()) return;
-    const first = items.slice(0, 24);
+    const staggered = Math.min(items.length, 24);
     // never two at once: at least 25 ms apart, the whole run under half a second
-    const gap = Math.max(25, Math.min(0.45, first.length * 0.03) / Math.max(1, first.length - 1) * 1000);
+    const gap = Math.max(25, Math.min(0.45, staggered * 0.03) / Math.max(1, staggered - 1) * 1000);
     // "backwards" holds each card at its start until its turn comes
-    first.forEach((el, i) => enter(el, [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }],
-        { duration: 450, delay: i * gap, easing: OUT_EXPO, fill: 'backwards' }));
+    items.slice(0, 72).forEach((el, i) => enter(el, [{ opacity: 0, transform: 'translateY(10px)' }, { opacity: 1, transform: 'none' }],
+        { duration: 450, delay: Math.min(i, staggered - 1) * gap, easing: OUT_EXPO, fill: 'backwards' }));
 }
 
 // ==================== exits ====================

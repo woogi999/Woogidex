@@ -232,14 +232,14 @@ const moveMeta = (power: any, accuracy: any, pp: any) => {
 /**
  * What a move, ability or item card shows; the frame around it is shared.
  * Moves and abilities have no picture: art is null, and the card is text
- * with a colour edge (a move's type). Items keep their artwork.
+ * only. Items keep their artwork.
  */
-export function libraryParts(kind: LibraryKind, item: any): { art: ReactNode; corner: string; pills: ReactNode | null; meta: ReactNode; desc?: ReactNode; accent?: string } {
+export function libraryParts(kind: LibraryKind, item: any): { art: ReactNode; corner: string; pills: ReactNode | null; meta: ReactNode; desc?: ReactNode } {
     if (kind === 'moves') {
         const type = String(item.type || 'Normal');
         const category = String(item.category || 'Status');
         return {
-            art: null, corner: '', accent: `type-${type.toLowerCase()}`,
+            art: null, corner: '',
             pills: <><TypeBadge type={type} /><CategoryBadge category={category} size="badge" /></>,
             meta: moveMeta(item.basePower, item.accuracy, item.pp),
             desc: <TileDesc text={String(item.desc || '').trim()} />
@@ -263,15 +263,14 @@ export function libraryParts(kind: LibraryKind, item: any): { art: ReactNode; co
 }
 
 /** The shared frame of a library tile (yours or a main-game one). No art: a text tile. */
-function LibraryTile({ className, menu, title, pinned, art, corner, tag, name, meta, pills, desc, accent, drag, entry }: {
+function LibraryTile({ className, menu, title, pinned, art, corner, tag, name, meta, pills, desc, drag, entry }: {
     className: string; menu: object; title?: string; pinned?: boolean; art: ReactNode; corner?: string;
-    tag?: string; name: string; meta: ReactNode; pills: ReactNode | null; desc?: ReactNode; accent?: string; drag?: object; entry?: [string, string];
+    tag?: string; name: string; meta: ReactNode; pills: ReactNode | null; desc?: ReactNode; drag?: object; entry?: [string, string];
 }) {
     if (art === null) {
         return (
             <div className={`${className} text-tile${pinned ? ' pinned' : ''}`} title={title || undefined} aria-label={name} {...drag} {...menu}
                 data-entry-kind={entry?.[0]} data-entry-id={entry?.[1]}>
-                {accent && <span className={`text-tile-edge ${accent}`} aria-hidden="true" />}
                 {pinned && <PinMark />}
                 <div className="card-body">
                     {tag && <span className="text-tile-tag">{tag}</span>}
@@ -315,7 +314,7 @@ export function libraryMenu(kind: LibraryKind, item: any, inFolder: boolean, car
 }
 
 export function LibraryCard({ kind, item, inFolder }: { kind: LibraryKind; item: any; inFolder: boolean }) {
-    const { art, corner, pills, meta, desc, accent } = libraryParts(kind, item);
+    const { art, corner, pills, meta, desc } = libraryParts(kind, item);
     const menu = cardMenu(card => libraryMenu(kind, item, inFolder, card), () => api.openLibraryEditorSheet(kind, item.id));
     return (
         <LibraryTile
@@ -323,7 +322,7 @@ export function LibraryCard({ kind, item, inFolder }: { kind: LibraryKind; item:
             // the full description is the tooltip; the tile keeps three lines like a Fakémon card
             title={String(item.desc || '').trim()}
             drag={libraryDrag(kind, item.id)}
-            art={art} corner={corner} tag={item.vanillaId ? 'Edited' : ''} name={item.name} meta={meta} pills={pills} desc={desc} accent={accent}
+            art={art} corner={corner} tag={item.vanillaId ? 'Edited' : ''} name={item.name} meta={meta} pills={pills} desc={desc}
         />
     );
 }
@@ -466,11 +465,11 @@ export function VanillaPokemonCard({ p }: { p: any }) {
 }
 
 /** What a main-game move, ability or item shows, like libraryParts for your own. */
-export function vanillaLibraryParts(kind: LibraryKind, id: string, v: any): { art: ReactNode; corner: string; meta: ReactNode; pills: ReactNode | null; desc?: ReactNode; accent?: string } {
+export function vanillaLibraryParts(kind: LibraryKind, id: string, v: any): { art: ReactNode; corner: string; meta: ReactNode; pills: ReactNode | null; desc?: ReactNode } {
     if (kind === 'moves') {
         const type = String(v.type || 'Normal');
         return {
-            art: null, corner: '', accent: `type-${type.toLowerCase()}`,
+            art: null, corner: '',
             meta: moveMeta(v.basePower, v.accuracy === true ? undefined : v.accuracy, v.pp),
             pills: <><TypeBadge type={type} /><CategoryBadge category={v.category || 'Status'} size="badge" /></>,
             desc: <TileDesc text={v.shortDesc || v.desc} />
@@ -481,11 +480,11 @@ export function vanillaLibraryParts(kind: LibraryKind, id: string, v: any): { ar
 }
 
 export function VanillaLibraryCard({ kind, id, v }: { kind: LibraryKind; id: string; v: any }) {
-    const { art, corner, meta, pills, desc, accent } = vanillaLibraryParts(kind, id, v);
+    const { art, corner, meta, pills, desc } = vanillaLibraryParts(kind, id, v);
     return (
         <LibraryTile className="collection-card library-tile vanilla-card" pinned={api.isVanillaPinned(kind, id)} title={v.desc || v.name || id}
             menu={cardMenu(card => vanillaMenu(kind, id, v.name || id, card), () => api.editVanillaInRegion(kind, id))}
-            art={art} corner={corner} tag="Main games" name={v.name || id} meta={meta} pills={pills} desc={desc} accent={accent} />
+            art={art} corner={corner} tag="Main games" name={v.name || id} meta={meta} pills={pills} desc={desc} />
     );
 }
 

@@ -94,12 +94,12 @@ export function ConditionsGrid({ layout, search }: { layout: 'grid' | 'table'; s
                             )}
                             {cards.map(c => (
                                 <div key={c.key} className={`collection-card library-tile text-tile cond-tile${c.pinned ? ' pinned' : ''}`} title={c.desc || undefined} aria-label={c.name} {...cardMenu(c.menu, c.open)}>
-                                    <span className="text-tile-edge" style={{ background: c.color }} aria-hidden="true" />
                                     {c.pinned && <PinMark />}
                                     <div className="card-body">
                                         {c.tag && <span className="text-tile-tag">{c.tag}</span>}
                                         <div className="card-name">{c.name}</div>
                                         <div className="card-meta-row"><span className="card-bst"><em>Lasts</em>{durationText(kind, c.duration)}</span></div>
+                                        <div className="card-types"><span className="cond-chip" style={{ background: c.color }}><Icon name={CONDITION_ICON[kind]} size={12} />{one.charAt(0).toUpperCase() + one.slice(1)}</span></div>
                                         <div className="text-tile-desc"><span className={`library-tile-desc${c.desc ? '' : ' is-empty'}`}>{c.desc || 'No description'}</span></div>
                                     </div>
                                 </div>
