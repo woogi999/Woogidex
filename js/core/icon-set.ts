@@ -1,9 +1,11 @@
-// The site's icons: Heroicons, solid style (js/core/icon-data.ts), drawn by
+// The site's icons: our own for what Heroicons does not have
+// (js/core/icon-custom.ts) and Heroicons, solid style (js/core/icon-data.ts), drawn by
 // js/app/components/Icon.tsx. Icons are named the app's way ("x", "trash-2");
 // icon-data.ts maps those names onto Heroicons, and any Heroicon's own name
 // works too.
 
 import { HERO_PATHS, ICON_NAMES } from './icon-data.ts';
+import { CUSTOM_ICONS } from './icon-custom.ts';
 
 const FALLBACK = 'question-mark-circle';
 const warned = new Set();
@@ -17,6 +19,7 @@ let allLoading: any = null;
 const allListeners = new Set<() => void>();
 
 function lookup(name) {
+    if (Object.hasOwn(CUSTOM_ICONS, name)) return CUSTOM_ICONS[name];
     const hero = ICON_NAMES[name] || name;
     return HERO_PATHS[hero] || allPaths?.[hero] || null;
 }
@@ -33,9 +36,9 @@ export function loadAllIcons() {
     return allLoading;
 }
 
-/** Every Heroicon name, for pickers. Loads the full set first. */
+/** Every icon name, ours first, for pickers. Loads the full set first. */
 export async function allIconNames() {
-    return Object.keys(await loadAllIcons());
+    return [...new Set([...Object.keys(CUSTOM_ICONS), ...Object.keys(await loadAllIcons())])];
 }
 
 /** Calls fn once the full set has loaded (React components re-render on it). */

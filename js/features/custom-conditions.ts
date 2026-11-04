@@ -30,7 +30,7 @@ export const CONDITION_KINDS: Array<[ConditionKind, string, string]> = [
     ['weather', 'Weather', 'weather'],
     ['terrain', 'Terrains', 'terrain']
 ];
-export const CONDITION_ICON: Record<ConditionKind, string> = { status: 'beaker', weather: 'cloud', terrain: 'map' };
+export const CONDITION_ICON: Record<ConditionKind, string> = { status: 'beaker', weather: 'weather', terrain: 'terrain' };
 export const CONDITION_COLORS = ['#e07a5f', '#7c5cff', '#2bb3a8', '#e6a23c', '#3b82f6', '#c056d8', '#5aa469', '#d64f7a', '#6b7280'];
 
 /** A main-game condition: its id in the blocks, Showdown's id, Essentials' symbol. */
