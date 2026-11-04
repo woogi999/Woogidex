@@ -386,7 +386,8 @@ import { addNoRecommend, noRecommendEverywhere, noRecommendHere, noRecommendSet,
             if (Number.isFinite(ppMin) && (Number(move.pp) || 0) < ppMin) return false;
             if (f.flags?.length) {
                 const flags = getMoveEditorFlags(move);
-                for (const flag of f.flags) if (!flags[MOVE_FLAG_KEYWORDS[flag]]) return false;
+                // a built-in chip names its keyword; a custom flag's chip is its own key (x_<name>)
+                for (const flag of f.flags) if (!flags[MOVE_FLAG_KEYWORDS[flag] ?? flag]) return false;
             }
             return true;
         }

@@ -136,6 +136,10 @@
 .mb-flag-chip { border:1px solid var(--border); border-radius:999px; padding:4px 10px; font-size:11px; font-weight:600; cursor:pointer; background:var(--bg-card); color:var(--text-secondary); user-select:none; }
 .mb-flag-chip:hover { border-color:var(--accent, #6366f1); }
 .mb-flag-chip.active { background:var(--accent, #6366f1); border-color:var(--accent, #6366f1); color:#fff; }
+/* a flag you made: a dot in its own colour before the name */
+.mb-flag-chip.is-custom { display:inline-flex; align-items:center; gap:6px; }
+.mb-flag-chip.is-custom::before { content:""; width:7px; height:7px; border-radius:50%; background:var(--flag-color, var(--text-muted)); }
+.mb-flag-chip.is-custom.active::before { background:#fff; }
 .move-browser-results { max-height:50vh; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:8px; }
 .gl-section-label { font-size:11px; font-weight:700; color:var(--text-muted); margin:16px 0 8px; }
 .gl-section-label:first-child { margin-top:0; }

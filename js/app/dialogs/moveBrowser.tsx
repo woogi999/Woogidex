@@ -10,6 +10,7 @@ import { Modal } from '../components/Modal.tsx';
 import { TypeDropdown, useClickAway } from '../components/editor/fields.tsx';
 import { CategoryBadge } from '../components/MoveCategory.tsx';
 import { Icon } from '../components/Icon.tsx';
+import { customFlags } from '../../features/move-flags.ts';
 
 type Filters = { name: string; type: string; category: string; priority: string; bpMin: string; accMin: string; ppMin: string; flags: string[] };
 const NO_FILTERS: Filters = { name: '', type: '', category: '', priority: '', bpMin: '', accMin: '', ppMin: '', flags: [] };
@@ -98,6 +99,14 @@ function MoveBrowserDialog({ mode, target, close }: DialogProps<{ mode: 'editor'
                 {(api.MOVE_BROWSER_FLAGS as string[]).map(flag => (
                     <span key={flag} className={`mb-flag-chip${f.flags.includes(flag) ? ' active' : ''}`} role="button" tabIndex={0} onClick={() => toggleFlag(flag)}>
                         {flag.charAt(0).toUpperCase() + flag.slice(1)}
+                    </span>
+                ))}
+                {/* the flags you made up (js/features/move-flags.ts), after the game's own */}
+                {customFlags().map(flag => (
+                    <span key={flag.key} className={`mb-flag-chip is-custom${f.flags.includes(flag.key) ? ' active' : ''}`} role="button" tabIndex={0}
+                        title={flag.desc || 'A flag you made'} onClick={() => toggleFlag(flag.key)}
+                        style={flag.color ? { '--flag-color': flag.color } as React.CSSProperties : undefined}>
+                        {flag.label}
                     </span>
                 ))}
             </div>
