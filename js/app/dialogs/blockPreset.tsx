@@ -35,7 +35,7 @@ function BlockPresetDialog({ kind, hasBlocks, close }: DialogProps<{ kind: 'move
         }
     };
     return (
-        <Modal onClose={close} title={`Start from a ${LIBRARY_WORDS[library].noun}`} className="start-modal is-picking" labelledBy="block-preset-title">
+        <Modal onClose={close} title={`Start from a ${LIBRARY_WORDS[library].noun}`} className="start-modal is-picking" overlayClassName="over-block-editor" labelledBy="block-preset-title">
             <TemplateStep kind={library} name="" onPick={pick} busy={busy} />
         </Modal>
     );

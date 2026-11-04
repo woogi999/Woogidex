@@ -181,6 +181,8 @@
 .lib-details[open] > .flag-picker { padding-bottom: var(--sp-3); }
 
 /* the prompt before anything new (js/app/dialogs/newEntry.tsx) */
+/* the block editor sits at 12700; a confirm dialog at 13000 still goes over this */
+.modal-overlay.over-block-editor { z-index: 12900; }
 .modal.start-modal { max-width: 480px; }
 .modal.start-modal.is-picking { max-width: 720px; }
 .start-modal .modal-header h3 { flex: 1 1 auto; min-width: 0; }
