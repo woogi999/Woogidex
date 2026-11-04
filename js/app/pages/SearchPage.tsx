@@ -193,7 +193,7 @@ function HashtagResults({ tag }: { tag: string }) {
                 <span className="search-hashtag-icon"><Icon name="hashtag" size={22} /></span>
                 <div>
                     <h2>#{tag}</h2>
-                    <p>{items == null ? 'Looking…' : `${items.length}${more && items.length ? '+' : ''} ${items.length === 1 ? 'post' : 'posts'}`}{!state.user ? ' from Woogidex · sign in to see everyone’s' : ''}</p>
+                    <p>{items == null ? 'Looking…' : `${items.length}${more && items.length ? '+' : ''} ${items.length === 1 ? 'post' : 'posts'}`}{!state.user ? ' · sign in to see them' : ''}</p>
                 </div>
             </header>
             {related.length > 0 && (

@@ -11,7 +11,7 @@ import { Link, profilePath } from '../components/Link.tsx';
 import { useClickAway } from '../components/editor/fields.tsx';
 import { NotificationItem, NotificationSkeleton, WhatsNewRow } from '../components/NotificationList.tsx';
 import { usePhone } from '../hooks.ts';
-import { whatsNewView } from '../../features/whats-new.ts';
+import { openUpdates, whatsNewView } from '../../features/whats-new.ts';
 import { addAccount, forgetAccount, logOutOfThisAccount, savedAccounts, switchAccount } from '../../features/accounts.ts';
 import { countLabel } from './Header.tsx';
 
@@ -47,14 +47,14 @@ export function Notifications() {
     if (phone) {
         const active = document.body.dataset.page === 'notifications-view';
         return (
-            <Link to="notifications" className={`notifications-bell-btn${active ? ' active' : ''}`} aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'} title="Notifications">
+            <Link to="notifications" className={`notifications-bell-btn header-bell-btn${active ? ' active' : ''}`} aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'} title="Notifications">
                 <Icon name="bell" size={20} />{badge}
             </Link>
         );
     }
     return (
         <div className="notifications-wrap" ref={ref}>
-            <button className="notifications-bell-btn" type="button" onClick={() => api.toggleNotificationsPanel()} aria-label="Notifications" title="Notifications" aria-expanded={v.open}>
+            <button className="notifications-bell-btn header-bell-btn" type="button" onClick={() => api.toggleNotificationsPanel()} aria-label="Notifications" title="Notifications" aria-expanded={v.open}>
                 <Icon name="bell" size={20} />{badge}
             </button>
             {v.open && (
@@ -153,6 +153,16 @@ export function AccountMenuTop({ close }: { close: () => void }) {
 /** After Settings: feedback and bug reports. */
 export function FeedbackMenuItem({ close }: { close: () => void }) {
     return <button type="button" className="header-profile-popover-item" onClick={() => { close(); api.openFeedbackModal(); }}><Icon name="message-circle-warning" /><span>Feedback &amp; bug reports</span></button>;
+}
+
+/** After Feedback: every update, with a dot while the newest is unread. */
+export function UpdatesMenuItem({ close }: { close: () => void }) {
+    const unseen = !!whatsNewView()?.unseen;
+    return (
+        <button type="button" className="header-profile-popover-item" onClick={() => { close(); openUpdates(); }}>
+            <Icon name="newspaper" /><span>Updates</span>{unseen && <span className="header-menu-dot" aria-label="New" />}
+        </button>
+    );
 }
 
 /** The bottom of the account menu: sign out, and the policy links. */

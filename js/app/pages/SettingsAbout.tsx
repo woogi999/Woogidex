@@ -1,6 +1,6 @@
 // Settings > About: who makes Woogidex, attributions and the disclaimer.
-// It was the Credits tab of the old Updates & Credits page. Release news
-// now comes from the Woogidex account's posts.
+// It was the Credits tab of the old Updates & Credits page. Release notes
+// are in the Updates dialog (js/app/dialogs/whatsNew.tsx).
 
 import { registerSettingsSection } from '../../core/extend.ts';
 import { GroupHead } from './SettingsPage.tsx';

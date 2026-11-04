@@ -15,13 +15,13 @@ import { Link } from './Link.tsx';
 export function WhatsNewRow({ onOpen }: { onOpen?: () => void }) {
     const v = whatsNewView();
     if (!v) return null;
-    const title = (v.item.body || '').split('\n').map(l => l.replace(/[*_#>`]/g, '').trim()).find(Boolean) || 'The latest update';
+    const title = [v.item.version, v.item.title].filter(Boolean).join(': ') || 'The latest update';
     return (
         <button type="button" className={`notification-item notification-whats-new${v.unseen ? ' unread' : ''}`} onClick={() => { onOpen?.(); openWhatsNew(); }}>
             <span className="notification-avatar notification-whats-new-icon" aria-hidden="true"><Icon name="sparkles" size={18} /></span>
             <span className="notification-body">
                 <span className="notification-text"><strong>What's New</strong> {title}</span>
-                <span className="notification-time">Pinned · from Woogidex</span>
+                <span className="notification-time">Pinned{v.item.date ? ` · ${v.item.date}` : ''}</span>
             </span>
             {v.unseen && <span className="notification-dot" aria-hidden="true" />}
         </button>

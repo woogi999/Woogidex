@@ -231,7 +231,7 @@ function GuestHero() {
             <div className="guest-hero-text">
                 <span className="guest-hero-kicker"><Icon name="globe" size={14} /> Community Hub</span>
                 <h2>See what people are making</h2>
-                <p>You're looking at open Fakémon and news from Woogidex. Make an account to see everything, and to share your own.</p>
+                <p>You're looking at open Fakémon. Make an account to see everything, and to share your own.</p>
             </div>
             <GuestButtons />
         </section>

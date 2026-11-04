@@ -155,11 +155,24 @@
 .notif-page-list .notification-time { font-size: 12px; }
 .notif-page-list .notification-dot { top: 50%; right: 6px; transform: translateY(-50%); }
 
-/* ==================== What's New (js/app/dialogs/whatsNew.tsx) ==================== */
-.modal.whats-new { max-width: 560px; }
-.whats-new-date { display: flex; align-items: center; gap: 6px; margin: -6px 0 var(--sp-3); font-size: 12.5px; font-weight: 600; color: var(--accent); }
-.whats-new-body { max-height: min(56vh, 520px); overflow-y: auto; padding-right: 4px; font-size: 14.5px; line-height: 1.6; color: var(--text-primary); }
-.whats-new-more { margin-top: var(--sp-2); font-size: 13px; color: var(--text-muted); }
+/* ==================== What's New and Updates (js/app/dialogs/whatsNew.tsx) ==================== */
+.modal.whats-new { max-width: 580px; }
+.modal.updates-dialog { max-width: 640px; }
+.whats-new-body { max-height: min(60vh, 560px); overflow-y: auto; padding-right: 4px; }
+.updates-list { display: flex; flex-direction: column; max-height: min(72vh, 720px); overflow-y: auto; padding-right: 4px; }
+.updates-empty { padding: var(--sp-5) 0; text-align: center; color: var(--text-muted); font-size: 13.5px; }
+.update-entry { padding: var(--sp-4) 0; }
+.updates-list .update-entry + .update-entry { border-top: 1px solid var(--border-light); }
+.update-entry-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; column-gap: var(--sp-3); row-gap: 2px; margin-bottom: var(--sp-2); }
+.update-entry-version { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; font: 700 12px var(--font-sans); color: var(--accent); font-variant-numeric: tabular-nums; }
+.update-entry-new { padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); font-size: 11px; }
+.update-entry-head h4 { margin: 0; font-size: 16px; font-weight: 800; line-height: 1.3; color: var(--text-primary); }
+.update-entry-head time { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.update-entry ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 6px; }
+.update-entry li { font-size: 14px; line-height: 1.55; color: var(--text-secondary); }
+.update-entry li strong { color: var(--text-primary); }
+.update-entry code { font: 600 12.5px var(--font-mono); padding: 1px 5px; border-radius: 4px; background: var(--bg-panel); color: var(--text-primary); }
+.header-menu-dot { width: 8px; height: 8px; margin-left: auto; border-radius: 50%; background: var(--accent); flex: 0 0 auto; }
 .whats-new-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: var(--sp-4); }
 .whats-new-actions a.btn { text-decoration: none; }
 @media (max-width: 760px) {

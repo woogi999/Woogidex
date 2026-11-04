@@ -43,12 +43,13 @@ import { CommunityDetailPage } from './app/pages/CommunityDetailPage.tsx';
 import { PostPage } from './app/pages/PostPage.tsx';
 import { MessagesPage } from './app/pages/MessagesPage.tsx';
 import { NotificationsPage } from './app/pages/NotificationsPage.tsx';
-import { maybeShowWhatsNew, openWhatsNew } from './features/whats-new.ts';
+import { maybeShowWhatsNew, openUpdates, openWhatsNew } from './features/whats-new.ts';
 import { resumeAddAccount } from './features/accounts.ts';
 import { LandingPage } from './app/pages/LandingPage.tsx';
 import { registerAccountSettings } from './app/pages/SettingsAccount.tsx';
 import { registerAboutSettings } from './app/pages/SettingsAbout.tsx';
 import { CookieNotice } from './app/shell/CookieNotice.tsx';
+import { UpdatesMenuItem } from './app/shell/HeaderAccount.tsx';
 import { GlobalSearch } from './app/shell/GlobalSearch.tsx';
 import { QuickSearch } from './app/shell/QuickSearch.tsx';
 import {
@@ -112,13 +113,13 @@ export function installHost(): void {
     registerRoute('move', { open: () => { api.activateTopLevelView?.('move-view'); api.setPageTitle?.('Move your data'); return true; } });
     registerRoute('terms', { open: () => legal.openLegalPage('terms') });
     registerRoute('search', { needsAccount: true, open: async () => { await api.openSearchPage?.(new URLSearchParams(window.location.search).get('q') || ''); return true; } });
-    // the old Updates & Credits page: news is now the Woogidex account's posts, credits are in Settings > About
+    // /updates: every update (public/updates/) in a dialog over My Collection; credits are in Settings > About
     registerRoute('updates', {
-        needsAccount: true,
         open: async param => {
             if (param === 'credits') { api.openSettings?.('about'); return true; }
-            api.activateTopLevelView?.('profile-view');
-            return await api.handleProfileRoute?.('woogidex') === true;
+            api.showCollection?.();
+            openUpdates();
+            return true;
         }
     });
 
@@ -128,10 +129,10 @@ export function installHost(): void {
     ext.headerActions.push(MessagesButton, Notifications, SignInButton);
     ext.accountButton = AccountButton;
     ext.accountMenuTop.push(AccountMenuTop);
-    ext.accountMenuItems.push(FeedbackMenuItem);
+    ext.accountMenuItems.push(FeedbackMenuItem, UpdatesMenuItem);
     ext.accountMenuBottom.push(AccountMenuBottom);
     // the newest update post, in a pop-up once (js/features/whats-new.ts)
-    Object.assign(api, { openWhatsNew });
+    Object.assign(api, { openWhatsNew, openUpdates });
     ext.ready.push(maybeShowWhatsNew);
     // "Add another account" reloads the page signed out: then open the sign-in
     ext.ready.push(resumeAddAccount);

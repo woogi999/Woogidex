@@ -1,21 +1,17 @@
-// "What's New": the newest #update post by the Woogidex account, in a
-// pop-up once after each update (like Discord's). The notifications keep a
-// pinned row that opens it again, and the whole history is on the account's
-// profile (/updates). The post's id is the version: a new update post is a
-// new version.
+// "What's New": the newest update (public/updates/, js/features/updates.ts)
+// in a pop-up once after each release, like Discord's. The notifications
+// keep a pinned row that opens it again, the account menu has Updates for the
+// whole history, and so does the pop-up's "Every update". The update's file
+// name is the version: a new file is a new version.
 
-import { api } from '../core/app.ts';
 import { log } from '../core/log.ts';
-import { dbCall } from '../core/net.ts';
 import { notify } from '../app/store.ts';
 import { openDialog, isDialogOpen } from '../app/dialogs.tsx';
-import type { FeedItem } from './feed-algorithm.ts';
+import { loadUpdates, type Update } from './updates.ts';
 
 const SEEN_KEY = 'woogidex-whats-new-seen';
-const OFFICIAL = 'woogidex';
 
-let latest: FeedItem | null | undefined;     // undefined: not asked yet
-let asking: Promise<FeedItem | null> | null = null;
+let latest: Update | null | undefined;     // undefined: not asked yet
 
 const readSeen = (): string => { try { return localStorage.getItem(SEEN_KEY) || ''; } catch { return ''; } };
 const saveSeen = (id: string) => { try { localStorage.setItem(SEEN_KEY, id); } catch { /* private mode */ } };
@@ -25,29 +21,23 @@ function returningVisitor(): boolean {
     try {
         for (let i = 0; i < localStorage.length; i++) {
             const k = localStorage.key(i) || '';
-            if (k.startsWith('woogidex-') && k !== SEEN_KEY) return true;
+            if ((k.startsWith('woogidex-') || k.startsWith('woogidex.')) && k !== SEEN_KEY) return true;
         }
     } catch { /* private mode */ }
     return false;
 }
 
-/** The newest update post, asked for once a visit. */
-export function loadWhatsNew(): Promise<FeedItem | null> {
-    if (latest !== undefined) return Promise.resolve(latest);
-    // guest_feed for everyone: it names each post's author, and update posts are public
-    const ask = asking || api.getClient()
-        .then((client: any) => dbCall<any[]>(signal => client.rpc('guest_feed', { p_before: null, p_limit: 20, p_tag: 'update' }).abortSignal(signal)))
-        .then(rows => ((rows || []) as FeedItem[])
-            .filter(r => r.kind === 'post' && String(r.author_username || '').toLowerCase() === OFFICIAL)
-            .sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0] || null)
-        .catch(e => { log.warn('WHATS_NEW', 'Could not load the latest update', e); return null; })
-        .then(item => { latest = item; asking = null; notify(); return item; });
-    asking = ask;
-    return ask;
+/** The newest update, asked for once a visit. */
+export async function loadWhatsNew(): Promise<Update | null> {
+    if (latest !== undefined) return latest;
+    try { latest = (await loadUpdates())[0] || null; }
+    catch (e) { log.warn('WHATS_NEW', 'Could not load the latest update', e); latest = null; }
+    notify();
+    return latest;
 }
 
-/** What the notifications' pinned row shows: the update, and whether you have opened it. */
-export function whatsNewView(): { item: FeedItem; unseen: boolean } | null {
+/** What the pinned row and the badges show: the update, and whether you have opened it. */
+export function whatsNewView(): { item: Update; unseen: boolean } | null {
     if (latest === undefined) { loadWhatsNew(); return null; }
     return latest ? { item: latest, unseen: readSeen() !== latest.id } : null;
 }
@@ -55,10 +45,17 @@ export function whatsNewView(): { item: FeedItem; unseen: boolean } | null {
 /** Opens the pop-up on the newest update (and counts it as seen). */
 export async function openWhatsNew(): Promise<void> {
     const item = await loadWhatsNew();
-    if (!item) { api.openPath?.('updates'); return; }
+    if (!item) { openDialog('updates'); return; }
     saveSeen(item.id);
     notify();
     if (!isDialogOpen('whats-new')) openDialog('whats-new', { item });
+}
+
+/** Opens every update, and counts the newest as seen. */
+export async function openUpdates(): Promise<void> {
+    const item = await loadWhatsNew();
+    if (item) { saveSeen(item.id); notify(); }
+    if (!isDialogOpen('updates')) openDialog('updates');
 }
 
 /**

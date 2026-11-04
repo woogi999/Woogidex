@@ -16,7 +16,7 @@ const EMPTY: Record<NotificationTab, string> = {
     mentions: 'No mentions or replies yet.',
     likes: 'No reactions yet. Publish a Fakémon or write a post!',
     follows: 'No new followers yet.',
-    updates: 'No news from Woogidex about your account.'
+    updates: 'No news about your account.'
 };
 
 export function NotificationsPage() {
