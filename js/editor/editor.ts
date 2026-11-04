@@ -2035,14 +2035,15 @@ import { form } from './draft.ts';
          * the editor, when there's room.
          * @returns a problem to show, or '' once it's saved
          */
-        function saveCustomAbility({ id = '', name = '', desc = '', rawCode = '', artwork = '', regionIds = [] }: { id?: any; name?: any; desc?: any; rawCode?: any; artwork?: any; regionIds?: any }): string {
+        function saveCustomAbility({ id = '', name = '', desc = '', rawCode = '', regionIds = [] }: { id?: any; name?: any; desc?: any; rawCode?: any; regionIds?: any }): string {
             name = String(name).trim();
             if (!name) return 'Please enter an ability name!';
             desc = String(desc).trim();
             rawCode = repairRawCode(rawCode, 'ability');
             const existing = id ? getCustomAbilityLibrary().find(x => x.id === id) : null;
             if (existing) {
-                Object.assign(existing, { name, desc, rawCode, artwork });
+                Object.assign(existing, { name, desc, rawCode });
+                delete existing.artwork;
                 api.setEntryRegionIds?.(existing, regionIds);
                 api.settleVanillaCopy?.('abilities', existing);
                 state.fakemonDB.forEach(f => (f.abilities || []).forEach(a => {
@@ -2050,7 +2051,7 @@ import { form } from './draft.ts';
                 }));
             } else {
                 id = 'ca_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-                const created = { id, name, desc, rawCode, artwork };
+                const created = { id, name, desc, rawCode };
                 api.setEntryRegionIds?.(created, regionIds);
                 state.customAbilities.push(created);
                 if (state.abilities.length < 4 && editorIsOpen()) {
@@ -2141,7 +2142,7 @@ function editCustomItemLibrary(id) { openCustomItemModal(id); }
         function customMoveDraft(index, libraryId) {
             const lib = libraryId ? getCustomMoveLibrary().find(x => x.id === libraryId) : null;
             const m = lib || (index != null ? state.learnset[index] : null);
-            // a move already in the library keeps its region and image; a new one starts in the region you're viewing
+            // a move already in the library keeps its region; a new one starts in the region you're viewing
             const libMove = lib || (m?.customId ? getCustomMoveLibrary().find(x => x.id === m.customId) : null);
             return {
                 name: m?.name || '', type: m?.type || 'Normal', category: m?.category || 'Status',
@@ -2149,7 +2150,6 @@ function editCustomItemLibrary(id) { openCustomItemModal(id); }
                 accuracy: m ? ((m.accuracy === true || m.accuracy === undefined) ? 100 : (m.accuracy === false ? 0 : (m.accuracy ?? 100))) : 100,
                 pp: m?.pp || 10, priority: m?.priority || 0, desc: m?.desc || '', rawCode: m?.rawCode || '',
                 flags: Object.fromEntries(Object.entries<any>(m?.flags || {}).filter(([, v]) => v).map(([k]) => [k, true])),
-                artwork: libMove?.artwork || m?.artwork || '',
                 regionIds: libMove ? api.entryRegionIds(libMove) : [api.defaultRegionForNewFakemon?.()].filter(Boolean)
             };
         }
@@ -2175,7 +2175,7 @@ function editCustomItemLibrary(id) { openCustomItemModal(id); }
             const move = {
                 rawCode: repairRawCode(draft.rawCode, 'move'), name, type: draft.type || 'Normal', category,
                 basePower: parseInt(draft.basePower) || 0, accuracy: parseInt(draft.accuracy) || 100, pp: parseInt(draft.pp) || 10,
-                priority: parseInt(draft.priority) || 0, flags, desc: String(draft.desc || '').trim(), artwork: draft.artwork || ''
+                priority: parseInt(draft.priority) || 0, flags, desc: String(draft.desc || '').trim()
             };
             const inherit = id => ({ source: 'custom', custom: true, customId: id, learnMethod: 'none', level: null as any });
             if (libraryId) {

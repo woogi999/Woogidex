@@ -189,9 +189,9 @@ function moveCells(type: string, category: string, power: any, accuracy: any, pp
     );
 }
 
-/** A custom move, ability or item's own icon: its image, or the emblem its card shows. */
+/** A custom move, ability or item's own icon: an item's image, or the emblem for its kind. */
 function libraryIcon(kind: LibraryKind, item: any) {
-    if (item.artwork) return <ThumbImg src={item.artwork} alt="" draggable={false} loading="lazy" />;
+    if (kind === 'items' && item.artwork) return <ThumbImg src={item.artwork} alt="" draggable={false} loading="lazy" />;
     if (kind === 'moves') return <span className={`library-emblem type-${String(item.type || 'Normal').toLowerCase()}`}><CategoryIcon category={item.category || 'Status'} size="55%" /></span>;
     if (kind === 'items' && item.vanillaId) return <ItemEmblem name={state.sdItems?.[item.vanillaId]?.name || item.name} item={state.sdItems?.[item.vanillaId]} />;
     return <span className="library-emblem library-emblem-plain"><Icon name={kind === 'items' ? 'gem' : 'sparkles'} /></span>;

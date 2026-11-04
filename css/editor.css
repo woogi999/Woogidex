@@ -276,8 +276,6 @@
             .editor-tabs .tab-short { display: inline; }
             .editor-tabs .editor-preview-tab { margin-left: 0; }
             .editor-tabs .editor-preview-tab svg { display: none; }
-            /* above the bottom tab bar, which lives in the header's layer */
-            #editor-view { z-index: 12100; }
         }
 
 /* ---- editor page (js/app/pages/EditorPage.tsx) ---- */

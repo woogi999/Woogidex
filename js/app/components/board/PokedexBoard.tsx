@@ -239,7 +239,6 @@ export function PokedexBoard({ model: m, id, renderArt, underTitle, formeTabs, e
                             {m.abilities.map(a => (
                                 <div key={a.name} className={`board-ability-item${a.isCustom ? ' board-ability-custom' : ''}`}>
                                     <div className="board-ability-name-row">
-                                        {a.art && <img className="board-entity-art" src={a.art} alt="" />}
                                         <span className="ability-name">{a.name}</span>
                                         {a.role && <span className={`board-ability-role ${a.role.toLowerCase()}`}>{a.role}</span>}
                                     </div>
@@ -280,8 +279,8 @@ export function PokedexBoard({ model: m, id, renderArt, underTitle, formeTabs, e
                                     <div className="move-category-title">{CATEGORY_TITLE[c]}</div>
                                     <div className="move-list">
                                         {m.moves[c].map(t => (
-                                            <span key={t.name} className={`move-tag ${c}${t.faded ? ' low-value' : ''}${t.art ? ' has-art' : ''}`} onClick={() => moveClick(t.name)}>
-                                                {t.art && <img className="move-tag-art" src={t.art} alt="" />}{t.name}
+                                            <span key={t.name} className={`move-tag ${c}${t.faded ? ' low-value' : ''}`} onClick={() => moveClick(t.name)}>
+                                                {t.name}
                                             </span>
                                         ))}
                                     </div>

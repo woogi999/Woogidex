@@ -7,7 +7,6 @@ import { registerDialog, type DialogProps } from '../dialogs.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { RegionAssign } from '../components/RegionAssign.tsx';
-import { ArtField } from '../components/ArtField.tsx';
 import { TypeDropdown, useClickAway } from '../components/editor/fields.tsx';
 import { CategoryBadge } from '../components/MoveCategory.tsx';
 import { FlagPicker } from '../components/editor/FlagPicker.tsx';
@@ -68,9 +67,8 @@ function CustomAbilityDialog({ id, close }: DialogProps<{ id: string }>) {
     const [name, setName] = useState(entry?.name || '');
     const [desc, setDesc] = useState(entry?.desc || '');
     const [code, setCode] = useState(entry?.rawCode || '');
-    const [art, setArt] = useState(entry?.artwork || '');
     const [regionIds, setRegionIds] = useState<string[]>(() => entry ? api.entryRegionIds(entry) : [api.defaultRegionForNewFakemon?.()].filter(Boolean));
-    const run = () => api.saveCustomAbility({ id, name, desc, rawCode: code, artwork: art, regionIds });
+    const run = () => api.saveCustomAbility({ id, name, desc, rawCode: code, regionIds });
     const save = saving(run, close);
     const openBlocks = blocksOpener(run, () => id || byName(state.customAbilities, name), api.openAbilityBlockEditor, close);
     return (
@@ -79,10 +77,6 @@ function CustomAbilityDialog({ id, close }: DialogProps<{ id: string }>) {
             <div className="form-group">
                 <label htmlFor="custom-ability-name">Ability Name</label>
                 <input type="text" id="custom-ability-name" maxLength={NAME_MAX} placeholder="e.g., Solar Heart" autoFocus value={name} onChange={e => setName(e.target.value)} />
-            </div>
-            <div className="form-group">
-                <label>Image <span className="label-optional">(optional, for previews)</span></label>
-                <ArtField value={art} onChange={setArt} />
             </div>
             <div className="form-group">
                 <label htmlFor="custom-ability-desc">Description</label>
@@ -200,10 +194,6 @@ function CustomMoveDialog({ index, libraryId, close }: DialogProps<{ index: numb
             <div className="form-group">
                 <label htmlFor="custom-move-name">Move Name</label>
                 <input type="text" id="custom-move-name" maxLength={NAME_MAX} placeholder="e.g., Ember Fang" autoFocus value={draft.name} onChange={e => set({ name: e.target.value })} />
-            </div>
-            <div className="form-group">
-                <label>Image <span className="label-optional">(optional, for previews)</span></label>
-                <ArtField value={draft.artwork} onChange={artwork => set({ artwork })} />
             </div>
             <div className="form-row">
                 <div className="form-group">

@@ -252,13 +252,17 @@
     .st-identity { border-radius: 12px; }
     .st-narrow .st-row { padding: 12px var(--sp-3); }
 
-    /* ==================== the editor: the whole screen ==================== */
-    #editor-view { top: 0; width: 100vw; }
-    #editor-view::before { top: 0; }
-    .editor-sheet-head {
-        min-height: 46px; gap: 6px;
-        padding: calc(4px + env(safe-area-inset-top, 0px)) 8px 4px 8px;
+    /* ==================== the editor: between the top bar and the tab bar ====================
+       The two bars stay on top and usable while you edit (the tab bar's
+       Create button opens quick commands), so the sheet fills the space
+       between them. */
+    #editor-view {
+        top: var(--header-h);
+        bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px));
+        width: 100vw;
     }
+    #editor-view::before { top: var(--header-h); }
+    .editor-sheet-head { min-height: 46px; gap: 6px; padding: 4px 8px; }
     .editor-sheet-title { font-size: 15px; }
     .editor-actionbar-group { gap: 6px; }
     /* the tabs keep their natural width and scroll sideways, like a phone app's top tabs */
@@ -294,7 +298,6 @@
         bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + 10px);
     }
     .toast { min-width: 0; width: 100%; font-size: 13px; }
-    body.editor-sheet-open .toast-container { bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
 
     /* ==================== search: rows on the page, not in a box ==================== */
     .search-page-form input, .search-page-form input:where([type="search"]) { height: 38px; font-size: 14px; border-radius: 10px; }

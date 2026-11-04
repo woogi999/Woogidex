@@ -146,6 +146,35 @@
     color: var(--text-secondary);
     font-size: 10.5px; font-weight: 700;
 }
+/* ==================== text tiles ====================
+   moves, abilities and conditions have no picture (cards.tsx LibraryTile,
+   ConditionsTab.tsx): the card is its words on a soft fill, with a colour
+   edge on the left (a move's type, a condition's own colour). In a text-tiles
+   grid the add, folder and show-all cards shrink their art bed to match. */
+.collection-card.text-tile { background: var(--bg-panel); overflow: hidden; }
+.collection-card.text-tile:hover { background: color-mix(in srgb, var(--text-primary) 5%, var(--bg-panel)); }
+.text-tile-edge { position: absolute; inset: 0 auto 0 0; width: 3px; pointer-events: none; }
+.text-tile .card-body { flex: 1 1 auto; gap: 6px; padding: var(--sp-4) var(--sp-4) var(--sp-4) calc(var(--sp-4) + 2px); }
+.text-tile .card-name { display: flex; align-items: center; gap: 7px; padding-right: 24px; }
+.text-tile .card-pin-mark { top: 10px; right: 10px; }
+.text-tile-tag {
+    align-self: flex-start;
+    padding: 1px 7px; border-radius: 999px;
+    background: var(--bg-card); color: var(--text-muted);
+    font-size: 10.5px; font-weight: 700;
+}
+.text-tile .card-types { margin-top: 2px; }
+.text-tile-desc { margin-top: auto; padding-top: 4px; }
+.text-tile-desc .library-tile-desc {
+    display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+    overflow: hidden; white-space: normal;
+    font-size: 12px; line-height: 1.45;
+}
+.text-tiles .collection-card .card-art { aspect-ratio: auto; height: 64px; padding: 0; background: transparent; }
+.text-tiles .collection-add-card, .text-tiles .folder-card, .text-tiles .vanilla-more-card { min-height: 148px; }
+.text-tiles .collection-add-card, .text-tiles .vanilla-more-card { background: transparent; box-shadow: inset 0 0 0 1px var(--border); }
+.text-tiles .collection-add-card:hover, .text-tiles .vanilla-more-card:hover { box-shadow: inset 0 0 0 1px var(--border-strong); }
+
 /* ==================== card actions ====================
    a card has no buttons of its own: a click (or right-click, Enter, the menu
    key) opens its menu (js/app/components/ContextMenu.tsx). */
@@ -424,8 +453,6 @@ body.card-dragging .dex-folder { background: color-mix(in srgb, var(--accent) 6%
 .cond-count { min-width: 22px; padding: 1px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font: 700 12px var(--font-sans); text-align: center; }
 .cond-hint { margin: 0; font-size: 13px; color: var(--text-secondary); }
 .cond-emblem { border-radius: 30%; }
-.cond-tile .card-meta-row { min-height: 2.6em; }
-.cond-tile .library-tile-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
 .dex-table-conditions .cond-emblem { border-radius: 30%; }
 
 /* the editor dialog (js/app/dialogs/customCondition.tsx) */

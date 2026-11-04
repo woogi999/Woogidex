@@ -216,30 +216,38 @@ export function ItemEmblem({ name, item }: { name: string; item?: any }) {
     );
 }
 
-/** What a move, ability or item card shows; the frame around it is shared. */
-export function libraryParts(kind: LibraryKind, item: any): { art: ReactNode; corner: string; pills: ReactNode | null; meta: ReactNode } {
-    const artImg = item.artwork ? <ThumbImg src={item.artwork} alt="" draggable={false} loading="lazy" /> : null;
+/** The words a text card shows under its name. */
+const TileDesc = ({ text }: { text?: string }) => <span className={`library-tile-desc${text ? '' : ' is-empty'}`}>{text || 'No description'}</span>;
+
+/** A move's stats row: power, accuracy, PP. */
+const moveMeta = (power: any, accuracy: any, pp: any) => {
+    const acc = accuracy === true || accuracy === undefined || accuracy === false ? '—' : `${accuracy}%`;
+    return <>
+        <span className="card-bst"><em>BP</em>{power || '—'}</span>
+        <span className="card-bst"><em>ACC</em>{acc}</span>
+        <span className="card-bst"><em>PP</em>{pp || '—'}</span>
+    </>;
+};
+
+/**
+ * What a move, ability or item card shows; the frame around it is shared.
+ * Moves and abilities have no picture: art is null, and the card is text
+ * with a colour edge (a move's type). Items keep their artwork.
+ */
+export function libraryParts(kind: LibraryKind, item: any): { art: ReactNode; corner: string; pills: ReactNode | null; meta: ReactNode; desc?: ReactNode; accent?: string } {
     if (kind === 'moves') {
         const type = String(item.type || 'Normal');
         const category = String(item.category || 'Status');
-        const acc = item.accuracy === true || item.accuracy === undefined || item.accuracy === false ? '—' : `${item.accuracy}%`;
         return {
-            // the move's own image if it has one; otherwise the type's colour fills
-            // the emblem and the category is its icon
-            art: artImg || <span className={`library-emblem type-${type.toLowerCase()}`}><CategoryIcon category={category} size="55%" /></span>,
-            // the category is a badge beside the type, as everywhere else
-            corner: '',
+            art: null, corner: '', accent: `type-${type.toLowerCase()}`,
             pills: <><TypeBadge type={type} /><CategoryBadge category={category} size="badge" /></>,
-            meta: <>
-                <span className="card-bst"><em>BP</em>{item.basePower || '—'}</span>
-                <span className="card-bst"><em>ACC</em>{acc}</span>
-                <span className="card-bst"><em>PP</em>{item.pp || '—'}</span>
-            </>
+            meta: moveMeta(item.basePower, item.accuracy, item.pp),
+            desc: <TileDesc text={String(item.desc || '').trim()} />
         };
     }
-    // no stats to show: the description's first line takes the meta row
-    const meta = <span className={`library-tile-desc${item.desc ? '' : ' is-empty'}`}>{item.desc || 'No description'}</span>;
+    const meta = <TileDesc text={item.desc} />;
     if (kind === 'items') {
+        const artImg = item.artwork ? <ThumbImg src={item.artwork} alt="" draggable={false} loading="lazy" /> : null;
         return {
             // a region's copy of a main-game item keeps the item's own icon
             art: artImg || (item.vanillaId
@@ -251,14 +259,30 @@ export function libraryParts(kind: LibraryKind, item: any): { art: ReactNode; co
         };
     }
     // no badge row for abilities: it only ever said "Ability"
-    return { art: artImg || <span className="library-emblem library-emblem-plain"><Icon name="sparkles" /></span>, corner: '', pills: null, meta };
+    return { art: null, corner: '', pills: null, meta: null, desc: meta };
 }
 
-/** The shared frame of a library tile (yours or a main-game one). */
-function LibraryTile({ className, menu, title, pinned, art, corner, tag, name, meta, pills, drag, entry }: {
+/** The shared frame of a library tile (yours or a main-game one). No art: a text tile. */
+function LibraryTile({ className, menu, title, pinned, art, corner, tag, name, meta, pills, desc, accent, drag, entry }: {
     className: string; menu: object; title?: string; pinned?: boolean; art: ReactNode; corner?: string;
-    tag?: string; name: string; meta: ReactNode; pills: ReactNode | null; drag?: object; entry?: [string, string];
+    tag?: string; name: string; meta: ReactNode; pills: ReactNode | null; desc?: ReactNode; accent?: string; drag?: object; entry?: [string, string];
 }) {
+    if (art === null) {
+        return (
+            <div className={`${className} text-tile${pinned ? ' pinned' : ''}`} title={title || undefined} aria-label={name} {...drag} {...menu}
+                data-entry-kind={entry?.[0]} data-entry-id={entry?.[1]}>
+                {accent && <span className={`text-tile-edge ${accent}`} aria-hidden="true" />}
+                {pinned && <PinMark />}
+                <div className="card-body">
+                    {tag && <span className="text-tile-tag">{tag}</span>}
+                    <div className="card-name" title={name}>{name}</div>
+                    {meta && <div className="card-meta-row">{meta}</div>}
+                    {pills && <div className="card-types">{pills}</div>}
+                    {desc && <div className="text-tile-desc">{desc}</div>}
+                </div>
+            </div>
+        );
+    }
     return (
         <div className={`${className}${pinned ? ' pinned' : ''}`} title={title || undefined} aria-label={name} {...drag} {...menu}
             data-entry-kind={entry?.[0]} data-entry-id={entry?.[1]}>
@@ -291,7 +315,7 @@ export function libraryMenu(kind: LibraryKind, item: any, inFolder: boolean, car
 }
 
 export function LibraryCard({ kind, item, inFolder }: { kind: LibraryKind; item: any; inFolder: boolean }) {
-    const { art, corner, pills, meta } = libraryParts(kind, item);
+    const { art, corner, pills, meta, desc, accent } = libraryParts(kind, item);
     const menu = cardMenu(card => libraryMenu(kind, item, inFolder, card), () => api.openLibraryEditorSheet(kind, item.id));
     return (
         <LibraryTile
@@ -299,7 +323,7 @@ export function LibraryCard({ kind, item, inFolder }: { kind: LibraryKind; item:
             // the full description is the tooltip; the tile keeps three lines like a Fakémon card
             title={String(item.desc || '').trim()}
             drag={libraryDrag(kind, item.id)}
-            art={art} corner={corner} tag={item.vanillaId ? 'Edited' : ''} name={item.name} meta={meta} pills={pills}
+            art={art} corner={corner} tag={item.vanillaId ? 'Edited' : ''} name={item.name} meta={meta} pills={pills} desc={desc} accent={accent}
         />
     );
 }
@@ -442,31 +466,26 @@ export function VanillaPokemonCard({ p }: { p: any }) {
 }
 
 /** What a main-game move, ability or item shows, like libraryParts for your own. */
-export function vanillaLibraryParts(kind: LibraryKind, id: string, v: any): { art: ReactNode; corner: string; meta: ReactNode; pills: ReactNode | null } {
+export function vanillaLibraryParts(kind: LibraryKind, id: string, v: any): { art: ReactNode; corner: string; meta: ReactNode; pills: ReactNode | null; desc?: ReactNode; accent?: string } {
     if (kind === 'moves') {
         const type = String(v.type || 'Normal');
-        const acc = v.accuracy === true ? '—' : `${v.accuracy}%`;
         return {
-            art: <span className={`library-emblem type-${type.toLowerCase()}`}><CategoryIcon category={v.category || 'Status'} size="55%" /></span>,
-            corner: '',
-            meta: <><span className="card-bst"><em>BP</em>{v.basePower || '—'}</span><span className="card-bst"><em>ACC</em>{acc}</span><span className="card-bst"><em>PP</em>{v.pp || '—'}</span></>,
-            pills: <><TypeBadge type={type} /><CategoryBadge category={v.category || 'Status'} size="badge" /></>
+            art: null, corner: '', accent: `type-${type.toLowerCase()}`,
+            meta: moveMeta(v.basePower, v.accuracy === true ? undefined : v.accuracy, v.pp),
+            pills: <><TypeBadge type={type} /><CategoryBadge category={v.category || 'Status'} size="badge" /></>,
+            desc: <TileDesc text={v.shortDesc || v.desc} />
         };
     }
-    return {
-        art: kind === 'items' ? <ItemEmblem name={v.name || id} item={v} /> : <span className="library-emblem library-emblem-plain"><Icon name="sparkles" /></span>,
-        corner: '',
-        meta: <span className="library-tile-desc">{v.desc || 'No description'}</span>,
-        pills: kind === 'items' ? <span className="library-tag">Item</span> : null
-    };
+    if (kind === 'items') return { art: <ItemEmblem name={v.name || id} item={v} />, corner: '', meta: <TileDesc text={v.desc} />, pills: <span className="library-tag">Item</span> };
+    return { art: null, corner: '', meta: null, pills: null, desc: <TileDesc text={v.shortDesc || v.desc} /> };
 }
 
 export function VanillaLibraryCard({ kind, id, v }: { kind: LibraryKind; id: string; v: any }) {
-    const { art, corner, meta, pills } = vanillaLibraryParts(kind, id, v);
+    const { art, corner, meta, pills, desc, accent } = vanillaLibraryParts(kind, id, v);
     return (
         <LibraryTile className="collection-card library-tile vanilla-card" pinned={api.isVanillaPinned(kind, id)} title={v.desc || v.name || id}
             menu={cardMenu(card => vanillaMenu(kind, id, v.name || id, card), () => api.editVanillaInRegion(kind, id))}
-            art={art} corner={corner} tag="Main games" name={v.name || id} meta={meta} pills={pills} />
+            art={art} corner={corner} tag="Main games" name={v.name || id} meta={meta} pills={pills} desc={desc} accent={accent} />
     );
 }
 

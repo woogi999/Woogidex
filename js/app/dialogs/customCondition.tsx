@@ -73,7 +73,10 @@ function CustomConditionDialog({ entry, kind, close }: DialogProps<{ entry: any;
                     <input type="text" id="custom-condition-name" maxLength={24} placeholder={draft.kind === 'status' ? 'e.g., Frostbite' : draft.kind === 'weather' ? 'e.g., Ashfall' : 'e.g., Haunted Terrain'}
                         value={draft.name} disabled={!!vanillaOf} autoFocus={!vanillaOf} onChange={e => set({ name: e.target.value })} />
                 </div>
-                <span className="cond-preview" style={{ background: draft.color }}><Icon name={CONDITION_ICON[draft.kind]} size={14} />{draft.name.trim() || 'Preview'}</span>
+                <div className="custom-type-preview-cell">
+                    <span className="custom-type-preview-label">Preview</span>
+                    <div className="custom-type-preview-slot"><span className="cond-preview" style={{ background: draft.color }}><Icon name={CONDITION_ICON[draft.kind]} size={14} />{draft.name.trim() || noun.charAt(0).toUpperCase() + noun.slice(1)}</span></div>
+                </div>
             </div>
             <div className="form-group">
                 <label>Colour</label>

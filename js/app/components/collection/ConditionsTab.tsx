@@ -85,7 +85,7 @@ export function ConditionsGrid({ layout, search }: { layout: 'grid' | 'table'; s
                             ))}
                         </DexTable>
                     ) : (
-                        <div className="collection-grid">
+                        <div className="collection-grid text-tiles">
                             {!q && (
                                 <button type="button" className="collection-card collection-add-card" onClick={() => openCustomConditionEditor('', kind)}>
                                     <span className="card-art"><span className="collection-add-icon"><Icon name="plus" /></span></span>
@@ -93,17 +93,14 @@ export function ConditionsGrid({ layout, search }: { layout: 'grid' | 'table'; s
                                 </button>
                             )}
                             {cards.map(c => (
-                                <div key={c.key} className={`collection-card library-tile cond-tile${c.pinned ? ' pinned' : ''}`} title={c.desc || undefined} aria-label={c.name} {...cardMenu(c.menu, c.open)}>
-                                    <div className="card-art">
-                                        <Emblem kind={kind} color={c.color} />
-                                        {/* the corner holds the tag on a main-game one */}
-                                        {!c.tag && <span className="card-number library-tile-corner">{durationText(kind, c.duration)}</span>}
-                                        {c.tag && <span className="vanilla-card-tag">{c.tag}</span>}
-                                        {c.pinned && <PinMark />}
-                                    </div>
+                                <div key={c.key} className={`collection-card library-tile text-tile cond-tile${c.pinned ? ' pinned' : ''}`} title={c.desc || undefined} aria-label={c.name} {...cardMenu(c.menu, c.open)}>
+                                    <span className="text-tile-edge" style={{ background: c.color }} aria-hidden="true" />
+                                    {c.pinned && <PinMark />}
                                     <div className="card-body">
+                                        {c.tag && <span className="text-tile-tag">{c.tag}</span>}
                                         <div className="card-name">{c.name}</div>
-                                        <div className="card-meta-row"><span className={`library-tile-desc${c.desc ? '' : ' is-empty'}`}>{c.desc || 'No description'}</span></div>
+                                        <div className="card-meta-row"><span className="card-bst"><em>Lasts</em>{durationText(kind, c.duration)}</span></div>
+                                        <div className="text-tile-desc"><span className={`library-tile-desc${c.desc ? '' : ' is-empty'}`}>{c.desc || 'No description'}</span></div>
                                     </div>
                                 </div>
                             ))}

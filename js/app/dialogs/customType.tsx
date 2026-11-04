@@ -27,7 +27,8 @@ type Draft = {
 };
 type Side = 'offense' | 'defense';
 
-const stopsBar = (stops: Stop[]) => `linear-gradient(90deg, ${[...stops].sort((a, b) => a.pos - b.pos).map(s => `${s.color} ${s.pos}%`).join(', ')})`;
+const stopsList = (stops: Stop[]) => [...stops].sort((a, b) => a.pos - b.pos).map(s => `${s.color} ${s.pos}%`).join(', ');
+const stopsBar = (stops: Stop[]) => `linear-gradient(90deg, ${stopsList(stops)})`;
 const clampPos = (n: number) => Math.max(0, Math.min(100, Math.round(n)));
 
 // an arrow pointing the way the gradient runs (CSS angles: 90deg is left to right)
@@ -116,52 +117,58 @@ function FillEditor({ draft, setDraft }: { draft: Draft; setDraft: (fn: (d: Draf
     const mode = (
         <div className="seg type-fill-mode" role="radiogroup" aria-label="Fill">
             <button type="button" role="radio" aria-checked={!g} className={`seg-btn${g ? '' : ' on'}`}
-                onClick={() => { if (g) { lastGradient.current = g; setGradient(null); } }}>Solid</button>
+                onClick={() => { if (g) { lastGradient.current = g; setGradient(null); } }}>
+                <span className="type-fill-chip" style={{ background: draft.color }} />Solid
+            </button>
             <button type="button" role="radio" aria-checked={!!g} className={`seg-btn${g ? ' on' : ''}`}
-                onClick={() => { if (!g) { setSelected(0); setGradient(lastGradient.current || startGradient(draft.color)); } }}>Gradient</button>
+                onClick={() => { if (!g) { setSelected(0); setGradient(lastGradient.current || startGradient(draft.color)); } }}>
+                <span className="type-fill-chip" style={{ background: g ? `linear-gradient(${Number(g.angle)}deg, ${stopsList(g.stops)})` : `linear-gradient(90deg, ${draft.color}, #fff)` }} />Gradient
+            </button>
         </div>
     );
     if (!g) {
-        return <>{mode}<Swatches current={draft.color} onPick={hex => setDraft(d => ({ ...d, color: hex }))} /></>;
+        return <div className="type-fill">{mode}<Swatches current={draft.color} onPick={hex => setDraft(d => ({ ...d, color: hex }))} /></div>;
     }
     const stop = g.stops[sel];
     return (
-        <>
+        <div className="type-fill">
             {mode}
-            <div className="type-gradient-opts">
-                <span className="type-gradient-label">Presets</span>
-                <div className="type-gradient-presets">
-                    {GRADIENT_PRESETS.map(([label, angle, stops]: [string, number, Array<[string, number]>]) => (
-                        <button key={label} type="button" className="type-gradient-preset" title={label} aria-label={`${label} preset`}
-                            style={{ background: `linear-gradient(${angle}deg, ${stops.map(([c, p]) => `${c} ${p}%`).join(', ')})` }}
-                            onClick={() => { setSelected(0); setGradient({ angle, stops: stops.map(([color, pos]) => ({ color, pos })) }); }} />
-                    ))}
-                </div>
-                <span className="type-gradient-label">Stops <small>click the bar to add one, drag to move</small></span>
+            <div className="type-fill-part">
+                <span className="type-gradient-label">Colours <small>Click the bar to add a colour. Drag a handle to move it.</small></span>
                 <div className="type-gradient-bar" ref={bar} style={{ background: stopsBar(g.stops) }} onPointerDown={barDown}>
                     {g.stops.map((s, i) => (
                         <button key={i} type="button" className={`type-gradient-stop${i === sel ? ' on' : ''}`} style={{ left: `${s.pos}%`, '--stop': s.color } as CSSProperties}
-                            aria-label={`Stop ${i + 1} at ${s.pos}%`} onPointerDown={e => drag(e, g.stops, i)} />
+                            aria-label={`Colour ${i + 1} at ${s.pos}%`} aria-pressed={i === sel} onPointerDown={e => drag(e, g.stops, i)}
+                            onKeyDown={e => {
+                                if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+                                e.preventDefault();
+                                const step = (e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 10 : 1);
+                                settle(g.stops.map((x, j) => (j === i ? { ...x, pos: clampPos(x.pos + step) } : x)), i);
+                            }} />
                     ))}
                 </div>
-                <div className="type-gradient-stop-edit">
-                    <span className="type-gradient-label">Stop {sel + 1} colour</span>
-                    <Swatches current={stop.color} onPick={hex => setStops(g.stops.map((s, i) => (i === sel ? { ...s, color: hex } : s)))} />
-                    <div className="type-gradient-stop-row">
-                        <label className="type-gradient-pos">Position{' '}
-                            <input type="number" min={0} max={100} value={stop.pos}
-                                onChange={e => settle(g.stops.map((s, i) => (i === sel ? { ...s, pos: clampPos(Number(e.target.value) || 0) } : s)), sel)} />%
-                        </label>
-                        <button type="button" className="btn btn-secondary btn-sm" disabled={g.stops.length <= 2}
+            </div>
+            <div className="type-fill-part">
+                <div className="type-gradient-stop-head">
+                    <span className="type-gradient-label">Colour {sel + 1} of {g.stops.length}</span>
+                    <label className="type-gradient-pos">at
+                        <input type="number" min={0} max={100} value={stop.pos} aria-label="Position in percent"
+                            onChange={e => settle(g.stops.map((s, i) => (i === sel ? { ...s, pos: clampPos(Number(e.target.value) || 0) } : s)), sel)} />%
+                    </label>
+                    <span className="type-gradient-stop-tools">
+                        <button type="button" className="btn btn-secondary btn-sm" disabled={g.stops.length <= 2} title="Remove this colour"
                             onClick={() => { setStops(g.stops.filter((_, i) => i !== sel)); setSelected(Math.max(0, sel - 1)); }}>
-                            <Icon name="trash-2" /><span>Remove stop</span>
+                            <Icon name="trash-2" /><span>Remove</span>
                         </button>
-                        <button type="button" className="btn btn-secondary btn-sm"
+                        <button type="button" className="btn btn-secondary btn-sm" title="Flip the colours end to end"
                             onClick={() => { setStops(g.stops.map(s => ({ color: s.color, pos: 100 - s.pos })).reverse()); setSelected(g.stops.length - 1 - sel); }}>
                             <Icon name="refresh-cw" /><span>Reverse</span>
                         </button>
-                    </div>
+                    </span>
                 </div>
+                <Swatches current={stop.color} onPick={hex => setStops(g.stops.map((s, i) => (i === sel ? { ...s, color: hex } : s)))} />
+            </div>
+            <div className="type-fill-part">
                 <span className="type-gradient-label">Direction</span>
                 <div className="type-gradient-angle">
                     <div className="seg">
@@ -175,7 +182,17 @@ function FillEditor({ draft, setDraft }: { draft: Draft; setDraft: (fn: (d: Draf
                     <span className="type-gradient-angle-value">{Number(g.angle)}°</span>
                 </div>
             </div>
-        </>
+            <div className="type-fill-part">
+                <span className="type-gradient-label">Start from a preset</span>
+                <div className="type-gradient-presets">
+                    {GRADIENT_PRESETS.map(([label, angle, stops]: [string, number, Array<[string, number]>]) => (
+                        <button key={label} type="button" className="type-gradient-preset" title={label} aria-label={`${label} preset`}
+                            style={{ background: `linear-gradient(${angle}deg, ${stops.map(([c, p]) => `${c} ${p}%`).join(', ')})` }}
+                            onClick={() => { setSelected(0); setGradient({ angle, stops: stops.map(([color, pos]) => ({ color, pos })) }); }} />
+                    ))}
+                </div>
+            </div>
+        </div>
     );
 }
 
@@ -307,11 +324,14 @@ function CustomTypeDialog({ entry, close }: DialogProps<{ entry: any }>) {
                     <input type="text" id="custom-type-name" maxLength={16} placeholder="e.g., Cosmic" value={draft.name} disabled={!!vanillaOf} autoFocus={!vanillaOf}
                         onChange={e => { const name = e.target.value; setDraft(d => ({ ...d, name })); }} />
                 </div>
-                <span className="type-badge custom-type-preview" style={selfStyle}>{draft.name.trim() || 'Preview'}</span>
+                <div className="custom-type-preview-cell">
+                    <span className="custom-type-preview-label">Preview</span>
+                    <div className="custom-type-preview-slot"><span className="type-badge custom-type-preview" style={selfStyle}>{draft.name.trim() || 'Type'}</span></div>
+                </div>
             </div>
             <div className="form-group">
                 <label>Colour</label>
-                <div className="color-options"><FillEditor draft={draft} setDraft={setDraft} /></div>
+                <FillEditor draft={draft} setDraft={setDraft} />
             </div>
             <div className="form-group">
                 <label>Icon <span className="label-optional">(optional; a white symbol on a transparent background looks best)</span></label>

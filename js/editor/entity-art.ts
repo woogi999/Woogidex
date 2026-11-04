@@ -1,4 +1,4 @@
-// An optional image on a custom move, ability, item or type. It only
+// An optional image on a custom item or a type's icon. It only
 // decorates previews (collection cards and the Fakemon page); mod exports
 // don't carry it. Images are shrunk on the way in so they stay small in saves
 // and backups; the field itself is js/app/components/ArtField.tsx.

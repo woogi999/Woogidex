@@ -524,9 +524,7 @@ function resetEditor() {
             let lowValue = false;
             try { lowValue = !sampleMoveIsActuallyUseful(m); } catch (e: any) { lowValue = false; }
             const fade = (typeof api.getFadeUselessMoves === 'function' ? api.getFadeUselessMoves() : true) && lowValue;
-            // a custom move's optional image (js/editor/entity-art.ts)
-            const art = m.customId ? (state.customMoves || []).find(x => x.id === m.customId)?.artwork || m.artwork : m.artwork;
-            return { name: m.name, category: m.category, faded: !!fade, art: art || '' };
+            return { name: m.name, category: m.category, faded: !!fade };
         }
 
 // ==================== type weakness / resistance ====================
@@ -632,9 +630,7 @@ function boardModel() {
         const sdEntry = Object.values<any>(state.sdAbilities).find(v => v.name === a.name);
         return {
             name: a.name, role: getAbilityRole(i) || '', isCustom,
-            desc: isCustom ? (a.desc || a.description || '') : ((sdEntry && sdEntry.desc) || a.desc || ''),
-            // a custom ability's optional image (js/editor/entity-art.ts)
-            art: isCustom ? (state.customAbilities || []).find(x => x.id === a.customId)?.artwork || '' : ''
+            desc: isCustom ? (a.desc || a.description || '') : ((sdEntry && sdEntry.desc) || a.desc || '')
         };
     });
     return {

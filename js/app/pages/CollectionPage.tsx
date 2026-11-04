@@ -409,7 +409,7 @@ function Grid({ layout }: { layout: Layout }) {
     return (
         <div ref={grid}>
             {shelf}
-            <div id="collection-grid" className="collection-grid">
+            <div id="collection-grid" className={`collection-grid${kind === 'moves' || kind === 'abilities' ? ' text-tiles' : ''}`}>
                 {!search && <AddCard kind={kind} />}
                 {folders.map(({ folder, count }: any) => <FolderCard key={folder.id} folder={folder} count={count} kind={kind} />)}
                 {kind === 'fakemon'

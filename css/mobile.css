@@ -154,7 +154,7 @@
     /* ---- type editor: the stops bar needs full width to drag on ---- */
     .type-gradient-bar { height: 34px; }
     .type-gradient-stop { width: 26px; height: 42px; }
-    .type-gradient-stop-row .btn span { display: none; }
+    .type-gradient-stop-tools .btn span { display: none; }
     .type-matchup-head, .type-matchup-row { gap: 6px; }
 
     /* ---- analytics bars: the label column shrinks before the bar does ---- */
