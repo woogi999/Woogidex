@@ -21,7 +21,6 @@ export function MovesTab() {
                 <div className="learnset-actions">
                     {/* Browse Moves holds every move, the recommended ones and the universal ones */}
                     <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openMoveBrowserModal()} title="Every move, with filters, as a table or a grid"><Icon name="squares-2x2" size={14} /> Browse Moves</button>
-                    <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openMoveBrowserModal('recommended')} title="Browse Moves, open at the moves similar Pokémon learn"><Icon name="sparkles" size={14} /> Recommended</button>
                     <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openCustomMoveChooser()}><Icon name="plus" size={14} /> Custom Move</button>
                     <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.openMoveImportExportModal()}>Import / Export</button>
                     <button className="btn btn-danger btn-sm learnset-clear" type="button" onClick={() => api.clearMoveset()}>Clear Moveset</button>

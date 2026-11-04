@@ -265,7 +265,7 @@
     .editor-tabs { grid-auto-columns: max-content; column-gap: 20px; padding: 0 var(--sp-4); scroll-padding: 0 var(--sp-4); }
     .editor-tabs .tab { font-size: 13px; padding-left: 0; padding-right: 0; }
     .editor-tabs .tab.active::after { left: 0; right: 0; }
-    .editor-sheet-body { padding: var(--sp-5) var(--sp-4) calc(var(--sp-6) + env(safe-area-inset-bottom, 0px)); }
+    .editor-sheet-body { --sheet-pad-top: var(--sp-5); padding: var(--sp-5) var(--sp-4) calc(var(--sp-6) + env(safe-area-inset-bottom, 0px)); }
 
     /* ==================== dialogs: a sheet from the bottom ====================
        every centred dialog rises from the bottom edge instead, full width.
@@ -325,11 +325,15 @@
     .mb-more-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .mb-clear { grid-column: 1 / -1; margin: 0; }
     .mb-view-note { flex-direction: column; align-items: stretch; }
-    /* the table keeps the name, the type, the category and the power */
-    .mb-table th:nth-child(n+6):not(.mb-col-x), .mb-table td:nth-child(n+6):not(.mb-col-x) { display: none; }
-    .mb-table .cat-badge span { display: none; }
-    .mb-table .cat-badge { min-width: 0; width: 22px; padding: 0; gap: 0; }
-    .mb-col-name { min-width: 0; }
+    /* a move on two lines, like the learnset's, with the pick mark in front */
+    .mb-ls .ls-row:not(.ls-head), .mb-ls.has-why .ls-row:not(.ls-head) {
+        grid-template-columns: 22px auto auto auto minmax(0, 1fr) auto auto 26px;
+        grid-template-areas: "mark name name name name type cat x" "mark bp acc pp . . . .";
+    }
+    .mb-ls.is-battle .ls-row:not(.ls-head) { grid-template-columns: auto auto auto minmax(0, 1fr) auto auto; grid-template-areas: "name name name name type cat" "bp acc pp . . ."; }
+    .mb-ls .ls-row:not(.ls-head) .mb-col-mark { grid-area: mark; }
+    .mb-ls .mb-col-why { display: none; }
+    .mb-ls .ls-head .mb-col-mark { display: none; }
     .mb-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 

@@ -10,6 +10,7 @@ import { registerDialog, type DialogProps } from '../dialogs.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { TypeDropdown, TypePill, useClickAway } from '../components/editor/fields.tsx';
 import { openContextMenu } from '../components/ContextMenu.tsx';
+import { SortTh } from '../components/SortHeader.tsx';
 import { CategoryBadge } from '../components/MoveCategory.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { customFlags } from '../../features/move-flags.ts';
@@ -109,50 +110,49 @@ function MoveList({ items, layout, picked, onToggle, battle, sort, onSort }: {
             </div>
         );
     }
-    const head = (key: SortKey, label: string, cls = '') => onSort
-        ? <th className={cls} aria-sort={sort?.key === key ? (sort.dir === 1 ? 'ascending' : 'descending') : undefined}>
-            <button type="button" className={`sort-th-btn mb-sort${sort?.key === key ? ' is-on' : ''}`} onClick={() => onSort(key)}>{label}{sort?.key === key && <Icon name={sort.dir === 1 ? 'chevron-up' : 'chevron-down'} size={11} />}</button>
-        </th>
-        : <th className={cls}>{label}</th>;
+    // the table: the learnset's own rows (css/learnset.css), with a pick mark
+    // in front and, for Recommended, why it fits and its keep-out button
+    const sortState = sort ? { key: sort.key, order: sort.dir === 1 ? 'asc' as const : 'desc' as const } : null;
+    const head = (key: SortKey, label: string, cls: string) => <SortTh as="div" className={`ls-c ${cls}`} label={label} sortKey={onSort ? key : undefined} sort={sortState} onSort={onSort as any} />;
     const why = items.some(it => it.reason);
+    const keepCol = items.some(it => it.onKeepOut);
+    const prioText = (p: any) => (Number(p) ? `${Number(p) > 0 ? '+' : ''}${Number(p)}` : '0');
     return (
-        <table className="mb-table">
-            <thead>
-                <tr>
-                    {!battle && <th className="mb-col-mark" aria-label="Picked" />}
-                    {head('name', 'Move', 'mb-col-name')}
-                    {head('type', 'Type')}
-                    {head('category', 'Category')}
-                    {head('basePower', 'BP', 'mb-col-num')}
-                    {head('accuracy', 'Acc', 'mb-col-num')}
-                    {head('pp', 'PP', 'mb-col-num')}
-                    {why && <th className="mb-col-why">Why</th>}
-                    {items.some(it => it.onKeepOut) && <th className="mb-col-x" aria-label="Keep out" />}
-                </tr>
-            </thead>
-            <tbody>
-                {items.map(it => (
-                    <tr key={`${it.locked ? 'l' : 'm'}:${it.m.key || it.m.name}`} className={`${state(it.m, it.locked)}${it.top ? ' is-top' : ''}`} title={title(it.m, it.locked)}
-                        tabIndex={it.locked || it.m.added ? -1 : 0} aria-selected={battle ? undefined : picked(it.m)}
-                        onClick={() => choose(it.m, it.locked)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(it.m, it.locked); } }}>
-                        {!battle && <td className="mb-col-mark">{mark(it.m, it.locked)}</td>}
-                        <td className="mb-col-name">
-                            <span className="mb-name">{it.m.name}</span>
-                            {it.m.custom && <span className="mb-tag">Custom</span>}
-                            {it.locked && <span className="mb-tag">Not learnable</span>}
-                            {!!it.m.priority && <span className="mb-prio" title="Priority">{it.m.priority > 0 ? '+' : ''}{it.m.priority}</span>}
-                        </td>
-                        <td><TypePill type={it.m.type || 'Normal'} /></td>
-                        <td><CategoryBadge category={it.m.category} /></td>
-                        <td className="mb-col-num">{it.m.basePower || '—'}</td>
-                        <td className="mb-col-num">{accText(it.m)}</td>
-                        <td className="mb-col-num">{it.m.pp || '—'}</td>
-                        {why && <td className="mb-col-why">{it.reason}</td>}
-                        {items.some(x => x.onKeepOut) && <td className="mb-col-x">{keep(it)}</td>}
-                    </tr>
-                ))}
-            </tbody>
-        </table>
+        <div className={`ls-table mb-ls${battle ? ' is-battle' : ''}${why ? ' has-why' : ''}`} role="table">
+            <div className="ls-row ls-head" role="row">
+                {!battle && <span className="ls-c mb-col-mark" />}
+                {head('name', 'Name', 'ls-name')}
+                {head('type', 'Type', 'ls-type')}
+                {head('category', 'Cat', 'ls-cat')}
+                {head('basePower', 'BP', 'ls-num ls-bp')}
+                {head('accuracy', 'Acc', 'ls-num ls-acc')}
+                {head('pp', 'PP', 'ls-num ls-pp')}
+                <SortTh as="div" className="ls-c ls-num ls-prio" label="Prio" sort={null} />
+                {why && <SortTh as="div" className="ls-c mb-col-why" label="Why" sort={null} />}
+                {keepCol && <span className="ls-c ls-x" />}
+            </div>
+            {items.map(it => (
+                <div key={`${it.locked ? 'l' : 'm'}:${it.m.key || it.m.name}`} role="row" className={`ls-row ${state(it.m, it.locked)}${it.top ? ' is-top' : ''}`} title={title(it.m, it.locked)}
+                    tabIndex={it.locked || it.m.added ? -1 : 0} aria-selected={battle ? undefined : picked(it.m)}
+                    onClick={() => choose(it.m, it.locked)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); choose(it.m, it.locked); } }}>
+                    {!battle && <span className="ls-c mb-col-mark" role="cell">{mark(it.m, it.locked)}</span>}
+                    <span className="ls-c ls-name" role="cell">
+                        <span className="ls-name-text">{it.m.name}</span>
+                        {it.m.custom && <span className="ls-custom-tag">Custom</span>}
+                        {it.locked && <span className="mb-tag">Not learnable</span>}
+                        {(it.m.shortDesc || it.m.desc) && <span className="ls-desc">{it.m.shortDesc || it.m.desc}</span>}
+                    </span>
+                    <span className="ls-c ls-type" role="cell"><TypePill type={it.m.type || 'Normal'} /></span>
+                    <span className="ls-c ls-cat" role="cell"><CategoryBadge category={it.m.category} iconOnly /></span>
+                    <span className="ls-c ls-num ls-bp" role="cell" data-label="BP">{Number(it.m.basePower) || '—'}</span>
+                    <span className="ls-c ls-num ls-acc" role="cell" data-label="Acc">{accText(it.m)}</span>
+                    <span className="ls-c ls-num ls-pp" role="cell" data-label="PP">{it.m.pp || '—'}</span>
+                    <span className="ls-c ls-num ls-prio" role="cell" data-label="Prio">{prioText(it.m.priority)}</span>
+                    {why && <span className="ls-c mb-col-why" role="cell">{it.reason}</span>}
+                    {keepCol && <span className="ls-c ls-x" role="cell">{keep(it)}</span>}
+                </div>
+            ))}
+        </div>
     );
 }
 
