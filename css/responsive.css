@@ -10,11 +10,6 @@
 
     .library-card-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important; }
 
-    /* long learnset rows wrap instead of squeezing */
-    .learnset-item { flex-wrap: wrap !important; }
-    .learnset-item .move-name { flex: 1 1 100% !important; }
-    .learnset-item .move-meta { flex: 1 1 100% !important; justify-content: flex-start !important; }
-
     .move-detail-popup { width: 92vw !important; padding: 18px !important; }
     .export-as-menu { min-width: 200px; }
 }

@@ -217,8 +217,11 @@
     font-size: 12px; font-weight: 700;
 }
 .move-category-title svg { width: 14px; height: 14px; }
-.move-category.physical .move-category-title { color: #a8601a; }
-.move-category.special .move-category-title { color: #3453b5; }
+/* the category colours are the badges' (--cat-physical #e0582a, --cat-special #4a6fd8,
+   --cat-status #8a8578 in css/controls.css), darkened for text. Plain values, not
+   var() or color-mix(): the PNG export (html2canvas) has to read them. */
+.move-category.physical .move-category-title { color: #b8431c; }
+.move-category.special .move-category-title { color: #3550b8; }
 .move-category.status .move-category-title { color: var(--text-secondary); }
 .move-list { display: flex; flex-wrap: wrap; gap: 4px; }
 .move-tag {
@@ -231,13 +234,15 @@
     transition: filter .12s ease;
 }
 .move-tag:hover { filter: brightness(.95); }
-.move-tag.physical { color: #8a4a10; background: rgba(204,136,68,.14); }
-.move-tag.special { color: #23419c; background: rgba(68,102,204,.13); }
-.move-tag.status { color: #5c5648; background: rgba(150,140,120,.15); }
+.move-tag.physical { color: #9e3a17; background: rgba(224,88,42,.13); }
+.move-tag.special { color: #2c46a3; background: rgba(74,111,216,.13); }
+.move-tag.status { color: #5a564c; background: rgba(138,133,120,.15); }
 .move-tag.custom { color: var(--text-secondary); }
 .move-tag.low-value { opacity: .45; }
-[data-theme="dark"] .move-category.physical .move-category-title, [data-theme="dark"] .move-tag.physical { color: #e0a56a; }
+[data-theme="dark"] .move-category.physical .move-category-title, [data-theme="dark"] .move-tag.physical { color: #f2936d; }
 [data-theme="dark"] .move-category.special .move-category-title, [data-theme="dark"] .move-tag.special { color: #93acf0; }
+[data-theme="dark"] .move-tag.physical { background: rgba(232,105,60,.16); }
+[data-theme="dark"] .move-tag.special { background: rgba(91,128,230,.16); }
 [data-theme="dark"] .move-tag.status { color: #c9c2b2; }
 
 /* custom moves: rows under the chips, divided, not boxed */

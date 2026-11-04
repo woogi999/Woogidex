@@ -325,9 +325,10 @@
 .chart-split-part:hover { filter: brightness(.9); }
 .chart-split-part:first-child { border-radius: 3px 0 0 3px; }
 .chart-split-part:last-child { border-radius: 0 3px 3px 0; }
-.chart-cat-physical { background: #d9822b; }
-.chart-cat-special { background: #4a74d9; }
-.chart-cat-status { background: #8b94a8; }
+/* the same colours as the category badges (css/controls.css) */
+.chart-cat-physical { background: var(--cat-physical); }
+.chart-cat-special { background: var(--cat-special); }
+.chart-cat-status { background: var(--cat-status); }
 
 /* role dots */
 .chart-dots-row { display: grid; grid-template-columns: minmax(80px, 150px) minmax(0, 1fr) 28px; align-items: center; gap: var(--sp-3); padding: 4px 0; font-size: 12.5px; }
