@@ -46,7 +46,11 @@ export function RegionSidebar() {
     const regions: any[] = api.getRegions();
     return (
         <>
-            <Row id={null} name="All" mark={<Icon name="layout-grid" />} count={(state.fakemonDB || []).filter(f => !f.pendingVanilla).length} active={!active} />
+            <Row id={null} name="All" mark={<Icon name="layout-grid" />} count={(state.fakemonDB || []).filter(f => !f.pendingVanilla).length} active={!active && !page} />
+            {/* the whole collection has analytics too */}
+            <Presence show={!active} className="region-subrows">
+                <button type="button" className={`region-subrow${page === 'analytics' ? ' active' : ''}`} onClick={() => api.openRegionAnalytics()}><Icon name="chart-bar" /><span>Analytics</span></button>
+            </Presence>
             {regions.map(r => {
                 const isActive = active === r.id;
                 return (
@@ -61,7 +65,12 @@ export function RegionSidebar() {
                 );
             })}
             {regions.length > 0 && (
-                <Row id={NO_REGION} name="No region" mark={<Icon name="circle-dashed" />} count={countIn(NO_REGION)} active={active === NO_REGION} droppable />
+                <>
+                    <Row id={NO_REGION} name="No region" mark={<Icon name="circle-dashed" />} count={countIn(NO_REGION)} active={active === NO_REGION && !page} droppable />
+                    <Presence show={active === NO_REGION} className="region-subrows">
+                        <button type="button" className={`region-subrow${page === 'analytics' ? ' active' : ''}`} onClick={() => api.openRegionAnalytics()}><Icon name="chart-bar" /><span>Analytics</span></button>
+                    </Presence>
+                </>
             )}
         </>
     );

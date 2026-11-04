@@ -126,7 +126,7 @@ function roleOf(m: Mon) {
 }
 
 // ---- pieces ----
-interface BarRow { label: ReactNode; value: number; text?: ReactNode; cls?: string; key?: string }
+interface BarRow { label: ReactNode; value: number; text?: ReactNode; cls?: string; key?: string; color?: string }
 
 function Bars({ rows, max = null, unit = '', color = null }: { rows: BarRow[]; max?: number | null; unit?: string; color?: string | null }) {
     const top = max ?? Math.max(1, ...rows.map(r => r.value));
@@ -136,7 +136,7 @@ function Bars({ rows, max = null, unit = '', color = null }: { rows: BarRow[]; m
                 <div className="an-bar-row" key={r.key ?? i}>
                     <span className="an-bar-label">{r.label}</span>
                     <span className="an-bar-track">
-                        <span className={`an-bar-fill${r.cls ? ` ${r.cls}` : ''}`} style={{ width: `${Math.max(2, (r.value / top) * 100)}%`, ...(color ? { background: color } : {}) }} />
+                        <span className={`an-bar-fill${r.cls ? ` ${r.cls}` : ''}`} style={{ width: `${Math.max(2, (r.value / top) * 100)}%`, ...((r.color || color) ? { background: r.color || color! } : {}) }} />
                     </span>
                     <span className="an-bar-value">{r.text ?? `${round(r.value, r.value % 1 ? 1 : 0)}${unit}`}</span>
                 </div>
@@ -239,15 +239,23 @@ function Badges({ types }: { types: string[] }) {
     return <>{types.map((t, i) => <span key={t}>{i ? ' ' : ''}<TypeBadge t={t} /></span>)}</>;
 }
 
+// All and No region get this page too: `region` is then a stand-in from
+// analyticsScope() (js/features/regions.ts) with a `scope`. Neither has a
+// main-game pool, so only your own entries count.
+const inScope = (x: any, region: Region) => (region as any).scope === 'all' || api.entryInRegion(x, region.id);
+const poolIds = (region: Region, kind: string): string[] => (region as any).scope ? [] : (api.regionPoolIds?.(region, kind) || []);
+/** Where the page is: "the region", "your collection", or "Fakémon in no region". */
+const placeOf = (region: Region) => (region as any).scope === 'all' ? 'your collection' : (region as any).scope === 'none' ? 'no region' : region.name;
+
 // ---- moves, abilities, items and types ----
 // Everything the region has to work with: its own entries (and its own
 // versions of main-game ones) plus the main-game ones it brings over.
 function regionLibrary(region: Region, kind: 'customMoves' | 'customAbilities' | 'customItems') {
-    const mine = ((state as any)[kind] || []).filter((x: any) => !x.pendingVanilla && api.entryInRegion(x, region.id));
+    const mine = ((state as any)[kind] || []).filter((x: any) => !x.pendingVanilla && inScope(x, region));
     const copied = new Set(mine.map((x: any) => x.vanillaId).filter(Boolean));
     const poolKind = kind === 'customMoves' ? 'moves' : kind === 'customAbilities' ? 'abilities' : 'items';
     const source: Record<string, any> = { moves: state.sdMoves, abilities: state.sdAbilities, items: state.sdItems }[poolKind] || {};
-    const vanilla = (api.regionPoolIds?.(region, poolKind) || []).filter((id: string) => source[id] && !copied.has(id)).map((id: string) => source[id]);
+    const vanilla = poolIds(region, poolKind).filter((id: string) => source[id] && !copied.has(id)).map((id: string) => source[id]);
     return { mine, vanilla, all: [...mine, ...vanilla] };
 }
 
@@ -292,13 +300,16 @@ function Content({ region, mons, own, matchup, allTypes }: {
     const best = [...offense].sort((a, b) => b.hits - a.hits)[0];
     const sturdiest = [...defense].sort((a, b) => a.weak - b.weak || b.immune - a.immune)[0];
     const frailest = [...defense].sort((a, b) => b.weak - a.weak)[0];
-    const customTypes = (api.getCustomTypes?.() || []).filter((t: any) => api.entryInRegion(t, region.id));
-    const edits = api.getTypeOverrides?.(region.id) || [];
+    const customTypes = (api.getCustomTypes?.() || []).filter((t: any) => inScope(t, region));
+    const edits = (region as any).scope ? [] : (api.getTypeOverrides?.(region.id) || []);
+    // custom status conditions, weather and terrains (js/features/custom-conditions.ts)
+    const conditions = (api.getCustomConditions?.() || []).filter((c: any) => inScope(c, region));
+    const conditionEdits = (region as any).scope ? [] : (api.getCustomConditions ? (state.folders || []).filter((f: any) => f?.type === 'custom-condition' && f.vanillaOf && String(f.regionId || '') === String(region.id)) : []);
 
     return (
         <>
             <div className="an-grid">
-                <Section title="Moves" help="What the region's Pokémon have to fight with." wide>
+                <Section title="Moves" help="What your Pokémon here have to fight with." wide>
                     <div className="an-stats an-stats-small">
                         <Stat label="Moves" value={moves.all.length} sub={`${custom} custom · ${edited} edited · ${moves.vanilla.length} main games`} />
                         <Stat label="Average power" value={bps.length ? round(mean(bps)) : '—'} sub={bps.length ? `median ${round(median(bps))} · top ${Math.max(...bps)}` : 'no damaging moves'} />
@@ -334,7 +345,7 @@ function Content({ region, mons, own, matchup, allTypes }: {
                     </div>
                     {customAbilities.length
                         ? <Bars rows={customAbilities.map((a: any) => ({ key: a.id, label: a.name, value: abilityUsers.get(a.name) || 0 })).sort((x: BarRow, y: BarRow) => y.value - x.value).slice(0, 8)} />
-                        : <p className="an-muted">No custom abilities in this region yet.</p>}
+                        : <p className="an-muted">No custom abilities here yet.</p>}
                 </Section>
 
                 <Section title="Items">
@@ -346,8 +357,20 @@ function Content({ region, mons, own, matchup, allTypes }: {
                     {heldItems.length ? <Bars rows={heldItems.slice(0, 8).map(plainRow)} /> : <p className="an-muted">No sample sets hold an item yet.</p>}
                 </Section>
 
+                <Section title="Conditions" help={`Your own status conditions, weather and terrains${conditionEdits.length ? `, and ${conditionEdits.length} main-game one${conditionEdits.length === 1 ? '' : 's'} changed here` : ''}.`}>
+                    <div className="an-stats an-stats-small">
+                        {(['status', 'weather', 'terrain'] as const).map(k => (
+                            <Stat key={k} label={k === 'status' ? 'Statuses' : k === 'weather' ? 'Weather' : 'Terrains'} value={conditions.filter((c: any) => c.kind === k).length}
+                                sub={`${conditions.filter((c: any) => c.kind === k && c.blocks?.triggers?.length).length} with battle code`} />
+                        ))}
+                    </div>
+                    {conditions.length
+                        ? <Bars rows={conditions.map((c: any) => ({ key: c.id, label: c.name, value: api.conditionUserCount?.(c) || 0, color: c.color, text: `${api.conditionUserCount?.(c) || 0} Fakémon` })).sort((x: BarRow, y: BarRow) => y.value - x.value).slice(0, 8)} />
+                        : <p className="an-muted">No custom conditions here yet. Make them in the Conditions tab.</p>}
+                </Section>
+
                 <Section title="Types" wide
-                    help={`${attack.length} types in play${customTypes.length ? `, ${customTypes.length} of them yours` : ''}${edits.length ? `, and ${edits.length} main-game type${edits.length === 1 ? '' : 's'} changed for ${region.name}` : ''}.`}>
+                    help={`${attack.length} types in play${customTypes.length ? `, ${customTypes.length} of them yours` : ''}${edits.length ? `, and ${edits.length} main-game type${edits.length === 1 ? '' : 's'} changed for ${placeOf(region)}` : ''}.`}>
                     <div className="an-stats an-stats-small">
                         {best && <Stat label="Best attacker" value={<TypeBadge t={best.t} />} sub={`super effective on ${best.hits} types`} />}
                         {sturdiest && <Stat label="Sturdiest" value={<TypeBadge t={sturdiest.t} />} sub={`weak to ${sturdiest.weak}, immune to ${sturdiest.immune}`} />}
@@ -384,7 +407,7 @@ function dataSignature(region: Region): string {
     for (const f of state.fakemonDB || []) newest = Math.max(newest, Number(f.updatedAt) || 0);
     const lib = ['customMoves', 'customAbilities', 'customItems'].map(k => ((state as any)[k] || []).length).join(',');
     return [region.id, JSON.stringify(region.vanilla || {}), (state.fakemonDB || []).length, newest, lib, state.sdLoaded ? 1 : 0,
-        (api.getCustomTypes?.() || []).length, Object.keys(state.sdPokedex || {}).length].join('|');
+        (api.getCustomTypes?.() || []).length, (state.folders || []).length, Object.keys(state.sdPokedex || {}).length].join('|');
 }
 
 export function RegionAnalytics({ region }: { region: Region }) {
@@ -400,15 +423,16 @@ function AnalyticsBody({ region, tab, setTab }: { region: Region; tab: Analytics
     useLayoutEffect(() => { countUp(kpis.current); }, [region.id]);
     // the next tab slides in from its side
     const pane = useSlide(tab, TABS.map(([k]) => k));
-    const own = (state.fakemonDB || []).filter(f => !f.pendingVanilla && api.entryInRegion(f, region.id)).map(fromFakemon);
-    const vanillaIds: string[] = api.regionPoolIds?.(region, 'pokemon') || [];
+    const own = (state.fakemonDB || []).filter(f => !f.pendingVanilla && inScope(f, region)).map(fromFakemon);
+    const vanillaIds: string[] = poolIds(region, 'pokemon');
     // the main-game Pokemon the region brings over always count, except ones
     // it has its own version of (that version is already in `own`)
     const copied = new Set((state.fakemonDB || []).filter(f => String(f.regionId || '') === String(region.id) && f.vanillaId && !f.pendingVanilla).map(f => f.vanillaId));
     const vanilla = vanillaIds.filter(id => !copied.has(id)).map(id => state.sdPokedex?.[id]).filter(Boolean).map(fromVanilla);
     const mons = [...own, ...vanilla];
 
-    const regionId = region.id;
+    // All and No region use the main-game type chart (and your own types)
+    const regionId = (region as any).scope ? null : region.id;
     // looked up thousands of times for a big roster: each pair is worked out one time
     const matchCache = new Map<string, number>();
     const matchup = (a: string, d: string): number => {
@@ -422,7 +446,7 @@ function AnalyticsBody({ region, tab, setTab }: { region: Region; tab: Analytics
 
     const head = (
         <div className="an-head">
-            <div><h2>{region.name} analytics</h2></div>
+            <div><h2>{(region as any).scope === 'all' ? 'Collection analytics' : `${region.name} analytics`}</h2></div>
             <div className="an-tabs" role="tablist" aria-label="Analytics sections">
                 {TABS.map(([key, label]) => (
                     <button key={key} type="button" role="tab" aria-selected={tab === key} className={tab === key ? 'active' : ''} onClick={() => setTab(key)}>{label}</button>
@@ -440,8 +464,10 @@ function AnalyticsBody({ region, tab, setTab }: { region: Region; tab: Analytics
                 {tab === 'library' ? library : (
                     <div className="an-empty">
                         <Icon name="chart-bar" />
-                        <p>No Pokémon in {region.name} yet.</p>
-                        <span>Add some from My Collection (drag a card onto the region, or use Add to region in the editor) and they'll show up here. The Library tab already counts its moves, abilities and items.</span>
+                        <p>{(region as any).scope === 'all' ? 'No Fakémon in your collection yet.' : (region as any).scope === 'none' ? 'Every Fakémon is in a region.' : `No Pokémon in ${region.name} yet.`}</p>
+                        <span>{(region as any).scope
+                            ? 'Make a Fakémon and its numbers show up here. The Library tab already counts your moves, abilities, items and conditions.'
+                            : 'Add some from My Collection (drag a card onto the region, or use Add to region in the editor) and they\'ll show up here. The Library tab already counts its moves, abilities and items.'}</span>
                     </div>
                 )}
             </>
@@ -456,7 +482,7 @@ function AnalyticsBody({ region, tab, setTab }: { region: Region; tab: Analytics
     const mono = mons.filter(m => m.types.length === 1).length;
     const combos = countBy(mons.map(m => [...m.types].sort().join(' / ')).filter(Boolean));
     const uniqueCombos = combos.filter(([, c]) => c === 1).length;
-    const lib = (kind: string) => ((state as any)[kind] || []).filter((x: any) => !x.pendingVanilla && api.entryInRegion(x, regionId)).length;
+    const lib = (kind: string) => ((state as any)[kind] || []).filter((x: any) => !x.pendingVanilla && inScope(x, region)).length;
 
     // --- types ---
     const typeCounts = new Map<string, { primary: number; secondary: number }>(allTypes.map(t => [t, { primary: 0, secondary: 0 }]));
@@ -620,13 +646,13 @@ function AnalyticsBody({ region, tab, setTab }: { region: Region; tab: Analytics
                                     : <p>No two Pokémon share the exact same typing.</p>}
                             </div>
                         </Section>
-                        <Section title="STAB coverage" help="Types that no Pokémon in the region can hit super-effectively with a move of its own type.">
+                        <Section title="STAB coverage" help="Types that no Pokémon here can hit super-effectively with a move of its own type.">
                             <ChartFrame label="Super-effective coverage by type" className="chart-coverage">
                                 {attackTypes.map(t => {
                                     const hit = !uncovered.includes(t);
                                     return (
                                         <span key={t} className={`chart-coverage-cell${hit ? '' : ' miss'}`} tabIndex={0}
-                                            data-tip={hit ? `${t}: hit super-effectively by ${stabTypes.filter(a => matchup(a, t) > 1).join(', ')}` : `${t}: nothing in the region hits it super-effectively`}>
+                                            data-tip={hit ? `${t}: hit super-effectively by ${stabTypes.filter(a => matchup(a, t) > 1).join(', ')}` : `${t}: nothing here hits it super-effectively`}>
                                             <TypeBadge t={t} />
                                         </span>
                                     );

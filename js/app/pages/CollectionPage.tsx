@@ -53,7 +53,7 @@ export function CollectionPage() {
     const where = useRef({ page: page || 'grid', regionId });
     useLayoutEffect(() => {
         const prev = where.current;
-        const next = { page: (page && region) ? page : 'grid', regionId };
+        const next = { page: (page && (region || page === 'analytics')) ? page : 'grid', regionId };
         where.current = next;
         if (prev.page === next.page && prev.regionId === next.regionId) return;
         if (prev.regionId !== next.regionId) {
@@ -63,11 +63,11 @@ export function CollectionPage() {
             slideIn(stage.current, directionIn(PAGE_ORDER, prev.page, next.page), 'y');
         }
     }, [page, regionId]);
-    if (page && region) {
+    if (page && (region || page === 'analytics')) {
         return (
             <div className="collection-stage" ref={stage}>
                 <section id="region-details" className="region-details">
-                    {page === 'analytics' ? <RegionAnalytics region={region} /> : <RegionDetails region={region} />}
+                    {page === 'analytics' ? <RegionAnalytics region={region || api.analyticsScope()} /> : <RegionDetails region={region} />}
                 </section>
             </div>
         );

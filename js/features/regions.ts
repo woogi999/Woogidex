@@ -94,9 +94,26 @@ let activeRegionId = (() => {
 // a region's own page, when one is open: 'details' or 'analytics'
 let regionPage: any = null;
 
-/** The region page showing instead of the grid: 'details', 'analytics' or null. */
+/**
+ * The region page showing instead of the grid: 'details', 'analytics' or null.
+ * All and No region have an analytics page too (analyticsScope), no details.
+ */
 export function getRegionPage() {
-    return getActiveRegion() ? regionPage : null;
+    if (getActiveRegion()) return regionPage;
+    return regionPage === 'analytics' ? regionPage : null;
+}
+
+/**
+ * What the analytics page looks at when no region is open: the whole
+ * collection (All) or what is in no region. A stand-in for a region record,
+ * with no main-game pool (`scope` tells it apart).
+ */
+export function analyticsScope(): any {
+    const id = getActiveRegionId();
+    if (id && id !== NO_REGION) return getActiveRegion();
+    return id === NO_REGION
+        ? { id: NO_REGION, type: 'region', name: 'No region', scope: 'none', vanilla: {} }
+        : { id: '__all', type: 'region', name: 'Your collection', scope: 'all', vanilla: {} };
 }
 
 /** The region the collection is filtered to: an id, NO_REGION, or null for all. */
@@ -166,12 +183,13 @@ export function selectRegion(id) {
 }
 
 export function isRegionDetailsOpen() {
-    return !!regionPage && !!getActiveRegion();
+    return !!getRegionPage();
 }
 
 function openRegionPage(page, id) {
     if (id) activeRegionId = id;
-    if (!getActiveRegion()) return;
+    // All and No region have analytics, not details
+    if (!getActiveRegion() && page !== 'analytics') return;
     try { localStorage.setItem(ACTIVE_KEY, String(activeRegionId)); } catch { /* not remembered */ }
     regionPage = page;
     closeRegionDrawer();
