@@ -376,7 +376,7 @@ body.card-dragging .region-row { transition: background-color var(--dur-fast) ea
 .dex-sd-icon { width: 40px; height: 30px; flex: none; background: url('https://play.pokemonshowdown.com/sprites/pokemonicons-sheet.png') no-repeat; image-rendering: pixelated; }
 .dex-art.dex-art-plain { background: transparent; overflow: visible; }
 .dex-table .col-cat { width: 1%; }
-.dex-cat { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--text-secondary); }
+.dex-table .col-cat .cat-badge { vertical-align: middle; }
 
 /* a number and its label, stacked: Showdown's stat cells */
 .dex-table td.col-stat { min-width: 36px; text-align: center; font-size: 12.5px; line-height: 1.15; }

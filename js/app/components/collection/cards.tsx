@@ -16,6 +16,7 @@ import { setFakemonStatus, statusOf } from '../../../features/notebook.ts';
 import { canPaste, copyEntry, cutEntry, isCut, pasteInto } from '../../../features/clipboard.ts';
 import { StatusBadge } from '../notes/NotesField.tsx';
 import { CategoryIcon } from '../editor/lists.tsx';
+import { CategoryBadge } from '../MoveCategory.tsx';
 
 // one formatter for every card: toLocaleDateString makes a new one per call,
 // which cost about a millisecond a card on a big collection
@@ -226,8 +227,9 @@ export function libraryParts(kind: LibraryKind, item: any): { art: ReactNode; co
             // the move's own image if it has one; otherwise the type's colour fills
             // the emblem and the category is its icon
             art: artImg || <span className={`library-emblem type-${type.toLowerCase()}`}><CategoryIcon category={category} size="55%" /></span>,
-            corner: category,
-            pills: <TypeBadge type={type} />,
+            // the category is a badge beside the type, as everywhere else
+            corner: '',
+            pills: <><TypeBadge type={type} /><CategoryBadge category={category} size="badge" /></>,
             meta: <>
                 <span className="card-bst"><em>BP</em>{item.basePower || '—'}</span>
                 <span className="card-bst"><em>ACC</em>{acc}</span>
@@ -445,9 +447,9 @@ export function vanillaLibraryParts(kind: LibraryKind, id: string, v: any): { ar
         const acc = v.accuracy === true ? '—' : `${v.accuracy}%`;
         return {
             art: <span className={`library-emblem type-${type.toLowerCase()}`}><CategoryIcon category={v.category || 'Status'} size="55%" /></span>,
-            corner: v.category || '',
+            corner: '',
             meta: <><span className="card-bst"><em>BP</em>{v.basePower || '—'}</span><span className="card-bst"><em>ACC</em>{acc}</span><span className="card-bst"><em>PP</em>{v.pp || '—'}</span></>,
-            pills: <TypeBadge type={type} />
+            pills: <><TypeBadge type={type} /><CategoryBadge category={v.category || 'Status'} size="badge" /></>
         };
     }
     return {

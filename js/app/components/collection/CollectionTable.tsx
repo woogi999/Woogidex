@@ -13,6 +13,7 @@ import { statusOf } from '../../../features/notebook.ts';
 import { isCut } from '../../../features/clipboard.ts';
 import { StatusBadge } from '../notes/NotesField.tsx';
 import { CategoryIcon } from '../editor/lists.tsx';
+import { CategoryBadge } from '../MoveCategory.tsx';
 import {
     ADD_NEW, FakemonArt, ItemEmblem, TypeBadge, cardMenu, fakemonDrag, fakemonMenu, libraryDrag, libraryMenu,
     useFolder, vanillaLibraryParts, vanillaMenu, vanillaPokemonParts
@@ -176,7 +177,7 @@ function moveCells(type: string, category: string, power: any, accuracy: any, pp
     return (
         <>
             <td className="col-types"><TypeBadge type={type} /></td>
-            <td className="col-cat"><span className="dex-cat" title={category}><CategoryIcon category={category} size={14} />{category}</span></td>
+            <td className="col-cat"><CategoryBadge category={category} size="badge" /></td>
             <Num label="Power" value={power || '—'} />
             <Num label="Acc." value={acc} />
             <Num label="PP" value={pp || '—'} />
