@@ -37,9 +37,9 @@ const CORE_SECTIONS: Section[] = [
                     ? `This device looks low-powered, so ${LANDING_PAGE ? "the front page's paint smudge starts off and " : ''}flat sprites start on to keep things smooth. Change them whenever you like.`
                     : null,
                 items: [
-                    { id: 'motion', setting: 'ReduceMotion', label: 'Reduce motion', desc: 'Turn off animations and transitions across the site.' },
-                    { id: 'blur', setting: 'OverlayBlur', label: 'Dim effects', desc: 'Darken the page behind the sidebar, modals, and other overlays.' },
-                    { id: 'sprites', setting: 'Use2DSprites', label: 'Use 2D sprites', desc: 'Show flat sprites instead of animated 3D models. Lighter on older phones.' },
+                    { id: 'motion', setting: 'ReduceMotion', label: 'Reduce motion', desc: 'Stops the slides, fades and bounces. Turn it on if motion on screen makes you dizzy, or if pages feel slow.' },
+                    { id: 'blur', setting: 'OverlayBlur', label: 'Dim effects', desc: 'Darkens the page behind menus, the editor and windows, so what is in front is easier to read.' },
+                    { id: 'sprites', setting: 'Use2DSprites', label: 'Use 2D sprites', desc: 'Shows flat pictures in place of the moving 3D models. They load faster and use less battery, so try it if an older phone gets slow or warm.' },
                     // the landing page's setting shows once the landing page does (js/core/flags.ts)
                     ...(!LANDING_PAGE ? [] : [{ id: 'smudge', setting: 'LandingSmudge', label: 'Paint smudge on the front page', desc: 'Your cursor picks up colors and smears paint across the landing page. Starts off on phones, tablets and low-powered devices, since it draws every frame.' }])
                 ]
@@ -54,7 +54,7 @@ const CORE_SECTIONS: Section[] = [
             {
                 id: 'cards', title: 'Collection cards',
                 items: [
-                    { id: 'date', setting: 'ShowCollectionCardDate', label: 'Show creation date on cards', desc: 'Display when each Fakémon was created on its collection card.' }
+                    { id: 'date', setting: 'ShowCollectionCardDate', label: 'Show creation date on cards', desc: 'Shows the day you made each Fakémon on its card in My Collection. Handy for finding an old one.' }
                 ]
             }
         ]
@@ -67,7 +67,7 @@ const CORE_SECTIONS: Section[] = [
                 id: 'editor', title: 'Editor',
                 items: [
                     { id: 'fullscreen', setting: 'EditorFullscreen', label: 'Open the editor full screen', desc: "Use the whole window below the header instead of a side panel. The button in the editor's header switches it too." },
-                    { id: 'fade', setting: 'FadeUselessMoves', label: 'Fade out usually useless moves', desc: 'Dim moves in the movepool that rarely see competitive use.' },
+                    { id: 'fade', setting: 'FadeUselessMoves', label: 'Fade out usually useless moves', desc: 'On the Pokédex board, moves that almost no one uses in battle (like Splash) show lighter, so the useful ones stand out. They stay in the learnset.' },
                     { id: 'cry', setting: 'AutoplayCry', label: 'Autoplay Pokémon cry', desc: "Play a Fakémon's uploaded cry automatically when you open it to edit or preview." },
                     { id: 'confirm', setting: 'ConfirmBeforeDelete', label: 'Confirm before deleting a Fakémon', desc: 'Ask "Are you sure?" before a delete goes through. Turn off to delete in one click.' }
                 ]
@@ -75,8 +75,8 @@ const CORE_SECTIONS: Section[] = [
             {
                 id: 'comparison', title: 'Comparison tools',
                 items: [
-                    { id: 'bulk', setting: 'IncludeOwnFakemonsInBulkComparison', label: 'Include your Fakémon in Bulk Comparison', desc: 'Let your own collection show up alongside official Pokémon.' },
-                    { id: 'recommend', setting: 'IncludeOwnFakemonsInRecommendedMoves', label: 'Include your Fakémon in Recommended Moves', desc: 'Factor your own collection into move recommendations.' }
+                    { id: 'bulk', setting: 'IncludeOwnFakemonsInBulkComparison', label: 'Include your Fakémon in Bulk Comparison', desc: 'The Stats tab compares bulk against your other Fakémon too, not only official Pokémon.' },
+                    { id: 'recommend', setting: 'IncludeOwnFakemonsInRecommendedMoves', label: 'Include your Fakémon in Recommended Moves', desc: 'Recommend Moves also learns from the moves you gave your other Fakémon. Turn it off if your own sets are experiments you do not want copied.' }
                 ]
             }
         ]
@@ -381,7 +381,7 @@ function PhoneTabsGroup() {
     const on = phoneTabs();
     return (
         <section className="st-group">
-            <GroupHead title="Phone tab bar" desc={`The icons along the bottom on a phone, ${PHONE_TABS_MIN} to ${PHONE_TABS_MAX}. Your picture (the account menu) is always last. This device only.`} />
+            <GroupHead title="Phone tab bar" desc={`Put the pages you open most in the bar at the bottom, so each is one tap away. Pick ${PHONE_TABS_MIN} to ${PHONE_TABS_MAX}. A page you leave out stays in the top bar or the menu, and the menu button is always last. Saved on this device only.`} />
             <div className="st-card">
                 {PHONE_TAB_CHOICES.map(([key, label, icon]) => {
                     const checked = on.includes(key);
@@ -411,12 +411,12 @@ function UiScaleGroup() {
     const marks = [UI_SCALE_MIN, 90, UI_SCALE_DEFAULT, 110, 120, UI_SCALE_MAX];
     return (
         <section className="st-group">
-            <GroupHead title="Interface size" desc="Make everything on the site bigger or smaller. Your browser's own zoom still works on top of it." />
+            <GroupHead title="Interface size" desc="Make the whole site bigger if text is hard to read, or smaller to fit more on the screen. Saved on this device only." />
             <div className="st-card">
                 <div className="st-row st-row-static st-scale-row">
                     <span className="st-row-text">
                         <span className="st-label" id={labelId}>Size</span>
-                        <span className="st-desc">Text, buttons, cards and menus all scale together.</span>
+                        <span className="st-desc">Text, buttons, cards and menus change together. The new size applies when you let go of the slider.</span>
                     </span>
                     <span className="st-row-control st-scale-value">
                         <output aria-live="polite">{value}%</output>
