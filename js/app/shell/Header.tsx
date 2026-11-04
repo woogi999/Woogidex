@@ -16,7 +16,7 @@ import { ext, registerNav, slots } from '../../core/extend.ts';
 import { Icon } from '../components/Icon.tsx';
 import { Link } from '../components/Link.tsx';
 import { useClickAway } from '../components/editor/fields.tsx';
-import { openContextMenu, type MenuItem } from '../components/ContextMenu.tsx';
+import { openContextMenu, openQuickSearch, type MenuItem } from '../components/ContextMenu.tsx';
 import { usePhone } from '../hooks.ts';
 import { notificationsView } from '../../core/notifications.ts';
 import { phoneTabs, type PhoneTab } from './phoneTabs.ts';
@@ -45,13 +45,19 @@ export function closeHeaderProfilePopover() {
     notify();
 }
 
-/** The Create tab's sheet: the things you can make, wherever you are. */
+/** The Create tab's sheet: the things you can make, wherever you are, and
+ *  the tools a right-click gives on a computer (a phone has no right-click). */
 function openCreateSheet(e: React.MouseEvent) {
     const signedIn = !!api.isLoggedIn?.();
     const join = () => api.openAuthModal?.('signup');
     const items: MenuItem[] = [
+        { label: 'Quick commands', icon: 'command-line', run: () => openQuickSearch('/') },
+        { label: 'Quick search', icon: 'magnifying-glass', run: () => openQuickSearch() },
+        'sep',
         { label: 'New Fakémon', icon: 'plus', run: () => api.createNewFakemon() },
         { label: 'Quick add', icon: 'light-bulb', run: () => api.openQuickAdd?.() },
+        { label: 'Paste a list of names', icon: 'clipboard-document-list', run: () => api.openBulkPaste?.() },
+        { label: 'New folder', icon: 'folder', run: () => { api.showCollection?.(); api.createFolder?.(); } },
         'sep',
         { label: 'Publish a Fakémon', icon: 'upload', run: signedIn ? () => api.openCommunityPublishModal() : join },
         { label: 'Write a post', icon: 'pencil-square', run: signedIn ? writePost : join }
