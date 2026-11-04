@@ -471,6 +471,9 @@ ${entries}
                 // custom types need a typechart covering them, or Showdown rejects the species
                 const typechartTs = api.buildShowdownTypechart?.(lists.customTypes, lists.region?.id || null);
                 if (typechartTs) modFolder.file('typechart.ts', typechartTs);
+                // custom status conditions, weather and terrains (js/features/custom-conditions.ts)
+                const conditionsTs = api.buildShowdownConditionsFile?.(lists.region?.id || null);
+                if (conditionsTs) modFolder.file('conditions.ts', conditionsTs);
                 if (lists.region) zip.file('region.json', api.regionManifest(lists));
                 zip.file('README.txt', buildCollectionReadmeTxt(fakemonList, modId, totalSkipped));
                 const evolutionNotes = buildEvolutionNotesText(fakemonList);

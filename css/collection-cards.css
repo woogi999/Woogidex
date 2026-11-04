@@ -415,3 +415,31 @@ body.card-dragging .dex-folder { background: color-mix(in srgb, var(--accent) 6%
 /* cut and waiting to be pasted, as in File Explorer (js/features/clipboard.ts) */
 .collection-card.is-cut, .dex-row.is-cut { opacity: .5; }
 #collection-listing:focus { outline: none; }
+
+/* ==================== the Conditions tab (js/app/components/collection/ConditionsTab.tsx) ==================== */
+/* one section each for status conditions, weather and terrains, headed like the Fakémon shelves */
+.cond-sections { display: flex; flex-direction: column; gap: var(--sp-6); }
+.cond-head h2 { display: inline-flex; align-items: center; gap: 8px; margin: 0; font: 800 16px var(--font-sans); }
+.cond-head h2 svg { color: var(--text-muted); }
+.cond-count { min-width: 22px; padding: 1px 7px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font: 700 12px var(--font-sans); text-align: center; }
+.cond-hint { margin: 0; font-size: 13px; color: var(--text-secondary); }
+.cond-emblem { border-radius: 30%; }
+.cond-tile .card-meta-row { min-height: 2.6em; }
+.cond-tile .library-tile-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; white-space: normal; }
+.dex-table-conditions .cond-emblem { border-radius: 30%; }
+
+/* the editor sheet (js/app/dialogs/customCondition.tsx) */
+.cond-preview { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px 4px 9px; border-radius: 4px; color: #fff; font: 700 12px var(--font-sans); white-space: nowrap; }
+.cond-kind button { display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; height: 30px; }
+.cond-duration { display: flex; align-items: center; gap: 8px; }
+.cond-duration input { width: 80px; }
+.cond-duration span { font-size: 13px; color: var(--text-secondary); }
+
+/* a published Fakémon's conditions, under its board (js/app/pages/CommunityDetailPage.tsx) */
+.cond-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 9px 2px 7px; border-radius: 4px; color: #fff; font: 700 11.5px var(--font-sans); white-space: nowrap; }
+.post-conditions { margin-top: var(--sp-5); }
+.post-conditions h4 { margin: 0 0 var(--sp-3); }
+.post-conditions ul { display: flex; flex-direction: column; gap: var(--sp-3); margin: 0; padding: 0; list-style: none; }
+.post-conditions li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.post-conditions-kind { font-size: 12px; color: var(--text-muted); }
+.post-conditions li p { flex-basis: 100%; margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text-secondary); }

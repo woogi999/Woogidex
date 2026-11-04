@@ -137,6 +137,14 @@ function amountExpression(targetVar, params, ctx) {
 import { notify, notifySync } from '../app/store.ts';
 import { buildContainerRegistry, ensureBlockPosition } from './ability-board-model.ts';
 import { closeDialog } from '../app/dialogs.tsx';
+import { CONDITION_KIND, conditionEsId, conditionOptions, conditionSdId, conditionsForExport, isConditionKind, VANILLA_CONDITIONS, type ConditionKind } from '../features/custom-conditions.ts';
+
+// the status, weather and terrain dropdowns list your own after the main-game
+// ones, so they are asked for each time the board draws (resolveOptions).
+// `options` is only the main-game list: this runs while the modules load,
+// before the collection (state) is there to read.
+const condParam = (key: string, kind: ConditionKind, def: string, extra: Array<{ value: string; label: string }> = []) =>
+    ({ key, type: 'dynamic-select', dynamic: `condition:${kind}`, extra, options: [...VANILLA_CONDITIONS[kind].map(v => ({ value: v.id, label: v.name })), ...extra], default: def });
 
 const TRIGGERS = {
     switchIn: {
@@ -146,7 +154,7 @@ const TRIGGERS = {
         es: () => ({ adder: 'Battle::AbilityEffects::OnSwitchIn', args: 'ability, battler', selfVar: 'battler', foeVar: 'foe', moveVar: null as any, preamble: 'foe = battler.pbDirectOpposing rescue nil', footer: null as any })
     },
     statModify: {
-        label: 'Calculating one of this Pokémon\u2019s stats', icon: 'trending-up', kinds: ['ability', 'item'],
+        label: 'Calculating one of this Pokémon\u2019s stats', icon: 'trending-up', kinds: ['ability', 'item', 'condition'],
         params: [{ key: 'stat', label: 'Stat', type: 'select', options: STATS.map(s => ({ value: s.id, label: s.label })), default: 'atk' }],
         allowed: ['multiplyStat', 'boostStat', 'healDamage', 'setStatus', 'showMessage'],
         sd: (ast) => ({ header: `onModify${cap(ast.triggerParams.stat || 'atk')}(value, pokemon, target, move) {`, footer: 'return value;\n\t\t}', selfVar: 'pokemon', foeVar: 'target', moveVar: 'move', preamble: '' }),
@@ -212,6 +220,53 @@ const TRIGGERS = {
         allowed: ['cureStatus', 'boostStat', 'healDamage', 'showMessage'],
         sd: () => ({ header: 'onAfterSetStatus(status, target, source, effect) {', footer: '}', selfVar: 'target', foeVar: 'source', moveVar: null as any, preamble: '' }),
         es: () => ({ adder: 'Battle::AbilityEffects::OnStatusInflicted', args: 'ability, battler, user, status', selfVar: 'battler', foeVar: 'user', moveVar: null as any, preamble: '', footer: null as any })
+    },
+    // ---- a custom status condition, weather or terrain (kind 'condition') ----
+    // The handler names differ between a status (on the Pokémon) and weather or
+    // a terrain (on the field), so each reads which one is being compiled
+    // (compilingCondition, set by compileShowdownCondition).
+    condStart: {
+        label: 'It starts', icon: 'play', kinds: ['condition'], params: [] as any[],
+        allowed: ['boostStat', 'dealDamage', 'healDamage', 'cureStatus', 'setWeather', 'setTerrain', 'changeType', 'addVolatile', 'removeVolatile', 'showMessage', 'customCode'],
+        sd: () => compilingCondition === 'status'
+            ? { header: 'onStart(target, source, sourceEffect) {', footer: '}', selfVar: 'target', foeVar: 'source', moveVar: null as any, preamble: '' }
+            : { header: 'onFieldStart(field, source, effect) {', footer: '}', selfVar: 'source', foeVar: 'foe', moveVar: null as any, preamble: 'const foe = source?.side?.foe?.active?.[0];' },
+        es: () => ({ adder: '# Woogidex condition: when it starts', args: 'battler', selfVar: 'battler', foeVar: 'nil', moveVar: null as any, preamble: '', footer: null as any })
+    },
+    condEachTurn: {
+        label: 'Each turn, for each Pokémon it affects', icon: 'clock', kinds: ['condition'], params: [] as any[],
+        allowed: ['boostStat', 'dealDamage', 'healDamage', 'setStatus', 'cureStatus', 'changeType', 'addVolatile', 'removeVolatile', 'showMessage', 'customCode'],
+        sd: () => compilingCondition === 'status'
+            ? { header: 'onResidual(pokemon) {', footer: '}', selfVar: 'pokemon', foeVar: 'foe', moveVar: null as any, preamble: 'const foe = pokemon.side.foe.active[0];' }
+            : compilingCondition === 'weather'
+                ? { header: 'onWeather(target) {', footer: '}', selfVar: 'target', foeVar: 'foe', moveVar: null as any, preamble: 'const foe = target.side.foe.active[0];' }
+                : { header: 'onTerrain(pokemon) {', footer: '}', selfVar: 'pokemon', foeVar: 'foe', moveVar: null as any, preamble: 'const foe = pokemon.side.foe.active[0];' },
+        es: () => ({ adder: '# Woogidex condition: each turn', args: 'battler', selfVar: 'battler', foeVar: 'nil', moveVar: null as any, preamble: '', footer: null as any })
+    },
+    condBeforeMove: {
+        label: 'Just before an affected Pokémon moves', icon: 'chevrons-right', kinds: ['condition'], params: [] as any[],
+        allowed: ['boostStat', 'dealDamage', 'healDamage', 'cureStatus', 'addVolatile', 'removeVolatile', 'showMessage', 'customCode'],
+        sd: () => compilingCondition === 'status'
+            ? { header: 'onBeforeMove(pokemon, target, move) {', footer: '}', selfVar: 'pokemon', foeVar: 'target', moveVar: 'move', preamble: '' }
+            : { header: 'onAnyBeforeMove(pokemon, target, move) {', footer: '}', selfVar: 'pokemon', foeVar: 'target', moveVar: 'move', preamble: '' },
+        es: () => ({ adder: '# Woogidex condition: before a move', args: 'user, move', selfVar: 'user', foeVar: 'nil', moveVar: 'move', preamble: '', footer: null as any })
+    },
+    condMovePower: {
+        label: 'Working out a move\u2019s power', icon: 'trending-up', kinds: ['condition'], params: [] as any[],
+        allowed: ['multiplyMovePower', 'showMessage'],
+        // weather changes damage in its own handler; a status and a terrain change the power
+        sd: () => compilingCondition === 'weather'
+            ? { header: 'onWeatherModifyDamage(damage, attacker, defender, move) {', footer: '}', selfVar: 'attacker', foeVar: 'defender', moveVar: 'move', preamble: '' }
+            : { header: 'onBasePower(basePower, attacker, defender, move) {', footer: '}', selfVar: 'attacker', foeVar: 'defender', moveVar: 'move', preamble: '' },
+        es: () => ({ adder: '# Woogidex condition: a move\'s power', args: 'user, target, move, mults', selfVar: 'user', foeVar: 'target', moveVar: 'move', preamble: '', footer: null as any })
+    },
+    condEnd: {
+        label: 'It ends', icon: 'square', kinds: ['condition'], params: [] as any[],
+        allowed: ['boostStat', 'dealDamage', 'healDamage', 'setStatus', 'setWeather', 'setTerrain', 'addVolatile', 'removeVolatile', 'showMessage', 'customCode'],
+        sd: () => compilingCondition === 'status'
+            ? { header: 'onEnd(pokemon) {', footer: '}', selfVar: 'pokemon', foeVar: 'foe', moveVar: null as any, preamble: 'const foe = pokemon.side.foe.active[0];' }
+            : { header: 'onFieldEnd() {', footer: '}', selfVar: 'pokemon', foeVar: 'foe', moveVar: null as any, preamble: 'const pokemon = this.effectState.source;\n\t\t\tconst foe = pokemon?.side?.foe?.active?.[0];' },
+        es: () => ({ adder: '# Woogidex condition: when it ends', args: 'battler', selfVar: 'battler', foeVar: 'nil', moveVar: null as any, preamble: '', footer: null as any })
     },
     moveUsed: {
         label: 'This move finishes being used', icon: 'zap', kinds: ['move'],
@@ -389,19 +444,19 @@ const CONDITIONS = {
         es: (c, p) => `${c.selfVar}.hp > (${c.selfVar}.totalhp * ${p.value} / 100.0)`
     },
     hasStatus: {
-        label: 'status is __', params: [{ key: 'status', type: 'select', options: [...STATUSES.map(s => ({ value: s.id, label: s.label })), { value: 'none', label: 'No status' }], default: 'brn' }],
-        sd: (c, p) => p.status === 'none' ? `!${c.selfVar}.status` : `${c.selfVar}.status === '${p.status}'`,
-        es: (c, p) => { const s = STATUSES.find(x => x.id === p.status); return `${c.selfVar}.status == :${s ? s.es : 'NONE'}`; }
+        label: 'status is __', params: [condParam('status', 'status', 'brn', [{ value: 'none', label: 'No status' }])],
+        sd: (c, p) => p.status === 'none' ? `!${c.selfVar}.status` : `${c.selfVar}.status === '${conditionSdId('status', p.status)}'`,
+        es: (c, p) => `${c.selfVar}.status == :${p.status === 'none' ? 'NONE' : conditionEsId('status', p.status)}`
     },
     weatherIs: {
-        label: 'the environment is __', params: [{ key: 'weather', type: 'select', options: WEATHERS.map(w => ({ value: w.id, label: w.label })), default: 'Sun' }],
-        sd: (c, p) => { const w = WEATHERS.find(x => x.id === p.weather); return `this.field.isWeather('${w ? w.sd : 'sunnyday'}')`; },
-        es: (c, p) => `$field.weather == :${p.weather}`
+        label: 'the environment is __', params: [condParam('weather', 'weather', 'Sun')],
+        sd: (c, p) => `this.field.isWeather('${conditionSdId('weather', p.weather)}')`,
+        es: (c, p) => `$field.weather == :${conditionEsId('weather', p.weather)}`
     },
     terrainIs: {
-        label: 'the terrain is __', params: [{ key: 'terrain', type: 'select', options: TERRAIN, default: 'Electric' }],
-        sd: (c, p) => `this.field.isTerrain('${String(p.terrain || 'Electric').toLowerCase()}terrain')`,
-        es: (c, p) => `$field.terrain == :${p.terrain || 'Electric'}`
+        label: 'the terrain is __', params: [condParam('terrain', 'terrain', 'Electric')],
+        sd: (c, p) => `this.field.isTerrain('${conditionSdId('terrain', p.terrain || 'Electric')}')`,
+        es: (c, p) => `$field.terrain == :${conditionEsId('terrain', p.terrain || 'Electric')}`
     },
     moveTypeIs: {
         label: 'move type is __', params: [{ key: 'type', type: 'select', options: SELECTABLE_TYPES.map(t => ({ value: t, label: t })), default: 'Fire' }],
@@ -442,9 +497,9 @@ const CONDITIONS = {
         es: (c, p) => `${c.selfVar}.statStages[:${STAT_ESSENTIALS[p.stat] || 'ATTACK'}] >= ${p.value}`
     },
     targetHasStatus: {
-        label: 'target status is __', params: [{ key: 'status', type: 'select', options: [...STATUSES.map(s => ({ value: s.id, label: s.label })), { value: 'none', label: 'No status' }], default: 'brn' }],
-        sd: (c, p) => p.status === 'none' ? `!${c.foeVar}.status` : `${c.foeVar}.status === '${p.status}'`,
-        es: (c, p) => p.status === 'none' ? `${c.foeVar}.status == :NONE` : `${c.foeVar}.status == :${(STATUSES.find(s => s.id === p.status)?.es || 'BURN')}`
+        label: 'target status is __', params: [condParam('status', 'status', 'brn', [{ value: 'none', label: 'No status' }])],
+        sd: (c, p) => p.status === 'none' ? `!${c.foeVar}.status` : `${c.foeVar}.status === '${conditionSdId('status', p.status)}'`,
+        es: (c, p) => `${c.foeVar}.status == :${p.status === 'none' ? 'NONE' : conditionEsId('status', p.status)}`
     },
     movePowerAtLeast: {
         label: 'move power is at least __', params: [{ key: 'value', type: 'number', default: 60, min: 0, max: 1000 }],
@@ -882,13 +937,13 @@ const ACTIONS = {
     },
     setStatus: {
         label: 'Set status on __ to __', params: [
-            { key: 'status', type: 'select', options: STATUSES.map(s => ({ value: s.id, label: s.label })), default: 'brn' },
+            condParam('status', 'status', 'brn'),
             { key: 'target', type: 'select', options: TARGETS, default: 'foe' }
         ],
-        sd: (c, p) => { const t = p.target === 'foe' ? c.foeVar : c.selfVar; return [`${t}.trySetStatus('${p.status}', ${c.selfVar});`]; },
+        sd: (c, p) => { const t = p.target === 'foe' ? c.foeVar : c.selfVar; return [`${t}.trySetStatus('${conditionSdId('status', p.status)}', ${c.selfVar});`]; },
         es: (c, p) => {
-            const t = p.target === 'foe' ? c.foeVar : c.selfVar; const s = STATUSES.find(x => x.id === p.status);
-            return [`if ${t} && ${t}.status == :NONE`, `  ${t}.status = :${s ? s.es : 'BURN'}`, `  ${t}.statusCount = 0`, `  battle.scene.pbRefreshOne(${t}.index) rescue nil`, 'end'];
+            const t = p.target === 'foe' ? c.foeVar : c.selfVar;
+            return [`if ${t} && ${t}.status == :NONE`, `  ${t}.status = :${conditionEsId('status', p.status)}`, `  ${t}.statusCount = 0`, `  battle.scene.pbRefreshOne(${t}.index) rescue nil`, 'end'];
         }
     },
     cureStatus: {
@@ -897,9 +952,9 @@ const ACTIONS = {
         es: (c, p) => { const t = p.target === 'foe' ? c.foeVar : c.selfVar; return [`${t}.status = :NONE`, `${t}.statusCount = 0`]; }
     },
     setWeather: {
-        label: 'Set the environment to __', params: [{ key: 'weather', type: 'select', options: WEATHERS.map(w => ({ value: w.id, label: w.label })), default: 'Sun' }],
-        sd: (c, p) => { const w = WEATHERS.find(x => x.id === p.weather); return [`this.field.setWeather('${w ? w.sd : 'sunnyday'}');`]; },
-        es: (c, p) => [`battle.pbStartWeather(${c.selfVar}.index, :${p.weather}, false, false)`]
+        label: 'Set the environment to __', params: [condParam('weather', 'weather', 'Sun')],
+        sd: (c, p) => [`this.field.setWeather('${conditionSdId('weather', p.weather)}');`],
+        es: (c, p) => [`battle.pbStartWeather(${c.selfVar}.index, :${conditionEsId('weather', p.weather)}, false, false)`]
     },
     multiplyStat: {
         label: 'Change the current value by factor __', params: [{ key: 'factor', type: 'number', step: 0.1, default: 2 }],
@@ -1014,9 +1069,9 @@ const ACTIONS = {
         es: (c, p) => [`mults[:power_multiplier] *= ${p.factor}`]
     },
     setTerrain: {
-        label: 'Set the terrain to __', params: [{ key: 'terrain', type: 'select', options: TERRAIN, default: 'Electric' }],
-        sd: (c, p) => [`this.field.setTerrain('${String(p.terrain || 'Electric').toLowerCase()}terrain');`],
-        es: (c, p) => [`battle.pbStartTerrain(${c.selfVar}.index, :${p.terrain || 'Electric'}, false)`]
+        label: 'Set the terrain to __', params: [condParam('terrain', 'terrain', 'Electric')],
+        sd: (c, p) => [`this.field.setTerrain('${conditionSdId('terrain', p.terrain || 'Electric')}');`],
+        es: (c, p) => [`battle.pbStartTerrain(${c.selfVar}.index, :${conditionEsId('terrain', p.terrain || 'Electric')}, false)`]
     },
     changeType: {
         label: 'Change type of __ to __', params: [
@@ -1275,7 +1330,7 @@ Object.assign(ACTIONS, {
         {key:'basis',type:'select',options:AMOUNT_BASES,default:'maxhp'}
     ], (c,p)=>{const t=p.target==='foe'?c.foeVar:c.selfVar; return [`this.heal(${amountExpression(t,p,c)}, ${t});`];}),
     setHazard: genericAction('Entry Hazard', 'Set __ on __ side', [{key:'hazard',type:'select',options:HAZARDS,default:'toxicspikes'},{key:'target',type:'select',options:[{value:'self',label:'this side'},{value:'foe',label:'opposing side'}],default:'foe'}], (c,p)=>{const side=p.target==='foe'?`${c.foeVar}.side`:`${c.selfVar}.side`; const h=p.hazard||'toxicspikes'; return [`this.addSideCondition('${h}', ${side});`];}, (c,p)=>[`# Set entry hazard ${p.hazard||'toxicspikes'} on ${p.target||'foe'} side (wire to your Essentials hazard API)`]),
-    inflictStatus: genericAction('Inflict Status', 'Inflict Status __ on __', [{key:'status',type:'select',options:STATUSES.map(s=>({value:s.id,label:s.label})),default:'brn'},{key:'target',type:'select',options:TARGETS,default:'foe'}], (c,p)=>{const t=p.target==='foe'?c.foeVar:c.selfVar; return [`${t}.trySetStatus('${p.status||'brn'}', ${c.selfVar});`];}),
+    inflictStatus: genericAction('Inflict Status', 'Inflict Status __ on __', [condParam('status', 'status', 'brn'),{key:'target',type:'select',options:TARGETS,default:'foe'}], (c,p)=>{const t=p.target==='foe'?c.foeVar:c.selfVar; return [`${t}.trySetStatus('${conditionSdId('status', p.status||'brn')}', ${c.selfVar});`];}),
     changeAbility: genericAction('Change Ability', 'Change Ability of __ to __', [{key:'target',type:'select',options:TARGETS,default:'self'},{key:'ability',type:'text',default:'abilityName'}]),
     changeForm: genericAction('Change Form', 'Change Form of __ to __', [{key:'target',type:'select',options:TARGETS,default:'self'},{key:'form',type:'text',default:'1'}]),
     switchPokemon: genericAction('Switch', 'Switch __', [{key:'target',type:'select',options:TARGETS,default:'self'}]),
@@ -1573,7 +1628,8 @@ const EVENT_GROUP = { label:'Events', color:'gold', items:[
     'beforeMove', 'afterMove', 'damagingHit', 'onContact', 'onFaint', 'onStatus',
     'statModify', 'damageModify', 'accuracyModify', 'statStageIgnore', 'moveImmunity',
     'moveTypeChange', 'moveIncoming', 'drawIn',
-    'moveUsed', 'moveHit'
+    'moveUsed', 'moveHit',
+    'condStart', 'condEachTurn', 'condBeforeMove', 'condMovePower', 'condEnd'
 ] };
 const EVENT_KEYS = new Set(EVENT_GROUP.items);
 
@@ -1593,7 +1649,8 @@ function makeEventBlock(trigger): any {
     const params: Record<string, any> = {}; (def.params || []).forEach(p => params[p.key] = p.default);
     return { id: uid(), kind: 'event', trigger: trigger || 'switchIn', triggerParams: params, body: [] as any[], pos: { x: 24, y: 24 } };
 }
-function normalizeAbilityBlocks(raw) {
+/** `first` is the event an empty program starts with: a condition's is "It starts", not a switch-in. */
+function normalizeAbilityBlocks(raw, first = 'switchIn') {
     const src = raw ? JSON.parse(JSON.stringify(raw)) : null;
     if (src && Array.isArray(src.triggers)) {
         src.triggers = src.triggers.filter(e => e && TRIGGERS[e.trigger]).map((e,i) => {
@@ -1602,11 +1659,11 @@ function normalizeAbilityBlocks(raw) {
             e.pos = e.pos || { x: 24 + (i%3)*360, y: 24 + Math.floor(i/3)*260 };
             return e;
         });
-        if (!src.triggers.length) src.triggers = [makeEventBlock('switchIn')];
+        if (!src.triggers.length) src.triggers = [makeEventBlock(first)];
         src.loose = Array.isArray(src.loose) ? src.loose : [];
         return src;
     }
-    const key = src?.trigger && TRIGGERS[src.trigger] ? src.trigger : 'switchIn';
+    const key = src?.trigger && TRIGGERS[src.trigger] ? src.trigger : first;
     const ev = makeEventBlock(key);
     ev.body = Array.isArray(src?.body) ? src.body : [];
     ev.triggerParams = src?.triggerParams || ev.triggerParams;
@@ -1830,6 +1887,60 @@ function buildShowdownItemsFile(fakemonList) {
     return `// Made with Woogidex! Custom item logic from the item editor.\n// Drop this into data/mods/<modname>/items.ts alongside pokedex.ts.\n// This is a strong starting point - read it over before using it live.\nexport const Items: {[k: string]: Partial<import('../../../../sim/dex-items').ItemData>} = {\n${entries.join('\n')}\n};\n`;
 }
 
+// ==================== custom conditions as a mod file ====================
+// A condition's blocks compile with the same backend as an ability's; only
+// the handler names differ (status vs field), read from this while it runs.
+let compilingCondition: ConditionKind = 'status';
+const CONDITION_EFFECT = { status: 'Status', weather: 'Weather', terrain: 'Terrain' };
+
+function compileShowdownCondition(entry) {
+    if (!entry || !isConditionKind(entry.kind)) return null;
+    const kind: ConditionKind = entry.kind;
+    const vanilla = entry.vanillaOf ? VANILLA_CONDITIONS[kind].find(v => v.id === entry.vanillaOf) : null;
+    const id = vanilla ? vanilla.sd : conditionSdId(kind, `c:${entry.name}`);
+    if (!id) return null;
+    const esc = (v) => String(v || '').replace(/\\/g, '\\\\').replace(/"/g, '\\"');
+    compilingCondition = kind;
+    const handlers: string[] = [];
+    try {
+        const events = getAbilityEvents(entry.blocks);
+        const groups = new Map();
+        const extraHandlers: any[] = [];
+        events.forEach(ev => {
+            const def = TRIGGERS[ev.trigger]; if (!def) return;
+            const t = def.sd(ev); const ctx = { selfVar: t.selfVar, foeVar: t.foeVar, moveVar: t.moveVar, extraHandlers };
+            const body = compileBody(ev.body || [], ctx, 'sd', 3);
+            const key = `${t.header}|||${t.footer}`;
+            if (!groups.has(key)) groups.set(key, { t, bodies: [] as any[] });
+            groups.get(key).bodies.push(...body);
+            if (t.preamble) groups.get(key).preamble = t.preamble;
+        });
+        for (const { t, bodies, preamble } of groups.values()) {
+            const pre = preamble ? `\t\t\t${preamble}\n` : '';
+            handlers.push(`\t\t${t.header}\n${pre}${bodies.length ? bodies.join('\n') : '\t\t\t// (empty event)'}\n\t\t${t.footer}`);
+        }
+        handlers.push(...extraHandlers.filter(Boolean));
+        // a terrain's each-turn handler only runs when the turn's end asks every Pokémon
+        if (kind === 'terrain' && events.some(ev => ev.trigger === 'condEachTurn')) handlers.push(`\t\tonResidualOrder: 5,\n\t\tonResidual() {\n\t\t\tthis.eachEvent('Terrain');\n\t\t}`);
+    } finally { compilingCondition = 'status'; }
+    const written = showdownSourceFromRaw(entry.rawCode);
+    if (written) handlers.push(written);
+    const duration = Number(entry.duration) || 0;
+    const fields = vanilla
+        ? ['\t\tinherit: true,']
+        : [`\t\tname: "${esc(entry.name)}",`, `\t\teffectType: '${CONDITION_EFFECT[kind]}',`, ...(entry.desc ? [`\t\t// ${String(entry.desc).replace(/\s+/g, ' ').slice(0, 200)}`] : [])];
+    if (duration) fields.push(`\t\tduration: ${duration},`);
+    const body = [...fields, ...(handlers.length ? [handlers.join(',\n\n') + ','] : [])].join('\n');
+    return `\t${id}: {\n${body}\n\t},`;
+}
+
+/** data/mods/<mod>/conditions.ts for the conditions the export covers, or null when there are none. */
+function buildShowdownConditionsFile(regionId: string | null = null) {
+    const entries = conditionsForExport(regionId).map(compileShowdownCondition).filter(Boolean);
+    if (!entries.length) return null;
+    return `// Made with Woogidex! Your status conditions, weather and terrains.\n// Drop this into data/mods/<modname>/conditions.ts alongside pokedex.ts.\n// Weather and terrains also need a move or ability that sets them.\n// This is a strong starting point - read it over before using it live.\nexport const Conditions: {[k: string]: ModdedConditionData} = {\n${entries.join('\n')}\n};\n`;
+}
+
 function compileEssentialsAbility(ability) {
     const ast = ability && ability.blocks; const events = getAbilityEvents(ast);
     if (!events.length) return null;
@@ -1931,7 +2042,7 @@ let abAbilityId: any = null;   // library entry id currently being edited
 // Which library that id lives in. The whiteboard, the AST format, the
 // interpreter and both codegen backends are identical for all three; only the
 // list the entry is saved back into and the events on offer differ.
-let abKind: 'ability' | 'move' | 'item' = 'ability';
+let abKind: 'ability' | 'move' | 'item' | 'condition' = 'ability';
 let abContainerRegistry: Record<string, any> = {};
 let abDragId: any = null;
 let abDragGrabOffset: any = null; // where the cursor grabbed the currently-dragged block, relative to its top-left
@@ -1956,7 +2067,9 @@ function normalizeAbilityIfBranches(list) {
 const AB_KINDS = {
     ability: { list: () => state.customAbilities, noun: 'ability', Noun: 'Ability' },
     move:    { list: () => state.customMoves,     noun: 'move',    Noun: 'Move' },
-    item:    { list: () => state.customItems,     noun: 'item',    Noun: 'Item' }
+    item:    { list: () => state.customItems,     noun: 'item',    Noun: 'Item' },
+    // conditions live in state.folders (js/features/custom-conditions.ts)
+    condition: { list: () => (state.folders || []).filter((f: any) => f?.type === CONDITION_KIND), noun: 'condition', Noun: 'Condition' }
 };
 function abKindInfo(kind = abKind) { return AB_KINDS[kind] || AB_KINDS.ability; }
 function abEntry(id = abAbilityId, kind = abKind) {
@@ -1966,18 +2079,18 @@ function abEntry(id = abAbilityId, kind = abKind) {
 function openMoveBlockEditor(id) { openAbilityBlockEditor(id, 'move'); }
 function openItemBlockEditor(id) { openAbilityBlockEditor(id, 'item'); }
 
-function openAbilityBlockEditor(customAbilityId, kind: 'ability' | 'move' | 'item' = 'ability') {
+function openAbilityBlockEditor(customAbilityId, kind: 'ability' | 'move' | 'item' | 'condition' = 'ability') {
     const info = abKindInfo(kind);
     if (!customAbilityId) { api.showToast(`Save the ${info.noun} first, then add its battle code.`, 'info'); return; }
     const ability = (info.list() || []).find(a => a.id === customAbilityId);
     if (!ability) { api.showToast(`Could not find that ${info.noun}.`, 'error'); return; }
     abKind = kind;
     abAbilityId = customAbilityId;
-    abState = normalizeAbilityBlocks(ability.blocks);
+    abState = normalizeAbilityBlocks(ability.blocks, kind === 'condition' ? 'condStart' : 'switchIn');
     getAbilityRootEvents().forEach(ev => normalizeAbilityIfBranches(ev.body));
     abPreviewTab = 'sd';
 
-    ['custom-ability', 'custom-move', 'custom-item', 'custom-entity-chooser'].forEach(closeDialog);
+    ['custom-ability', 'custom-move', 'custom-item', 'custom-condition', 'custom-entity-chooser'].forEach(closeDialog);
     const editorView = document.getElementById('editor-view');
     abPrevViewId = editorView && editorView.style.display !== 'none' ? 'editor-view' : 'collection-view';
     // Entering the ability editor is itself a top-level navigation transition,
@@ -2021,6 +2134,7 @@ function closeAbilityBlockEditor() {
     if (abAbilityId) {
         if (abKind === 'move') api.openCustomMoveLibraryModal?.(abAbilityId);
         else if (abKind === 'item') api.openCustomItemModal?.(abAbilityId);
+        else if (abKind === 'condition') api.openCustomConditionEditor?.(abAbilityId);
         else api.openCustomAbilityLibraryModal?.(abAbilityId);
     }
     abState = null; abAbilityId = null; abKind = 'ability'; abContainerRegistry = {}; abPrevViewId = null;
@@ -2030,8 +2144,8 @@ function saveAbilityBlockEditor() {
     if (!abState || !abAbilityId) return;
     const entry = abEntry();
     if (!entry) return;
-    entry.blocks = JSON.parse(JSON.stringify(normalizeAbilityBlocks(abState)));
-    api.settleVanillaCopy?.({ move: 'moves', item: 'items' }[abKind] || 'abilities', entry);
+    entry.blocks = JSON.parse(JSON.stringify(normalizeAbilityBlocks(abState, abKind === 'condition' ? 'condStart' : 'switchIn')));
+    if (abKind !== 'condition') api.settleVanillaCopy?.({ move: 'moves', item: 'items' }[abKind] || 'abilities', entry);
     api.saveToStorage?.();
     api.showToast?.(`${abKindInfo().Noun} battle code saved!`, 'success');
     closeAbilityBlockEditor();
@@ -2402,7 +2516,9 @@ const BOARD_TABLES = {
     // board asks rather than being handed a fixed list.
     resolveOptions: (pdef, values) => pdef.dynamic === 'volatile-property'
         ? volatilePropertyOptions(values.effect || values.volatile || 'stockpile')
-        : (pdef.options || [])
+        : String(pdef.dynamic || '').startsWith('condition:')
+            ? [...conditionOptions(pdef.dynamic.slice(10) as ConditionKind), ...(pdef.extra || [])]
+            : (pdef.options || [])
 };
 
 function addAbilityEvent(trigger) {
@@ -2555,7 +2671,7 @@ function abilityBlockPreview() {
     const libAbility = abEntry();
     const previewAbility = { name: libAbility?.name || `Custom${abKindInfo().Noun}`, desc: libAbility?.desc || '', blocks: abState };
     let sd, es;
-    try { sd = compileShowdownAbility(previewAbility) || '// Add some blocks to see generated code.'; }
+    try { sd = (abKind === 'condition' ? compileShowdownCondition({ ...libAbility, blocks: abState }) : compileShowdownAbility(previewAbility)) || '// Add some blocks to see generated code.'; }
     catch (e: any) { sd = '// Could not generate preview: ' + e.message; }
     try { es = compileEssentialsAbility(previewAbility) || '# Add some blocks to see generated code.'; }
     catch (e: any) { es = '# Could not generate preview: ' + e.message; }
@@ -2565,7 +2681,7 @@ function abilityBlockPreview() {
 /**
  * Everything the block editor page shows, or null when nothing is open.
  */
-function abilityBlockView(): null | { kind: 'ability'|'move'|'item', Noun: string, name: string, events: any[], loose: any[], tables: any, previewTab: 'sd'|'es', sd: string, es: string } {
+function abilityBlockView(): null | { kind: 'ability'|'move'|'item'|'condition', Noun: string, name: string, events: any[], loose: any[], tables: any, previewTab: 'sd'|'es', sd: string, es: string } {
     if (!abState) return null;
     const info = abKindInfo();
     return {
@@ -2594,7 +2710,7 @@ export {
     abilityBlockView, updateAbilityEventParam,
     handleConnectionDragOver, handleConnectionDragLeave, handleConnectionDrop,
     handleBlockConnectionDragStart, handleBlockConnectionDragEnd, addAbilityEvent,
-    openAbilityBlockEditor, openMoveBlockEditor, openItemBlockEditor, closeAbilityBlockEditor, onTopLevelNavigation, hideAbilityBlockEditorForNavigation, saveAbilityBlockEditor,
+    openAbilityBlockEditor, openMoveBlockEditor, openItemBlockEditor, compileShowdownCondition, buildShowdownConditionsFile, closeAbilityBlockEditor, onTopLevelNavigation, hideAbilityBlockEditorForNavigation, saveAbilityBlockEditor,
     setAbilityBlockTrigger, updateAbilityTriggerParam,
     addAbilityBlock, removeAbilityBlock, moveAbilityBlock,
     updateAbilityBlockParam, updateAbilityIfCondition, updateAbilityIfCondParam,

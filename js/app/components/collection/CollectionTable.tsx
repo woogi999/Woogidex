@@ -51,6 +51,10 @@ export const COLUMNS: Record<CollectionTab, Column[]> = {
     types: [
         { label: '', cls: 'col-icon' }, { label: 'Name', cls: 'col-name' }, { label: 'Strong vs', cls: 'col-stat' },
         { label: 'Weak to', cls: 'col-stat' }, { label: 'Fakémon', cls: 'col-stat' }, { label: 'Description', cls: 'col-desc' }
+    ],
+    conditions: [
+        { label: '', cls: 'col-icon' }, { label: 'Name', cls: 'col-name' }, { label: 'Lasts', cls: 'col-stat' },
+        { label: 'Fakémon', cls: 'col-stat' }, { label: 'Description', cls: 'col-desc' }
     ]
 };
 

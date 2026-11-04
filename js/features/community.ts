@@ -1044,10 +1044,13 @@ function withAbilityPrograms(mon) {
     // custom types travel the same way: the viewer's collection doesn't have
     // them, and without them the post's pills were grey and its chart neutral
     const customTypes = api.typesForPublishing?.([mon]) || [];
+    // and the custom status conditions, weather and terrains its code sets or checks
+    const customConditions = api.conditionsForPublishing?.([mon]) || [];
     return {
         ...mon,
         ...(customAbilities.length ? { customAbilities } : {}),
-        ...(customTypes.length ? { customTypes } : {})
+        ...(customTypes.length ? { customTypes } : {}),
+        ...(customConditions.length ? { customConditions } : {})
     };
 }
 
@@ -1269,6 +1272,8 @@ async function renderCommunityPreviewBoard(mon, row) {
     // network, and it is the only place masked artwork is turned back.
     // the post's own custom types, so its weakness chart and pills are right
     api.setVisitingTypes?.([...(row?.fakemon_data?.customTypes || []), ...(mon?.customTypes || [])]);
+    // ...and its custom conditions, for the list under its board
+    api.setVisitingConditions?.(mon?.customConditions || row?.fakemon_data?.customConditions || []);
     api.loadFakemonIntoEditor({
         ...mon,
         artwork: await artworkDataUri(mon.artwork),

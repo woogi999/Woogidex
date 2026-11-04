@@ -726,7 +726,7 @@ const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 8640000
         }
 
         function setCollectionView(view) {
-            const newView = ['fakemon', 'moves', 'abilities', 'items', 'types'].includes(view) ? view : 'fakemon';
+            const newView = ['fakemon', 'moves', 'abilities', 'items', 'types', 'conditions'].includes(view) ? view : 'fakemon';
             // choosing a tab leaves a region's details page
             if (api.isRegionDetailsOpen?.()) api.closeRegionDetails?.();
             if (newView !== collectionView) {
@@ -802,6 +802,7 @@ const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 8640000
             else if (kind === 'abilities') api.openCustomAbilityLibraryModal?.(id, { sheet: true });
             else if (kind === 'items') api.openCustomItemModal?.(id, null, { sheet: true });
             else if (kind === 'types') api.openCustomTypeEditor?.(id);
+            else if (kind === 'conditions') api.openCustomConditionEditor?.(id);
         }
 
         // Several independent things ask for a redraw in the same tick on boot and

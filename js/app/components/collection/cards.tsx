@@ -366,7 +366,8 @@ export const ADD_NEW: Record<CollectionTab, [string, () => void]> = {
     moves: ['move', () => api.openLibraryEditorSheet('moves')],
     abilities: ['ability', () => api.openLibraryEditorSheet('abilities')],
     items: ['item', () => api.openLibraryEditorSheet('items')],
-    types: ['type', () => api.openLibraryEditorSheet('types')]
+    types: ['type', () => api.openLibraryEditorSheet('types')],
+    conditions: ['condition', () => api.openLibraryEditorSheet('conditions')]
 };
 
 /** "Add new ...": the same action as the Create menu's matching item. */

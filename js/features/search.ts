@@ -169,7 +169,7 @@ export function libraryResults(query: string, limit: number): SearchResult[] {
         }
     }
     for (const folder of state.folders || []) {
-        if (folder.type === 'region' || folder.type === 'custom-type') continue;
+        if (folder.type === 'region' || folder.type === 'custom-type' || folder.type === 'custom-condition') continue;
         const kind = folder.type || 'fakemon';
         rows.push({
             title: folder.name || 'Folder',

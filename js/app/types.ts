@@ -84,10 +84,10 @@ export interface CustomAbility extends Filed { id: Id; name: string; desc?: stri
 export interface CustomItem extends Filed { id: Id; name: string; desc?: string; artwork?: string | null; isMegaStone?: boolean; [extra: string]: any; }
 
 export type LibraryKind = 'moves' | 'abilities' | 'items';
-export type CollectionTab = 'fakemon' | LibraryKind | 'types';
+export type CollectionTab = 'fakemon' | LibraryKind | 'types' | 'conditions';
 
 /** An ordinary folder: `type` is the collection tab it belongs to (older ones have none: Fakémon). */
-export interface Folder extends Filed { id: Id; name: string; type?: 'fakemon' | LibraryKind | 'types'; color?: string | null; [extra: string]: any; }
+export interface Folder extends Filed { id: Id; name: string; type?: 'fakemon' | LibraryKind | 'types' | 'conditions'; color?: string | null; [extra: string]: any; }
 
 export interface VanillaPool { mode: string; ids: string[]; }
 export interface Region {
@@ -99,9 +99,11 @@ export interface Region {
     [extra: string]: any;
 }
 export interface CustomType extends Filed { id: Id; type: 'custom-type'; name: string; color?: string; gradient?: any; [extra: string]: any; }
+/** A status condition, weather or terrain you made (js/features/custom-conditions.ts). */
+export interface CustomCondition extends Filed { id: Id; type: 'custom-condition'; kind: 'status' | 'weather' | 'terrain'; name: string; color?: string; [extra: string]: any; }
 
-/** state.folders holds all three, told apart by `type`. */
-export type FolderEntry = Folder | Region | CustomType;
+/** state.folders holds all four, told apart by `type`. */
+export type FolderEntry = Folder | Region | CustomType | CustomCondition;
 
 export interface User {
     id: Id;

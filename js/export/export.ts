@@ -166,6 +166,15 @@ import { cleanArtSets } from '../editor/art-sets.ts';
                     return true;
                 }
 
+                if (parsed && typeof parsed === 'object' && parsed.format === 'woogidex-custom-condition') {
+                    const entry = api.importConditionEntry(parsed.item);
+                    if (!entry) { api.showToast('That condition file is not one Woogidex can read.', 'error'); return false; }
+                    await api.saveToStorage();
+                    api.renderCollection();
+                    api.showToast(`Imported "${entry.name}"!`, 'success');
+                    return true;
+                }
+
                 const isBundle = parsed && typeof parsed === 'object' && parsed.format === 'woogidex-collection';
                 let incomingSource = parsed;
                 let importedMoves = isBundle && Array.isArray(parsed.customMoves) ? parsed.customMoves : [];

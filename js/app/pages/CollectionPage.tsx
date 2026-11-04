@@ -16,6 +16,7 @@ import {
     AddCard, FakemonCard, FolderCard, LibraryCard, SkeletonCard, VanillaLibraryCard, VanillaMoreCard, VanillaPokemonCard
 } from '../components/collection/cards.tsx';
 import { TypeCards, TypesAfter } from '../components/collection/TypesTab.tsx';
+import { ConditionsGrid } from '../components/collection/ConditionsTab.tsx';
 import { RegionDetails } from '../components/collection/RegionDetails.tsx';
 import { RegionAnalytics } from '../components/collection/RegionAnalytics.tsx';
 import { useStore } from '../store.ts';
@@ -29,13 +30,14 @@ import {
 type Layout = 'grid' | 'table';
 import '../dialogs/collection.tsx';
 import '../dialogs/customType.tsx';
+import '../dialogs/customCondition.tsx';
 import '../dialogs/newFakemon.tsx';
 import { openBulkPaste, openQuickAdd } from '../dialogs/notebook.tsx';
 
-const TABS: Array<[CollectionTab, string]> = [['fakemon', 'Fakémon'], ['moves', 'Moves'], ['abilities', 'Abilities'], ['items', 'Items'], ['types', 'Types']];
+const TABS: Array<[CollectionTab, string]> = [['fakemon', 'Fakémon'], ['moves', 'Moves'], ['abilities', 'Abilities'], ['items', 'Items'], ['types', 'Types'], ['conditions', 'Conditions']];
 const SEARCH_PLACEHOLDER: Record<CollectionTab, string> = {
     fakemon: 'Search your Fakemon...', moves: 'Search your custom moves...', abilities: 'Search your custom abilities...',
-    items: 'Search your custom items...', types: 'Search your custom types...'
+    items: 'Search your custom items...', types: 'Search your custom types...', conditions: 'Search your conditions...'
 };
 
 const PAGE_ORDER = ['grid', 'details', 'analytics'];
@@ -87,7 +89,7 @@ export function CollectionPage() {
             </div>
             {ui.view === 'fakemon' && ui.ready && <TagBar search={ui.search} />}
             <TabStage view={ui.view}>
-                {!ui.ready ? <SkeletonGrid /> : ui.view === 'types' ? <TypesGrid layout={ui.layout} search={ui.search} /> : <Grid layout={ui.layout} />}
+                {!ui.ready ? <SkeletonGrid /> : ui.view === 'types' ? <TypesGrid layout={ui.layout} search={ui.search} /> : ui.view === 'conditions' ? <ConditionsGrid layout={ui.layout} search={ui.search} /> : <Grid layout={ui.layout} />}
             </TabStage>
         </div>
     );
@@ -111,6 +113,7 @@ const CREATE: Array<[string, string, () => void]> = [
     ['Custom ability', 'sparkles', () => api.openLibraryEditorSheet('abilities')],
     ['Custom item', 'gem', () => api.openLibraryEditorSheet('items')],
     ['Custom type', 'swatch', () => api.openLibraryEditorSheet('types')],
+    ['Custom condition', 'beaker', () => api.openLibraryEditorSheet('conditions')],
     ['Region', 'map', () => api.createRegion()]
 ];
 

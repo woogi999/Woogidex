@@ -33,6 +33,7 @@ import { closeHeaderProfilePopover, toggleHeaderProfilePopover } from '../app/sh
 import * as regions from '../features/regions.ts';
 import * as notebook from '../features/notebook.ts';
 import * as customTypes from '../features/custom-types.ts';
+import * as customConditions from '../features/custom-conditions.ts';
 import * as entityArt from '../editor/entity-art.ts';
 import * as moveInheritance from '../features/move-inheritance.ts';
 import { maybeShowOriginNotice } from './dev-notice.ts';
@@ -322,7 +323,7 @@ function activateTopLevelView(viewId, options: Record<string, any> = {}) {
     if (leavingBattle) api.onBattleViewLeave?.();
 
     // a community post's borrowed custom types only apply while it's open
-    if (viewId !== 'community-detail-view') api.setVisitingTypes?.([]);
+    if (viewId !== 'community-detail-view') { api.setVisitingTypes?.([]); api.setVisitingConditions?.([]); }
 
     // a library editor panel belongs to My Collection; leaving closes it
     document.querySelectorAll('.modal-overlay.as-sheet.active').forEach(el => el.classList.remove('active'));
@@ -390,7 +391,7 @@ const battleStubs = {
     onBattleViewLeave: (...args: any[]) => { battleModule?.then(m => m.onBattleViewLeave?.(...args)); }
 };
 
-Object.assign(api, data, editor, sampleSets, editorCore, pokedex, storage, exporter, showdownExport, essentialsExport, evolution, analysis, battleStubs, abilityBlocks, nameRoll, fieldRoll, protect, router, recovery, regions, notebook, customTypes, entityArt, moveInheritance, settingsApi, {
+Object.assign(api, data, editor, sampleSets, editorCore, pokedex, storage, exporter, showdownExport, essentialsExport, evolution, analysis, battleStubs, abilityBlocks, nameRoll, fieldRoll, protect, router, recovery, regions, notebook, customTypes, customConditions, entityArt, moveInheritance, settingsApi, {
     loadDarkMode, toggleDarkMode, updateDarkModeUI, openSettings, isDarkModeEnabled,
     setRoute, setPageTitle, setShareMeta, setRobots, setCanonical, showNotFound, showLanding, activateTopLevelView,
     updateSettingsUI, loadSettings, showToast, closeHeaderProfilePopover, toggleHeaderProfilePopover

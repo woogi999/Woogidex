@@ -19,7 +19,7 @@ function PaletteButton({ className, label, onDragStart, onClick }: {
 }
 
 /** tables carries TRIGGERS / ACTIONS / BLOCK_GROUPS / EVENT_GROUP. */
-export function AbilityPalette({ kind, tables }: { kind: 'ability' | 'move' | 'item'; tables: any }) {
+export function AbilityPalette({ kind, tables }: { kind: 'ability' | 'move' | 'item' | 'condition'; tables: any }) {
     const { events, groups } = buildPaletteModel(tables, kind);
     return (
         <>

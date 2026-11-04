@@ -15,6 +15,7 @@ import { TypeBadges } from '../components/profile.tsx';
 import { useStore } from '../store.ts';
 import { ModButton } from '../components/ModButton.tsx';
 import { openCommentControls, openReportDialog } from '../../features/safety.ts';
+import { CONDITION_ICON, CONDITION_KINDS, visitingConditions, type ConditionKind } from '../../features/custom-conditions.ts';
 
 const STAT_LABELS: Array<[string, string]> = [['hp', 'HP'], ['atk', 'Attack'], ['def', 'Defense'], ['spa', 'Sp. Atk'], ['spd', 'Sp. Def'], ['spe', 'Speed']];
 
@@ -151,6 +152,7 @@ export function CommunityDetailPage() {
                         onToggleShiny={() => api.togglePreviewArtworkMode()} />
                 )}
             </div>
+            {row && cs.boardFor === row.id && <PostConditions />}
 
             <div className="section-divider" />
             <h4 className="mon-detail-comments-heading">Comments</h4>
@@ -166,5 +168,25 @@ export function CommunityDetailPage() {
                 )}
             </div>
         </div>
+    );
+}
+
+/** The custom status conditions, weather and terrains the post's moves and abilities use (js/features/custom-conditions.ts). */
+function PostConditions() {
+    const list: any[] = visitingConditions();
+    if (!list.length) return null;
+    return (
+        <section className="post-conditions" aria-labelledby="post-conditions-title">
+            <h4 id="post-conditions-title">Custom conditions</h4>
+            <ul>
+                {list.map(c => (
+                    <li key={`${c.kind}:${c.name}`}>
+                        <span className="cond-chip" style={{ background: c.color }}><Icon name={CONDITION_ICON[c.kind as ConditionKind]} size={12} />{c.name}</span>
+                        <span className="post-conditions-kind">{CONDITION_KINDS.find(k => k[0] === c.kind)?.[2]}{c.duration ? ` · ${c.duration} turns` : ''}</span>
+                        {c.desc && <p>{c.desc}</p>}
+                    </li>
+                ))}
+            </ul>
+        </section>
     );
 }

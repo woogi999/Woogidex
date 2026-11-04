@@ -20,7 +20,7 @@ export type PaletteGroup = { label: string; color: string; items: PaletteItem[] 
  * @param {object} tables.EVENT_GROUP
  * @param kind what is being coded
  */
-export function buildPaletteModel({ TRIGGERS, ACTIONS, BLOCK_GROUPS, EVENT_GROUP }: { TRIGGERS?: any; ACTIONS?: any; BLOCK_GROUPS?: any; EVENT_GROUP?: any }, kind: 'ability'|'move'|'item'): {events: PaletteEvent[], groups: PaletteGroup[]} {
+export function buildPaletteModel({ TRIGGERS, ACTIONS, BLOCK_GROUPS, EVENT_GROUP }: { TRIGGERS?: any; ACTIONS?: any; BLOCK_GROUPS?: any; EVENT_GROUP?: any }, kind: 'ability'|'move'|'item'|'condition'): {events: PaletteEvent[], groups: PaletteGroup[]} {
     const events = (EVENT_GROUP?.items || [])
         .filter(key => {
             const t = TRIGGERS?.[key];
