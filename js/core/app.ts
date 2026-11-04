@@ -600,7 +600,7 @@ api.openPath = openPath;
 // Ctrl+click and middle click open a new tab). A plain click stays in the
 // page: it is routed here instead of reloading the site. A link with a
 // target, a download, or a destination the app does not own (another site,
-// admin.html, a file) is left to the browser.
+// a file) is left to the browser.
 document.addEventListener('click', (event) => {
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     const a = (event.target as Element | null)?.closest?.('a[href]') as HTMLAnchorElement | null;

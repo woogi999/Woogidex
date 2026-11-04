@@ -3,7 +3,7 @@
 // for. Loaded on demand, for staff only.
 //
 // Every action here calls the same admin_* database function the staff panel
-// (admin.html) does. Those check the caller's permission and rank themselves
+// (console.woogidex.com, the Woogidex-Console repo) does. Those check the caller's permission and rank themselves
 // and record the action in the moderation log; what this file shows or hides
 // is a courtesy, not the control.
 
@@ -159,7 +159,7 @@ function ModMenu({ close, target, at }: DialogProps<{ target: ModTarget; at: { x
                 {onUser.length > 0 && <div className="mod-menu-group">{onUser.map(item)}</div>}
                 <div className="mod-menu-group">
                     <Link role="menuitem" to={`profile/${target.userId}`} onClick={close}><Icon name="user" size={14} /> Open profile</Link>
-                    <a role="menuitem" href="admin.html" target="_blank" rel="noopener"><Icon name="external-link" size={14} /> Staff panel</a>
+                    <a role="menuitem" href="https://console.woogidex.com" target="_blank" rel="noopener"><Icon name="external-link" size={14} /> Staff console</a>
                 </div>
             </div>
         </div>

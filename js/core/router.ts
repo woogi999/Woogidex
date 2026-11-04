@@ -68,7 +68,7 @@ export function routeHref(path: string): string {
 /**
  * The route path ('community/12', 'search?q=x', '' for the root) that a link
  * points at, or null when the app does not own it: another site, a file
- * (admin.html, an asset), or a path no route claims.
+ * (an asset), or a path no route claims.
  */
 export function appPathOf(href: string): string | null {
     let url: URL;

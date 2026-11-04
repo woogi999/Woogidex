@@ -48,9 +48,9 @@ function fallback404() {
 // build to keep an offline copy, so it is written here rather than copied from
 // public/. Precached: the page, every chunk the app can run offline, and the
 // small pictures the collection draws. Left out (fetched and kept on first use
-// instead, so a cheap phone doesn't download them up front): the admin panel,
-// and Battle (its page, engine and 3D renderer), which only works online anyway.
-const SW_SKIP = /^(admin|three\.module|battle-ui|BattlePage)-/;
+// instead, so a cheap phone doesn't download them up front): Battle (its
+// page, engine and 3D renderer), which only works online anyway.
+const SW_SKIP = /^(three\.module|battle-ui|BattlePage)-/;
 const SW_PUBLIC = ['assets/favicon.png', 'assets/no_art_placeholder.png', 'assets/woogidex_logo.png'];
 
 function serviceWorker() {

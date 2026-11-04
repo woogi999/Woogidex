@@ -69,7 +69,7 @@ It's not perfect, but it's a genuinely useful starting point.
 | `js/export/` | PNG, Showdown, Essentials and ZIP export |
 | `js/features/` | Pokédex data, analysis, evolution, regions, accounts, the Community Hub, messages, events |
 | `js/app/` | The React pages, components and dialogs |
-| `js/admin/`, `admin.html` | The staff panel |
+| `js/mod/` | Staff tools on the site itself (the shield menu). The staff console is its own private repo, Woogidex-Console, at console.woogidex.com |
 | `css/` | Stylesheets. The order in `index.html` matters |
 | `public/` | Pictures, type icons and emojis, copied into the build as they are |
 | `scripts/` | Dev helpers: `site.mjs`, `mock-backend.mjs`, `local-db.mjs`, `sync.mjs`, `git-all.mjs` |

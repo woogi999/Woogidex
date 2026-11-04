@@ -1298,14 +1298,9 @@ async function removeAccountEmail(): Promise<boolean> {
     return true;
 }
 
-// The header's account button and menu are js/app/shell/HeaderAccount.tsx.
-// admin.html still has its own signed-in/out widgets, filled in here.
+// The header's account button and menu are js/app/shell/HeaderAccount.tsx;
+// this tells everything that depends on who is signed in.
 function updateAuthUI() {
-    const signedOutEl = document.getElementById('auth-signed-out');
-    const signedInEl = document.getElementById('auth-signed-in');
-    const nameEl = document.getElementById('auth-user-name');
-    const avatarImg = document.getElementById('auth-avatar-img') as HTMLImageElement | null;
-    const avatarFallback = document.getElementById('auth-avatar-fallback');
     api.refreshNotifications?.();
     // who you follow, and your chats' keys and unread count, belong to whoever is signed in
     api.onSocialAuthChange?.();
@@ -1317,21 +1312,6 @@ function updateAuthUI() {
     api.refreshCloudManifest?.();
     if (!state.user) api.closeHeaderProfilePopover?.();
     notify();
-    if (signedOutEl) signedOutEl.style.display = state.user ? 'none' : 'flex';
-    if (signedInEl) signedInEl.style.display = state.user ? 'flex' : 'none';
-    if (!state.user) return;
-    if (nameEl) nameEl.textContent = publicName(state.user);
-    if (avatarImg && avatarFallback) {
-        if (state.user.avatarUrl) {
-            avatarImg.src = state.user.avatarUrl;
-            avatarImg.style.display = 'block';
-            avatarFallback.style.display = 'none';
-        } else {
-            avatarImg.style.display = 'none';
-            avatarFallback.style.display = 'flex';
-            avatarFallback.textContent = publicName(state.user).charAt(0).toUpperCase();
-        }
-    }
 }
 
 // ==================== first-run setup ====================

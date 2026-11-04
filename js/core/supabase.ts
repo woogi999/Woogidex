@@ -1,4 +1,5 @@
-// Leaf module (no imports) so admin.html and the main site can share one copy
+// Leaf module (no imports) so the site and the ops site (Woogidex-Console, which
+// imports it from this repo) share one copy
 // instead of duplicating the project URL/key across files.
 // The anon/publishable key is public by design; access is enforced by RLS server-side.
 export const SUPABASE_PROJECT_URL = 'https://qstbascfeolkyxtrqqwv.supabase.co';
@@ -9,7 +10,7 @@ export const SUPABASE_ANON_KEY = 'sb_publishable_B4jEJ--w0XFsgXDmQeJREA_xH1GRBsf
 // Anywhere else (the dev server, a local preview) it is /sb on the page's own
 // origin, proxied by vite.config.js. /sb also stays on the live hosts: saved
 // avatar addresses use it.
-const LIVE_HOSTS = ['woogidex.com', 'dex.woogi.xyz'];
+const LIVE_HOSTS = ['woogidex.com', 'dex.woogi.xyz', 'console.woogidex.com'];
 const pageHost = typeof window !== 'undefined' ? window.location.hostname : '';
 export const API_ORIGIN = LIVE_HOSTS.includes(pageHost) ? 'https://api.woogidex.com' : '';
 

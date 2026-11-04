@@ -201,7 +201,7 @@ function canDeleteAnyContent(role) {
     return !!ROLES[role]?.canDeleteAny;
 }
 
-// Drawn by js/app/components/Badge.tsx (and js/admin/ui.tsx on the staff page).
+// Drawn by js/app/components/Badge.tsx (and by the staff console, Woogidex-Console).
 // icon is a Heroicon name (solid); image, when a badge has one, is a 64x64 PNG
 // data URI uploaded in the staff panel and drawn instead of the icon.
 const BADGES = {

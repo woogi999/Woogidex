@@ -2,8 +2,7 @@
 // The account menu's "Feedback & bug reports" dialog. Sending needs an
 // account: reports go in public.feedback as the signed-in user (RLS), which
 // is also what lets "My reports" show the status and staff reply for each one.
-// Staff read and answer them in the Feedback tab of admin.html
-// (js/admin/FeedbackTab.tsx). The dialog is js/app/dialogs/feedback.tsx.
+// Staff read and answer them on the staff console (console.woogidex.com, Feedback). The dialog is js/app/dialogs/feedback.tsx.
 
 import { state, api } from '../core/app.ts';
 import { log } from '../core/log.ts';

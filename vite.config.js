@@ -1,6 +1,5 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
-import { resolve } from 'path';
 import { woogidexConfig } from './vite.shared.js';
 
 // The Woogidex site. See vite.shared.js for the build itself.
@@ -8,7 +7,6 @@ import { woogidexConfig } from './vite.shared.js';
 const config = woogidexConfig({
     react,
     loadEnv,
-    inputs: { admin: resolve(import.meta.dirname, 'admin.html') },
     // /sb is the same-origin Supabase proxy (the Worker, in Woogidex-DB);
     // the dev server stands in for it locally. scripts/site.mjs sets
     // WOOGIDEX_SUPABASE to point it at the mock backend or another project.
