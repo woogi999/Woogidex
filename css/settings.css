@@ -432,3 +432,17 @@ label.st-row:hover { background: color-mix(in srgb, var(--bg-panel) 60%, var(--b
 .st-phone-tab-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: var(--bg-panel); color: var(--text-secondary); }
 .st-phone-tab.is-locked .st-switch { opacity: .5; }
 .st-phone-tab-reset { margin-top: var(--sp-3); }
+
+/* Move to another device (js/app/components/DeviceTransfer.tsx) */
+.xfer-step { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+.xfer-step.is-error .st-label { color: var(--danger, #c0392b); }
+.xfer-code { margin: 4px 0; font-family: Inconsolata, ui-monospace, monospace; font-size: 28px; font-weight: 700; letter-spacing: .12em; color: var(--text-primary); user-select: all; }
+.xfer-code-input { margin-top: 8px; max-width: 220px; font-family: Inconsolata, ui-monospace, monospace; font-size: 16px; letter-spacing: .08em; text-transform: uppercase; }
+.xfer-summary { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0; padding: 0; list-style: none; font-size: 13px; color: var(--text-secondary); }
+.xfer-summary strong { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.xfer-progress { position: relative; height: 6px; border-radius: 3px; background: var(--border); overflow: visible; margin: 4px 0 18px; }
+.xfer-progress > span { position: absolute; inset: 0 auto 0 0; border-radius: 3px; background: var(--accent); transition: width 200ms ease; }
+.xfer-progress small { position: absolute; top: 10px; left: 0; font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.xfer-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 0 16px 14px; }
+.xfer-step .xfer-actions { padding: 4px 0 0; }
+@media (prefers-reduced-motion: reduce) { .xfer-progress > span { transition: none; } }

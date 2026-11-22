@@ -24,8 +24,8 @@ import { multihitText, parseMultihitText } from '../features/multihit.ts';
         // With a region picked in the sidebar, every collection export is just
         // that region's (js/features/regions.ts getExportScope). This is the
         // one place the exporters ask which lists to use.
-        function exportLists() {
-            const scope = api.getExportScope?.();
+        function exportLists(whole = false) {
+            const scope = whole ? null : api.getExportScope?.();
             if (scope) return scope;
             return {
                 region: null as any,
@@ -41,8 +41,23 @@ import { multihitText, parseMultihitText } from '../features/multihit.ts';
         function exportCollection() {
             const lists = exportLists();
             log.info('EXPORT', 'Exporting collection', { fakemons: lists.fakemonDB.length, region: lists.region?.name || null });
-            const hasAnything = lists.fakemonDB.length || lists.customMoves.length || lists.customAbilities.length || lists.customItems.length || lists.customTypes.length || lists.region;
-            if (!hasAnything) { api.showToast('Nothing to export!', 'error'); return; }
+            const bundle = collectionBundle(lists);
+            if (!bundle) { api.showToast('Nothing to export!', 'error'); return; }
+            const stem = lists.region ? `${lists.slug}-region` : 'fakemon-collection';
+            downloadJsonFile(`${stem}-${new Date().toISOString().split('T')[0]}.json`, bundle);
+            api.showToast(lists.region ? `${lists.region.name} exported. Import the file to bring the whole region back.` : 'Collection exported with Fakemon, custom moves, and custom abilities!', 'success');
+        }
+
+        /** The whole collection as one import file's contents, for a transfer to another device (js/features/device-transfer.ts). */
+        function wholeCollectionBundle() {
+            return collectionBundle(exportLists(true));
+        }
+
+        /** What an export file holds for these lists, or null when there is nothing. */
+        function collectionBundle(lists) {
+            const hasAnything = lists.fakemonDB.length || lists.customMoves.length || lists.customAbilities.length || lists.customItems.length || lists.customTypes.length || lists.region
+                || (state.folders || []).length;
+            if (!hasAnything) return null;
 
             // folders ride along so items keep their folder on import; a region
             // export carries only the folders its entries use, the region itself
@@ -73,10 +88,7 @@ import { multihitText, parseMultihitText } from '../features/multihit.ts';
                 // the made-up flags the custom moves carry (js/features/move-flags.ts)
                 customMoveFlags: state.customMoveFlags || []
             };
-
-            const stem = lists.region ? `${lists.slug}-region` : 'fakemon-collection';
-            downloadJsonFile(`${stem}-${new Date().toISOString().split('T')[0]}.json`, bundle);
-            api.showToast(lists.region ? `${lists.region.name} exported. Import the file to bring the whole region back.` : 'Collection exported with Fakemon, custom moves, and custom abilities!', 'success');
+            return bundle;
         }
 
         function exportCustomLibraryItem(kind, id) {
@@ -1237,4 +1249,4 @@ import { multihitText, parseMultihitText } from '../features/multihit.ts';
 
         
 
-export { exportLists, exportCollection, addFakemonToCollection, downloadJsonFile, buildFakemonExportBundle, exportCustomLibraryItem, getCollectionFakemon, prepareCollectionFakemonForExport, exportCollectionFakemonAsJSON, exportCollectionFakemonAsPNG, exportCollectionFakemonAsPlainText, exportCollectionFakemonAsShowdown, exportCollectionFakemonAsEssentials, openImportModal, importCollection, exportAsPNG, openPlainTextExportModal, copyPlainTextExport, downloadPlainTextExport, buildPlainTextExport, exportAsJSON, openFakemonImport, handleFakemonImport, parsePlainTextFakemon, exportCollectionAsPlainTextZip, buildPlainTextForFakemonData };
+export { exportLists, exportCollection, wholeCollectionBundle, addFakemonToCollection, downloadJsonFile, buildFakemonExportBundle, exportCustomLibraryItem, getCollectionFakemon, prepareCollectionFakemonForExport, exportCollectionFakemonAsJSON, exportCollectionFakemonAsPNG, exportCollectionFakemonAsPlainText, exportCollectionFakemonAsShowdown, exportCollectionFakemonAsEssentials, openImportModal, importCollection, exportAsPNG, openPlainTextExportModal, copyPlainTextExport, downloadPlainTextExport, buildPlainTextExport, exportAsJSON, openFakemonImport, handleFakemonImport, parsePlainTextFakemon, exportCollectionAsPlainTextZip, buildPlainTextForFakemonData };

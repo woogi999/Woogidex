@@ -16,6 +16,8 @@ import { ext, type SettingsGroup as Group, type SettingsItem as Item, type Setti
 import { resetTours } from '../../features/onboarding.ts';
 import { LANDING_PAGE } from '../../core/flags.ts';
 import { UI_SCALE_DEFAULT, UI_SCALE_MAX, UI_SCALE_MIN, UI_SCALE_STEP, getUiScale, setUiScale } from '../../core/ui-scale.ts';
+import { DeviceTransferGroup } from '../components/DeviceTransfer.tsx';
+import { openUniversalMoves } from '../dialogs/universalMoves.tsx';
 import { PHONE_TAB_CHOICES, PHONE_TABS_MAX, PHONE_TABS_MIN, phoneTabs, resetPhoneTabs, togglePhoneTab } from '../shell/phoneTabs.ts';
 
 // A row: `setting` names a boolean in app.ts's BOOLEAN_SETTINGS (it gets a
@@ -78,6 +80,12 @@ const CORE_SECTIONS: Section[] = [
                     { id: 'bulk', setting: 'IncludeOwnFakemonsInBulkComparison', label: 'Include your Fakémon in Bulk Comparison', desc: 'The Stats tab compares bulk against your other Fakémon too, not only official Pokémon.' },
                     { id: 'recommend', setting: 'IncludeOwnFakemonsInRecommendedMoves', label: 'Include your Fakémon in Recommended Moves', desc: 'Recommend Moves also learns from the moves you gave your other Fakémon. Turn it off if your own sets are experiments you do not want copied.' }
                 ]
+            },
+            {
+                id: 'universal', title: 'Universal moves',
+                items: [
+                    { id: 'universal-list', label: 'The global universal moves', text: 'universal moves tm generation list region', desc: "The moves Browse Moves offers as universal: Woogidex's list, one generation's, or your own. A region can have its own list on its page.", control: () => <button type="button" className="btn btn-secondary btn-sm" onClick={() => openUniversalMoves(null)}>Change</button> }
+                ]
             }
         ]
     },
@@ -86,6 +94,7 @@ const CORE_SECTIONS: Section[] = [
         blurb: 'Your collection on this device, backups, and the safety net.',
         groups: [
             { id: 'device', title: 'This device', render: () => <DeviceGroup />, keywords: 'storage offline space saved browser persistent' },
+            { id: 'transfer', title: 'Move to another device', render: () => <DeviceTransferGroup />, keywords: 'transfer move new phone switch device send receive p2p peer copy collection' },
             {
                 id: 'safety', title: 'Safety & recovery',
                 items: [
