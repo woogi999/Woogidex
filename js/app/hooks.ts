@@ -127,6 +127,27 @@ export function useSwipeTabs<T extends string>(order: readonly T[], current: T, 
  * moment adds `step` more until all are drawn. A big collection then paints
  * its first screen at once, not after every card is made.
  */
+/**
+ * Like useChunks, but it draws more only when you scroll near the end. A
+ * listing of a thousand entries then costs one screen until you look further.
+ * Put the returned ref on an empty element after the last entry. It is null
+ * when everything is drawn.
+ */
+export function useOnScroll(total: number, key: string, first = 48, step = 48): [number, (el: Element | null) => void] {
+    const [at, setAt] = useState({ key, n: first });
+    const n = at.key === key ? at.n : first;
+    const [el, setEl] = useState<Element | null>(null);
+    useEffect(() => {
+        if (!el || n >= total) return;
+        const io = new IntersectionObserver(seen => {
+            if (seen.some(s => s.isIntersecting)) setAt({ key, n: n + step });
+        }, { rootMargin: '1200px 0px' });
+        io.observe(el);
+        return () => io.disconnect();
+    }, [el, n, total, key, step]);
+    return [Math.min(n, total), setEl];
+}
+
 export function useChunks(total: number, key: string, first = 24, step = 48): number {
     const [at, setAt] = useState({ key, n: first });
     const n = at.key === key ? at.n : first;

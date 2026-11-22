@@ -26,6 +26,7 @@ import { notify } from '../app/store.ts';
 import type { Region } from '../app/types.ts';
 import { openDialog } from '../app/dialogs.tsx';
 import { MOVE_FLAG_OPTIONS } from '../editor/learnset-model.ts';
+import { entriesOf } from './collection-entries.ts';
 
 export const REGION_TYPE = 'region' as const;
 const ACTIVE_KEY = 'woogidex.collection.region.v1';
@@ -45,9 +46,20 @@ export const DEFAULT_POOLS = { pokemon: 'none', moves: 'natdex', items: 'natdex'
 const NOT_NATDEX = new Set(['CAP', 'LGPE', 'Custom', 'Future', 'Pokestar', 'Gigantamax', 'Unobtainable']);
 
 /** Every id the latest National Dex has, for one kind. */
+// Showdown's data never changes after it loads: one filtered list for each source object
+const natdexCache = new WeakMap<object, Map<string, any[]>>();
 export function natdexEntries(kind) {
     if (kind === 'types') return VANILLA_TYPES.map(t => [t, { name: t }]);
     const source = { pokemon: state.sdPokedex, moves: state.sdMoves, items: state.sdItems, abilities: state.sdAbilities }[kind] || {};
+    let byKind = natdexCache.get(source);
+    if (!byKind) natdexCache.set(source, byKind = new Map());
+    const hit = byKind.get(kind);
+    if (hit) return hit;
+    const list = natdexFilter(kind, source);
+    byKind.set(kind, list);
+    return list;
+}
+function natdexFilter(kind, source) {
     return Object.entries<any>(source).filter(([, v]) => {
         if (!v || NOT_NATDEX.has(v.nonstandard)) return false;
         if (kind === 'pokemon') return v.num > 0 && !/Gmax|Totem/.test(v.forme || '');
@@ -270,7 +282,7 @@ export async function deleteActiveRegion() {
 
 // ---- moving things between regions ----
 function listFor(kind) {
-    return kind === 'moves' ? state.customMoves : kind === 'abilities' ? state.customAbilities : kind === 'items' ? state.customItems : state.fakemonDB;
+    return entriesOf(kind === 'pokemon' ? 'fakemon' : kind);
 }
 
 // Dropping onto a region adds it (an entry can be in several); dropping onto
@@ -503,8 +515,10 @@ export function regionVanillaLibrary(kind, search = ''): { shown: Array<[string,
     if (!region || !['moves', 'items', 'abilities'].includes(kind)) return null;
     const q = search.trim().toLowerCase();
     const source = vanillaSource(kind);
+    // one pass over the library, not one for each main-game entry
+    const edited = new Set((listFor(kind) || []).filter(x => x.vanillaId && !x.pendingVanilla && String(x.regionId || '') === String(region.id)).map(x => x.vanillaId));
     const ids = regionPoolIds(region, kind)
-        .filter(id => source[id] && !editedCopy(kind, id, region))
+        .filter(id => source[id] && !edited.has(id))
         .filter(id => !q || String(source[id].name).toLowerCase().includes(q))
         .sort((a, b) => String(source[a].name).localeCompare(String(source[b].name)));
     if (!ids.length) return null;
@@ -561,7 +575,9 @@ export function regionVanillaPokemon(search = '') {
     const q = search.trim().toLowerCase();
     // one the region already has its own version of shows as that Fakemon instead
     const pins = vanillaPins(region, 'pokemon');
-    const ids = regionPoolIds(region, 'pokemon').filter(id => state.sdPokedex?.[id] && !regionPokemonCopy(id, region))
+    // one pass over the collection, not one for each of hundreds of species
+    const copied = new Set((state.fakemonDB || []).filter(f => f.vanillaId && !f.pendingVanilla && String(f.regionId || '') === String(region.id)).map(f => f.vanillaId));
+    const ids = regionPoolIds(region, 'pokemon').filter(id => state.sdPokedex?.[id] && !copied.has(id))
         .sort((a, b) => (pins.includes(b) ? 1 : 0) - (pins.includes(a) ? 1 : 0));
     return ids.map(id => state.sdPokedex[id]).filter(p => !q || p.name.toLowerCase().includes(q)).slice(0, 400);
 }
@@ -734,7 +750,8 @@ export function openRegionPicker(kind) {
 
 /** Everything the picker lists: the National Dex, plus anything chosen earlier that isn't in it. */
 export function regionPickerEntries(kind, selected) {
-    const entries = natdexEntries(kind);
+    // a copy: the cached list must not change
+    const entries = natdexEntries(kind).slice();
     const known = new Set(entries.map(([id]: any[]) => id));
     for (const id of selected) if (!known.has(id)) entries.push([id, { name: id }]);
     return entries.sort((a, b) => String(a[1].name).localeCompare(String(b[1].name)));

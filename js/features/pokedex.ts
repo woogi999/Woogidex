@@ -9,6 +9,7 @@ import { cachedFetch } from '../core/net-cache.ts';
 import { eggGroupsFromText, genderFromText, setForm, STAT_KEYS, type StatKey } from '../editor/draft.ts';
 import type { CollectionTab } from '../app/types.ts';
 import { matchesSearch } from './notebook.ts';
+import { entriesOf } from './collection-entries.ts';
 // PokeAPI never rewrites a species entry, so a month is conservative.
 const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 86400000 };
 
@@ -453,12 +454,9 @@ const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 8640000
             const folder = state.folders.find(f => f.id === id);
             if (!folder) return;
             const kind = folder.type || 'fakemon';
-            const label = kind === 'moves' ? 'Moves' : kind === 'abilities' ? 'Abilities' : kind === 'items' ? 'Items' : 'Fakemon';
+            const label = { moves: 'Moves', abilities: 'Abilities', items: 'Items', types: 'Types', conditions: 'Conditions' }[kind] || 'Fakemon';
             if (!await confirmDialog({ title: `Delete the folder “${folder.name}”?`, message: `${label} inside aren’t deleted; they move back out of the folder.` })) return;
-            if (kind === 'moves') (state.customMoves || []).forEach(m => { if (m.folderId === id) m.folderId = null; });
-            else if (kind === 'abilities') (state.customAbilities || []).forEach(a => { if (a.folderId === id) a.folderId = null; });
-            else if (kind === 'items') (state.customItems || []).forEach(i => { if (i.folderId === id) i.folderId = null; });
-            else state.fakemonDB.forEach(f => { if (f.folderId === id) f.folderId = null; });
+            entriesOf(kind).forEach(x => { if (x.folderId === id) x.folderId = null; });
             state.folders = state.folders.filter(f => f.id !== id);
             if (state.currentFolderId === id) state.currentFolderId = null;
             api.saveToStorage();
@@ -468,8 +466,9 @@ const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 8640000
         function libraryList(kind) {
             return kind === 'moves' ? state.customMoves : kind === 'abilities' ? state.customAbilities : state.customItems;
         }
+        // any tab but Fakémon: moves, abilities, items, types and conditions
         function moveLibraryItemToFolder(kind, itemId, folderId) {
-            const item = (libraryList(kind) || []).find(x => x.id === itemId);
+            const item = entriesOf(kind).find(x => x.id === itemId);
             if (!item) return;
             item.folderId = folderId || null;
             api.saveToStorage();
@@ -717,8 +716,8 @@ const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 8640000
         function sortLibraryList(list, sortMode) {
             const sorted = [...list];
             if (sortMode === 'name-desc') sorted.sort((a, b) => String(b.name || '').localeCompare(String(a.name || '')));
-            else if (sortMode === 'newest') sorted.sort((a, b) => String(b.id || '').localeCompare(String(a.id || '')));
-            else if (sortMode === 'oldest') sorted.sort((a, b) => String(a.id || '').localeCompare(String(b.id || '')));
+            else if (sortMode === 'newest') sorted.sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0) || String(b.id || '').localeCompare(String(a.id || '')));
+            else if (sortMode === 'oldest') sorted.sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0) || String(a.id || '').localeCompare(String(b.id || '')));
             else sorted.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
             const pinned = sorted.filter(item => item.pinned);
             const unpinned = sorted.filter(item => !item.pinned);
@@ -787,11 +786,34 @@ const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 8640000
                 });
                 if (api.getActiveRegionId?.()) entries = entries.filter(item => api.entryInActiveRegion(item));
                 if (!search) entries = atFolderLevel(entries, kind);
-                entries = MOVE_SORTS[sort.by]
-                    ? sortByColumn(entries, MOVE_SORTS[sort.by], sort.order)
-                    : sortLibraryList(entries, sort.by === 'name' ? (sort.order === 'asc' ? 'name-asc' : 'name-desc') : sort.order === 'asc' ? 'oldest' : 'newest');
+                entries = sortCollectionEntries(kind, entries);
             }
             return { kind, search, folders: folders.map(folder => ({ folder, count: count(folder) })), entries };
+        }
+
+        /** Sorts a library tab's entries by the tab's sort, pinned ones first. */
+        function sortCollectionEntries(kind, entries) {
+            const sort = collectionSortFor(kind);
+            return MOVE_SORTS[sort.by]
+                ? sortByColumn(entries, MOVE_SORTS[sort.by], sort.order)
+                : sortLibraryList(entries, sort.by === 'name' ? (sort.order === 'asc' ? 'name-asc' : 'name-desc') : sort.order === 'asc' ? 'oldest' : 'newest');
+        }
+
+        /**
+         * The folder level for a tab that draws its own cards (Types,
+         * Conditions): the folders to show here with their counts, and the
+         * entries at this level. A search looks through every folder.
+         */
+        function folderLevel(kind, items, search = '') {
+            const q = String(search || '').trim();
+            const folders = (!q && !state.currentFolderId) ? visibleFolders(kind) : [];
+            folders.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0));
+            const count = folder => items.filter(x => x.folderId === folder.id).length;
+            return {
+                folders: folders.map(folder => ({ folder, count: count(folder) })),
+                entries: q ? items : atFolderLevel(items, kind),
+                inFolder: !!state.currentFolderId
+            };
         }
 
         // The custom move / ability / item / type / condition editors, opened
@@ -852,6 +874,6 @@ export {
     moveFakemonToFolder, moveFakemonOutOfFolder, moveLibraryItemToFolder, moveLibraryItemOutOfFolder,
     deleteCustomLibraryItem, toggleCustomLibraryPin, duplicateCustomLibraryItem,
     handleCardDragStart, handleCardDragEnd, handleLibraryCardDragStart, dropOnFolder, getDraggedFakemonId, getDraggedLibraryItem,
-    sortFakemonList, getFakemonBST, changeCollectionSort, toggleCollectionLayout, setCollectionLayout, openLibraryEditorSheet,
+    sortFakemonList, getFakemonBST, sortCollectionEntries, folderLevel, changeCollectionSort, toggleCollectionLayout, setCollectionLayout, openLibraryEditorSheet,
     startNewFakemonEditor, openPokemonTemplateChooser, getPokemonTemplateEntries, templateMatches, usePokemonTemplate, getPokemonTemplateSprite
 };

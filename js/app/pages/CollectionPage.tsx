@@ -20,7 +20,7 @@ import { ConditionsGrid } from '../components/collection/ConditionsTab.tsx';
 import { RegionDetails } from '../components/collection/RegionDetails.tsx';
 import { RegionAnalytics } from '../components/collection/RegionAnalytics.tsx';
 import { useStore } from '../store.ts';
-import { useChunks, useSlide } from '../hooks.ts';
+import { useOnScroll, useSlide } from '../hooks.ts';
 import type { CollectionTab, LibraryKind } from '../types.ts';
 import { TagBar, UnfinishedShelf } from '../components/collection/Notebook.tsx';
 import {
@@ -166,6 +166,8 @@ function listingKeys(e: React.KeyboardEvent, view: CollectionTab) {
     } else if (e.key === 'Delete' && kind && id) {
         e.preventDefault();
         if (kind === 'fakemon') api.deleteFakemon(id, menuEvent(entry));
+        else if (kind === 'types') api.deleteCustomTypeById(id, menuEvent(entry));
+        else if (kind === 'conditions') api.deleteConditionById(id, menuEvent(entry));
         else api.deleteCustomLibraryItem(kind, id, menuEvent(entry));
     }
 }
@@ -275,6 +277,7 @@ function Header() {
                     ['New Custom Ability', () => api.openLibraryEditorSheet('abilities')],
                     ['New Custom Item', () => api.openLibraryEditorSheet('items')],
                     ['New Custom Type', () => api.openLibraryEditorSheet('types')],
+                    ['New Custom Condition', () => api.openLibraryEditorSheet('conditions')],
                     ['New Region', () => api.createRegion()]
                 ]} />
             </div>
@@ -365,10 +368,17 @@ function Grid({ layout }: { layout: Layout }) {
     // and a layout change fades it (Toolbar)
     const grid = useRef<HTMLDivElement>(null);
     const listing = `${state.currentFolderId}|${search ? 's' : ''}`;
-    // a big listing draws its first screen, then the rest while the page is idle
-    const shown = useChunks(entries.length, `${kind}|${layout}|${listing}|${search}`);
+    // a big listing draws its first screen, then more only as you scroll near
+    // its end: your own entries first, then the main-game ones a region brings
+    const vanillaShownAll = vanillaLibrary ? vanillaLibrary.shown : [];
+    const total = entries.length + vanillaPokemon.length + vanillaShownAll.length;
+    const [shown, moreRef] = useOnScroll(total, `${kind}|${layout}|${listing}|${search}|${api.getActiveRegionId?.() ?? ''}`);
     const own = entries.slice(0, shown);
-    const allShown = shown >= entries.length;
+    const rest = Math.max(0, shown - entries.length);
+    const vanillaPokemonShown = vanillaPokemon.slice(0, rest);
+    const vanillaLibraryShown = vanillaShownAll.slice(0, Math.max(0, rest - vanillaPokemon.length));
+    const allShown = shown >= total;
+    const sentinel = !allShown && <div ref={moreRef} className="listing-more" aria-hidden="true" />;
     useLayoutEffect(() => {
         const items = grid.current?.querySelector('#collection-grid tbody') || grid.current?.querySelector('#collection-grid');
         if (items) staggerIn(Array.from(items.children));
@@ -399,10 +409,11 @@ function Grid({ layout }: { layout: Layout }) {
                         ? own.map((f: any) => <FakemonRow key={f.id} f={f} inFolder={inFolder(f)} />)
                         : own.map((item: any) => <LibraryRow key={item.id} kind={kind as LibraryKind} item={item} inFolder={inFolder(item)} />)}
                     {/* the main-game entries a region brings over, after its own */}
-                    {allShown && vanillaPokemon.map(p => <VanillaPokemonRow key={p.id} p={p} />)}
-                    {allShown && vanillaLibrary && vanillaLibrary.shown.map(([id, v]: [string, any]) => <VanillaLibraryRow key={id} kind={kind as LibraryKind} id={id} v={v} />)}
+                    {vanillaPokemonShown.map(p => <VanillaPokemonRow key={p.id} p={p} />)}
+                    {vanillaLibraryShown.map(([id, v]: [string, any]) => <VanillaLibraryRow key={id} kind={kind as LibraryKind} id={id} v={v} />)}
                     {allShown && more && <MoreRow kind={kind} total={vanillaLibrary.total} onClick={() => api.showAllRegionVanilla(kind)} />}
                 </DexTable>
+                {sentinel}
             </div>
         );
     }
@@ -416,10 +427,11 @@ function Grid({ layout }: { layout: Layout }) {
                     ? own.map((f: any) => <FakemonCard key={f.id} f={f} inFolder={inFolder(f)} />)
                     : own.map((item: any) => <LibraryCard key={item.id} kind={kind as LibraryKind} item={item} inFolder={inFolder(item)} />)}
                 {/* the main-game entries a region brings over, after its own */}
-                {allShown && vanillaPokemon.map(p => <VanillaPokemonCard key={p.id} p={p} />)}
-                {allShown && vanillaLibrary && vanillaLibrary.shown.map(([id, v]: [string, any]) => <VanillaLibraryCard key={id} kind={kind as LibraryKind} id={id} v={v} />)}
+                {vanillaPokemonShown.map(p => <VanillaPokemonCard key={p.id} p={p} />)}
+                {vanillaLibraryShown.map(([id, v]: [string, any]) => <VanillaLibraryCard key={id} kind={kind as LibraryKind} id={id} v={v} />)}
                 {allShown && more && <ShowAllVanilla kind={kind} total={vanillaLibrary.total} />}
             </div>
+            {sentinel}
         </div>
     );
 }

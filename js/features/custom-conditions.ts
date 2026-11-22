@@ -262,6 +262,7 @@ export function duplicateCondition(id: string, event?: Event) {
     api.saveToStorage?.();
     notify();
     api.showToast?.(`Made ${name}.`, 'success');
+    return copy;
 }
 
 export function exportCondition(id: string, event?: Event) {

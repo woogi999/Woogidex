@@ -472,3 +472,9 @@ body.card-dragging .dex-folder { background: color-mix(in srgb, var(--accent) 6%
 .post-conditions li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
 .post-conditions-kind { font-size: 12px; color: var(--text-muted); }
 .post-conditions li p { flex-basis: 100%; margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--text-secondary); }
+
+/* the empty mark after a long listing: more entries draw when it scrolls near (useOnScroll in hooks.ts) */
+.listing-more { height: 1px; }
+/* moves and abilities have no icon column: a folder or "Add new" row keeps a small icon before its words */
+.dex-wide-icon { display: inline-flex; vertical-align: middle; margin-right: 10px; color: var(--text-muted); }
+.dex-table-moves .col-name, .dex-table-abilities .col-name { padding-left: 12px; }

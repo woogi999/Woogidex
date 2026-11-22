@@ -8,8 +8,9 @@ import {
     MULT_LABEL, TYPE_ICON_FILES, matchup, overrideFor, typeBackground, typeStrength, typeUserCount
 } from '../../../features/custom-types.ts';
 import { Icon } from '../Icon.tsx';
-import { AddCard, PinMark, cardActions, cardMenu } from './cards.tsx';
-import { AddRow, TypeRow } from './CollectionTable.tsx';
+import { AddCard, FolderCard, PinMark, cardActions, cardMenu, libraryDrag } from './cards.tsx';
+import { AddRow, FolderRow, TypeRow } from './CollectionTable.tsx';
+import { copyEntry, cutEntry, isCut } from '../../../features/clipboard.ts';
 
 /** The symbol inside a type's emblem: an uploaded icon, the main-game symbol, or its initials. */
 export function TypeIcon({ name, entry }: { name: string; entry?: any }) {
@@ -21,29 +22,35 @@ export function TypeIcon({ name, entry }: { name: string; entry?: any }) {
     return <span className="type-emblem-text">{String(name).slice(0, 2)}</span>;
 }
 
-type TypeActions = { pin: (e: any) => void; edit: () => void; duplicate: (e: any) => void; exportFn: (e: any) => void; remove: (e: any) => void; removeTitle?: string };
+type TypeActions = {
+    pin: (e: any) => void; edit: () => void; duplicate: (e: any) => void; exportFn: (e: any) => void; remove: (e: any) => void; removeTitle?: string;
+    cut?: () => void; copy?: () => void; outOfFolder?: (e: any) => void;
+};
 
-function TypeCard({ name, bg, onClick, tag, desc, regionId, entry, pinned, actions, table }: {
+function TypeCard({ name, bg, onClick, tag, desc, regionId, entry, pinned, actions, table, ownId }: {
     name: string; bg: string; onClick: () => void; tag?: string; desc?: string; regionId: string | null;
-    entry?: any; pinned: boolean; actions: TypeActions; table: boolean;
+    entry?: any; pinned: boolean; actions: TypeActions; table: boolean; ownId?: string;
 }) {
     const menu = cardMenu(card => ({
         title: name, subtitle: tag ? `${tag} type` : 'Custom type',
         items: cardActions(card, {
-            edit: actions.edit, pinned, pin: actions.pin, duplicate: actions.duplicate,
-            exports: [['Export', actions.exportFn]], remove: actions.remove, removeLabel: actions.removeTitle
+            edit: actions.edit, pinned, pin: actions.pin, cut: actions.cut, copy: actions.copy, duplicate: actions.duplicate,
+            outOfFolder: actions.outOfFolder, exports: [['Export', actions.exportFn]], remove: actions.remove, removeLabel: actions.removeTitle
         })
     }), onClick);
+    // your own types file, cut, copy and drag like every other entry
+    const own = ownId ? { ...libraryDrag('types', ownId), 'data-entry-kind': 'types', 'data-entry-id': ownId } : {};
+    const cut = ownId && isCut(ownId) ? ' is-cut' : '';
     const { strong, weak } = typeStrength(name, regionId);
     const style = bg ? { background: bg } : undefined;
     const cls = `type-${name.toLowerCase()}`;
     const emblem = <span className={`library-emblem type-emblem ${cls}`} style={style}><TypeIcon name={name} entry={entry} /></span>;
     if (table) {
-        return <TypeRow name={name} icon={emblem} tag={tag} desc={desc} strong={strong} weak={weak} users={typeUserCount(name)} pinned={pinned} menu={menu} />;
+        return <TypeRow name={name} icon={emblem} tag={tag} desc={desc} strong={strong} weak={weak} users={typeUserCount(name)} pinned={pinned} menu={{ ...menu, ...own }} extraClass={cut} />;
     }
     return (
-        <div className={`collection-card library-tile type-tile${pinned ? ' pinned' : ''}`}
-            title={desc || undefined} aria-label={`${name} type`} {...menu}>
+        <div className={`collection-card library-tile type-tile${pinned ? ' pinned' : ''}${cut}`}
+            title={desc || undefined} aria-label={`${name} type`} {...menu} {...own}>
             <div className="card-art">
                 {emblem}
                 <span className="card-number library-tile-corner">{typeUserCount(name)} Fakémon</span>
@@ -66,18 +73,26 @@ export function TypeCards({ search, table = false }: { search: string; table?: b
     const { list, vanilla, regionId, vanillaCards } = api.typesTabArgs();
     const q = search.trim().toLowerCase();
     const match = (n: string) => !q || n.toLowerCase().includes(q);
-    const custom = (list as any[]).filter(t => match(t.name) || String(t.desc || '').toLowerCase().includes(q)).sort(byPin);
-    const mainGame = (vanillaCards ? vanilla as string[] : []).filter(match)
+    const found = (list as any[]).filter(t => match(t.name) || String(t.desc || '').toLowerCase().includes(q));
+    // folders work here as in every other tab; main-game types stay at the top level
+    const { folders, entries, inFolder } = api.folderLevel('types', found, q);
+    const custom = api.sortCollectionEntries('types', entries) as any[];
+    const mainGame = (vanillaCards && !inFolder ? vanilla as string[] : []).filter(match)
         .map(name => ({ name, pinned: !!api.isVanillaPinned?.('types', name) }))
         .sort(byPin);
     return (
         <>
             {!q && (table ? <AddRow kind="types" /> : <AddCard kind="types" />)}
+            {folders.map(({ folder, count }: any) => table
+                ? <FolderRow key={folder.id} folder={folder} count={count} kind="types" />
+                : <FolderCard key={folder.id} folder={folder} count={count} kind="types" />)}
             {custom.map(t => (
                 <TypeCard key={t.id} table={table} name={t.name} bg={typeBackground(t)} desc={t.desc} regionId={regionId} entry={t} pinned={!!t.pinned}
-                    onClick={() => api.openCustomTypeEditor(t.id)}
+                    ownId={t.id} onClick={() => api.openCustomTypeEditor(t.id)}
                     actions={{
                         pin: e => api.toggleCustomTypePin(t.id, e), edit: () => api.openCustomTypeEditor(t.id),
+                        cut: () => cutEntry('types', t.id), copy: () => copyEntry('types', t.id),
+                        outOfFolder: t.folderId && !q ? e => api.moveLibraryItemOutOfFolder('types', t.id, e) : undefined,
                         duplicate: e => api.duplicateCustomType(t.id, e), exportFn: e => api.exportCustomType(t.id, e),
                         remove: e => api.deleteCustomTypeById(t.id, e)
                     }} />

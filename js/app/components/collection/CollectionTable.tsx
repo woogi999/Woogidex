@@ -37,23 +37,24 @@ export const COLUMNS: Record<CollectionTab, Column[]> = {
         { label: 'Types', cls: 'col-types' }, { label: 'Abilities', cls: 'col-abilities' },
         ...STATS.map(([key, label]) => ({ label, cls: 'col-stat', sort: key, high: true })), { label: 'BST', cls: 'col-stat col-bst', sort: 'bst', high: true }
     ],
+    // moves and abilities are text only, as their grid tiles are: no icon column
     moves: [
-        { label: '', cls: 'col-icon' }, { label: 'Name', cls: 'col-name', sort: 'name' }, { label: 'Type', cls: 'col-types', sort: 'type' },
+        { label: 'Name', cls: 'col-name', sort: 'name' }, { label: 'Type', cls: 'col-types', sort: 'type' },
         { label: 'Cat.', cls: 'col-cat', sort: 'category' }, { label: 'Power', cls: 'col-stat', sort: 'power', high: true },
         { label: 'Acc.', cls: 'col-stat', sort: 'accuracy', high: true }, { label: 'PP', cls: 'col-stat', sort: 'pp', high: true },
         { label: 'Description', cls: 'col-desc' }
     ],
-    abilities: [{ label: '', cls: 'col-icon' }, { label: 'Name', cls: 'col-name', sort: 'name' }, { label: 'Description', cls: 'col-desc' }],
+    abilities: [{ label: 'Name', cls: 'col-name', sort: 'name' }, { label: 'Description', cls: 'col-desc' }],
     items: [
         { label: '', cls: 'col-icon' }, { label: 'Name', cls: 'col-name', sort: 'name' }, { label: 'Kind', cls: 'col-cat' },
         { label: 'Description', cls: 'col-desc' }
     ],
     types: [
-        { label: '', cls: 'col-icon' }, { label: 'Name', cls: 'col-name' }, { label: 'Strong vs', cls: 'col-stat' },
+        { label: '', cls: 'col-icon' }, { label: 'Name', cls: 'col-name', sort: 'name' }, { label: 'Strong vs', cls: 'col-stat' },
         { label: 'Weak to', cls: 'col-stat' }, { label: 'Fakémon', cls: 'col-stat' }, { label: 'Description', cls: 'col-desc' }
     ],
     conditions: [
-        { label: '', cls: 'col-icon' }, { label: 'Name', cls: 'col-name' }, { label: 'Lasts', cls: 'col-stat' },
+        { label: '', cls: 'col-icon' }, { label: 'Name', cls: 'col-name', sort: 'name' }, { label: 'Lasts', cls: 'col-stat' },
         { label: 'Fakémon', cls: 'col-stat' }, { label: 'Description', cls: 'col-desc' }
     ]
 };
@@ -114,6 +115,9 @@ const DescCell = ({ text }: { text?: string }) => (
 );
 
 const rowClass = (pinned?: boolean, extra = '') => `dex-row${pinned ? ' pinned' : ''}${extra}`;
+
+/** Whether a tab's table has the icon column (moves and abilities do not). */
+const hasIcon = (kind: CollectionTab) => COLUMNS[kind][0]?.cls === 'col-icon';
 
 // ---- Fakémon and main-game Pokémon ----
 
@@ -201,7 +205,7 @@ export function LibraryRow({ kind, item, inFolder }: { kind: LibraryKind; item: 
     const menu = cardMenu(card => libraryMenu(kind, item, inFolder, card), () => api.openLibraryEditorSheet(kind, item.id));
     return (
         <tr className={rowClass(item.pinned, isCut(item.id) ? ' is-cut' : '')} aria-label={item.name} {...libraryDrag(kind, item.id)} {...menu} data-entry-kind={kind} data-entry-id={item.id}>
-            <IconCell>{libraryIcon(kind, item)}</IconCell>
+            {hasIcon(kind) && <IconCell>{libraryIcon(kind, item)}</IconCell>}
             <NameCell name={item.name} tag={item.vanillaId ? 'Edited' : ''} pinned={item.pinned} />
             {kind === 'moves' && moveCells(String(item.type || 'Normal'), String(item.category || 'Status'), item.basePower, item.accuracy, item.pp)}
             {kind === 'items' && <td className="col-cat"><span className="library-tag">{item.isMegaStone ? 'Mega Stone' : 'Item'}</span></td>}
@@ -215,7 +219,7 @@ export function VanillaLibraryRow({ kind, id, v }: { kind: LibraryKind; id: stri
     const menu = cardMenu(card => vanillaMenu(kind, id, v.name || id, card), () => api.editVanillaInRegion(kind, id));
     return (
         <tr className={rowClass(pinned, ' is-vanilla')} aria-label={v.name || id} {...menu}>
-            <IconCell>{vanillaLibraryParts(kind, id, v).art}</IconCell>
+            {hasIcon(kind) && <IconCell>{vanillaLibraryParts(kind, id, v).art}</IconCell>}
             <NameCell name={v.name || id} tag="Main games" pinned={pinned} />
             {kind === 'moves' && moveCells(String(v.type || 'Normal'), String(v.category || 'Status'), v.basePower, v.accuracy, v.pp)}
             {kind === 'items' && <td className="col-cat"><span className="library-tag">Item</span></td>}
@@ -226,11 +230,11 @@ export function VanillaLibraryRow({ kind, id, v }: { kind: LibraryKind; id: stri
 
 // ---- types ----
 
-export function TypeRow({ name, icon, tag, desc, strong, weak, users, pinned, menu }: {
-    name: string; icon: ReactNode; tag?: string; desc?: string; strong: number; weak: number; users: number; pinned: boolean; menu: object;
+export function TypeRow({ name, icon, tag, desc, strong, weak, users, pinned, menu, extraClass = '' }: {
+    name: string; icon: ReactNode; tag?: string; desc?: string; strong: number; weak: number; users: number; pinned: boolean; menu: object; extraClass?: string;
 }) {
     return (
-        <tr className={rowClass(pinned, tag === 'Main games' ? ' is-vanilla' : '')} aria-label={`${name} type`} {...menu}>
+        <tr className={rowClass(pinned, (tag === 'Main games' ? ' is-vanilla' : '') + extraClass)} aria-label={`${name} type`} {...menu}>
             <IconCell>{icon}</IconCell>
             <NameCell name={name} tag={tag} pinned={pinned} />
             <Num label="Strong vs" value={strong} />
@@ -245,6 +249,14 @@ export function TypeRow({ name, icon, tag, desc, strong, weak, users, pinned, me
 
 /** Rows that are not entries: one wide cell after the icon. */
 function WideRow({ kind, className, icon, children, ...rest }: { kind: CollectionTab; className: string; icon: ReactNode; children: ReactNode; [prop: string]: any }) {
+    // a table with no icon column keeps the icon small, in front of the words
+    if (!hasIcon(kind)) {
+        return (
+            <tr className={`dex-row ${className}`} {...rest}>
+                <td className="col-wide" colSpan={COLUMNS[kind].length}><span className="dex-wide-icon">{icon}</span>{children}</td>
+            </tr>
+        );
+    }
     return (
         <tr className={`dex-row ${className}`} {...rest}>
             <IconCell>{icon}</IconCell>

@@ -601,6 +601,7 @@ export function duplicateCustomType(id, event) {
     if (copy.matchups?.offense?.[t.name] !== undefined) copy.matchups.offense[copy.name] = copy.matchups.offense[t.name];
     state.folders = [...(state.folders || []), copy];
     apply(`${t.name} duplicated as ${copy.name}.`);
+    return copy;
 }
 
 /** A main-game type as a new custom type of your own. */

@@ -10,10 +10,15 @@ import {
     type ConditionKind
 } from '../../../features/custom-conditions.ts';
 import { Icon } from '../Icon.tsx';
-import { PinMark, cardActions, cardMenu } from './cards.tsx';
-import { DexTable, IconCell, NameCell } from './CollectionTable.tsx';
+import { FolderCard, PinMark, cardActions, cardMenu, libraryDrag } from './cards.tsx';
+import { DexTable, FolderRow, IconCell, NameCell } from './CollectionTable.tsx';
+import { copyEntry, cutEntry, isCut } from '../../../features/clipboard.ts';
 
-type Card = { key: string; name: string; color: string; desc: string; duration: number; tag?: string; pinned: boolean; users: number; open: () => void; menu: (card: Element) => any };
+type Card = { key: string; ownId?: string; name: string; color: string; desc: string; duration: number; tag?: string; pinned: boolean; users: number; open: () => void; menu: (card: Element) => any };
+
+/** What makes your own condition behave like every other entry: drag into a folder, and the keys of My Collection. */
+const ownProps = (c: Card) => c.ownId ? { ...libraryDrag('conditions', c.ownId), 'data-entry-kind': 'conditions', 'data-entry-id': c.ownId } : {};
+const cutClass = (c: Card) => c.ownId && isCut(c.ownId) ? ' is-cut' : '';
 
 const durationText = (kind: ConditionKind, n: number) => n ? `${n} turn${n === 1 ? '' : 's'}` : kind === 'status' ? 'Until cured' : 'Until replaced';
 
@@ -21,23 +26,36 @@ function Emblem({ kind, color }: { kind: ConditionKind; color: string }) {
     return <span className="library-emblem cond-emblem" style={{ background: color }}><Icon name={CONDITION_ICON[kind]} /></span>;
 }
 
-/** The cards (or rows) of one kind: yours first, then the main-game ones inside a region. */
-function cardsFor(kind: ConditionKind, q: string): Card[] {
-    const { list, regionId, vanillaCards } = conditionsTabArgs();
-    const match = (name: string, desc = '') => !q || name.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
-    const mine: Card[] = list.filter((c: any) => c.kind === kind && match(c.name, c.desc)).map((c: any) => ({
-        key: c.id, name: c.name, color: c.color, desc: c.desc, duration: Number(c.duration) || 0, pinned: !!c.pinned, users: conditionUserCount(c),
+const matches = (q: string, name: string, desc = '') => !q || name.toLowerCase().includes(q) || desc.toLowerCase().includes(q);
+
+/** Your conditions at this folder level (every folder while searching), and the folders here. */
+function conditionLevel(q: string) {
+    const { list } = conditionsTabArgs();
+    return api.folderLevel('conditions', list.filter((c: any) => matches(q, c.name, c.desc)), q);
+}
+
+/** The cards (or rows) of one kind: yours first, then the main-game ones inside a region (outside folders). */
+function cardsFor(kind: ConditionKind, q: string, level: { entries: any[]; inFolder: boolean }): Card[] {
+    const { regionId, vanillaCards } = conditionsTabArgs();
+    const ours = api.sortCollectionEntries('conditions', level.entries.filter((c: any) => c.kind === kind)) as any[];
+    const mine: Card[] = ours.map((c: any) => ({
+        key: c.id, ownId: c.id, name: c.name, color: c.color, desc: c.desc, duration: Number(c.duration) || 0, pinned: !!c.pinned, users: conditionUserCount(c),
         open: () => openCustomConditionEditor(c.id),
         menu: (card: Element) => ({
             title: c.name, subtitle: `Custom ${CONDITION_KINDS.find(k => k[0] === kind)![2]}`,
             items: cardActions(card, {
                 edit: () => openCustomConditionEditor(c.id), pinned: !!c.pinned, pin: e => toggleConditionPin(c.id, e),
-                duplicate: e => duplicateCondition(c.id, e), exports: [['Export', e => exportCondition(c.id, e)]],
+                cut: () => cutEntry('conditions', c.id), copy: () => copyEntry('conditions', c.id),
+                duplicate: e => duplicateCondition(c.id, e),
+                outOfFolder: c.folderId && !q ? e => api.moveLibraryItemOutOfFolder('conditions', c.id, e) : undefined,
+                exports: [['Export', e => exportCondition(c.id, e)]],
                 remove: e => deleteConditionById(c.id, e)
-            }).concat([{ label: 'Battle code', icon: 'puzzle-piece', run: () => api.openAbilityBlockEditor?.(c.id, 'condition') }])
+            }).flatMap(item => typeof item === 'object' && item.label === 'Edit'
+                ? [item, { label: 'Battle code', icon: 'puzzle-piece', run: () => api.openAbilityBlockEditor?.(c.id, 'condition') }]
+                : [item])
         })
     }));
-    const main: Card[] = !vanillaCards ? [] : VANILLA_CONDITIONS[kind].filter(v => match(v.name, v.desc)).map(v => {
+    const main: Card[] = !vanillaCards || level.inFolder ? [] : VANILLA_CONDITIONS[kind].filter(v => matches(q, v.name, v.desc)).map(v => {
         const o = conditionOverride(kind, v.id, regionId);
         return {
             key: `vanilla:${v.id}`, name: v.name, color: o?.color || v.color, desc: o?.desc || v.desc, duration: Number(o?.duration ?? (kind === 'status' ? 0 : 5)),
@@ -50,16 +68,24 @@ function cardsFor(kind: ConditionKind, q: string): Card[] {
             })
         };
     });
-    return [...mine.sort((a, b) => (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)), ...main];
+    return [...mine, ...main];
 }
 
 export function ConditionsGrid({ layout, search }: { layout: 'grid' | 'table'; search: string }) {
     const q = search.trim().toLowerCase();
-    const sections = CONDITION_KINDS.map(([kind, label, one]) => ({ kind, label, one, cards: cardsFor(kind, q) }));
+    const level = conditionLevel(q);
+    const sections = CONDITION_KINDS.map(([kind, label, one]) => ({ kind, label, one, cards: cardsFor(kind, q, level) }));
     const any = sections.some(s => s.cards.length);
+    // inside a folder, a kind with nothing in it is left out
+    const hideEmpty = !!q || level.inFolder;
     return (
         <div id="collection-grid" className="cond-sections">
-            {sections.map(({ kind, label, one, cards }) => (q && !cards.length) ? null : (
+            {level.folders.length > 0 && (
+                layout === 'table'
+                    ? <DexTable kind="conditions" id="">{level.folders.map(({ folder, count }: any) => <FolderRow key={folder.id} folder={folder} count={count} kind="conditions" />)}</DexTable>
+                    : <div className="collection-grid text-tiles">{level.folders.map(({ folder, count }: any) => <FolderCard key={folder.id} folder={folder} count={count} kind="conditions" />)}</div>
+            )}
+            {sections.map(({ kind, label, one, cards }) => (hideEmpty && !cards.length) ? null : (
                 <section key={kind} className="cond-section" aria-labelledby={`cond-${kind}`}>
                     <header className="shelf-head cond-head">
                         <h2 id={`cond-${kind}`}><Icon name={CONDITION_ICON[kind]} size={16} />{label}</h2>
@@ -75,7 +101,7 @@ export function ConditionsGrid({ layout, search }: { layout: 'grid' | 'table'; s
                                 </tr>
                             )}
                             {cards.map(c => (
-                                <tr key={c.key} className={`dex-row${c.pinned ? ' pinned' : ''}${c.tag === 'Main games' ? ' is-vanilla' : ''}`} aria-label={c.name} {...cardMenu(c.menu, c.open)}>
+                                <tr key={c.key} className={`dex-row${c.pinned ? ' pinned' : ''}${c.tag === 'Main games' ? ' is-vanilla' : ''}${cutClass(c)}`} aria-label={c.name} {...cardMenu(c.menu, c.open)} {...ownProps(c)}>
                                     <IconCell><Emblem kind={kind} color={c.color} /></IconCell>
                                     <NameCell name={c.name} tag={c.tag} pinned={c.pinned} />
                                     <td className="col-stat"><em>Lasts</em>{durationText(kind, c.duration)}</td>
@@ -93,7 +119,7 @@ export function ConditionsGrid({ layout, search }: { layout: 'grid' | 'table'; s
                                 </button>
                             )}
                             {cards.map(c => (
-                                <div key={c.key} className={`collection-card library-tile text-tile cond-tile${c.pinned ? ' pinned' : ''}`} title={c.desc || undefined} aria-label={c.name} {...cardMenu(c.menu, c.open)}>
+                                <div key={c.key} className={`collection-card library-tile text-tile cond-tile${c.pinned ? ' pinned' : ''}${cutClass(c)}`} title={c.desc || undefined} aria-label={c.name} {...cardMenu(c.menu, c.open)} {...ownProps(c)}>
                                     {c.pinned && <PinMark />}
                                     <div className="card-body">
                                         {c.tag && <span className="text-tile-tag">{c.tag}</span>}

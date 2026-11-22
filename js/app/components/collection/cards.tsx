@@ -176,8 +176,8 @@ export const fakemonDrag = (id: string) => ({
     onDragEnd: () => { api.handleCardDragEnd(); cardDragEnd(); }
 });
 
-/** Lets a custom move, ability or item card or row be dragged into a folder. */
-export const libraryDrag = (kind: LibraryKind, id: string) => ({
+/** Lets a custom move, ability, item, type or condition card or row be dragged into a folder. */
+export const libraryDrag = (kind: Exclude<CollectionTab, 'fakemon'>, id: string) => ({
     draggable: true,
     onDragStart: (e: DragEvent) => { api.handleLibraryCardDragStart(kind, id, e); cardDragStart(e.currentTarget as HTMLElement, e.nativeEvent); },
     onDragEnd: () => { api.handleCardDragEnd(); cardDragEnd(); }
@@ -330,7 +330,8 @@ export function LibraryCard({ kind, item, inFolder }: { kind: LibraryKind; item:
 // ---- folders ----
 
 const FOLDER_NOUN: Record<string, [string, string]> = {
-    fakemon: ['Fakemon', 'Fakemon'], moves: ['Move', 'Moves'], abilities: ['Ability', 'Abilities'], items: ['Item', 'Items']
+    fakemon: ['Fakemon', 'Fakemon'], moves: ['Move', 'Moves'], abilities: ['Ability', 'Abilities'], items: ['Item', 'Items'],
+    types: ['Type', 'Types'], conditions: ['Condition', 'Conditions']
 };
 
 /**
