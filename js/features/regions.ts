@@ -96,7 +96,7 @@ export function getRegions() {
         .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
 }
 
-function regionById(id) {
+export function regionById(id) {
     return getRegions().find(r => String(r.id) === String(id)) || null;
 }
 

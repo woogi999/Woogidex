@@ -12,6 +12,8 @@ import type { Region } from '../../types.ts';
 import { NAME_MAX } from '../../../core/data.ts';
 import { NotesField } from '../notes/NotesField.tsx';
 import { cleanDoodles, setRegionNotes } from '../../../features/notebook.ts';
+import { regionUniversal, universalSummary } from '../../../features/universal-moves.ts';
+import { openUniversalMoves } from '../../dialogs/universalMoves.tsx';
 
 export function ColorSwatches({ colors, selected, onPick }: { colors: string[]; selected: string | null; onPick: (hex: string) => void }) {
     return (
@@ -101,6 +103,19 @@ export function RegionDetails({ region }: { region: Region }) {
                                     </div>
                                 );
                             })}
+                        </div>
+                    </section>
+
+                    <section className="region-details-section">
+                        <header><h3>Universal moves</h3></header>
+                        <p className="region-details-help">The moves nearly every Pokémon in {region.name} can learn. Browse Moves offers them as TMs.</p>
+                        <div className="region-pools">
+                            <div className="region-pool-row">
+                                <span className="region-pool-icon"><Icon name="globe-alt" /></span>
+                                <span className="region-pool-name"><strong>Universal moves</strong><small>{universalSummary(regionUniversal(region.id))}</small></span>
+                                <span className="region-pool-spacer" />
+                                <button type="button" className="btn btn-secondary btn-sm" onClick={() => openUniversalMoves(region.id)}>Change</button>
+                            </div>
                         </div>
                     </section>
                 </div>

@@ -490,3 +490,10 @@
 .an-stats-small .an-stat strong { font-size: 20px; }
 .an-sub-gap { margin-top: var(--sp-4); }
 @media (max-width: 900px) { .an-cols { grid-template-columns: minmax(0, 1fr); } }
+
+/* universal moves (js/app/dialogs/universalMoves.tsx) */
+.universal-modes { margin: var(--sp-3) 0; align-self: flex-start; }
+.universal-gen { max-width: 280px; }
+.universal-preview { margin: 0 0 var(--sp-3); font-size: 13px; line-height: 1.5; color: var(--text-secondary); }
+.universal-only { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); white-space: nowrap; }
+.mb-muted { color: var(--text-muted); }

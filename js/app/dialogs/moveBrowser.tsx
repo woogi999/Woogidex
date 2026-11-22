@@ -14,6 +14,9 @@ import { SortTh } from '../components/SortHeader.tsx';
 import { CategoryBadge } from '../components/MoveCategory.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { customFlags } from '../../features/move-flags.ts';
+import { useStore } from '../store.ts';
+import { universalForEditing } from '../../features/universal-moves.ts';
+import { openUniversalMoves } from './universalMoves.tsx';
 
 type Filters = { name: string; type: string; category: string; priority: string; bpMin: string; accMin: string; ppMin: string; flags: string[] };
 const NO_FILTERS: Filters = { name: '', type: '', category: '', priority: '', bpMin: '', accMin: '', ppMin: '', flags: [] };
@@ -157,6 +160,8 @@ function MoveList({ items, layout, picked, onToggle, battle, sort, onSort }: {
 }
 
 function MoveBrowserDialog({ mode, target, view: startView = 'all', close }: DialogProps<{ mode: 'editor' | 'battle'; target?: BattleTarget; view?: View }>) {
+    // a saved universal list shows at once
+    useStore();
     const battle = mode === 'battle';
     const [view, setView] = useState<View>(battle ? 'all' : startView);
     const [layout, setLayoutState] = useState<Layout>(readLayout);
@@ -218,7 +223,10 @@ function MoveBrowserDialog({ mode, target, view: startView = 'all', close }: Dia
         body = (
             <>
                 <div className="mb-view-note">
-                    <p>Moves nearly every Pokémon can learn. They go in as TMs.</p>
+                    <p>Moves nearly every Pokémon can learn. They go in as TMs. <span className="mb-muted">{universalForEditing().label}.</span></p>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => openUniversalMoves(universalForEditing().regionId)}>
+                        <Icon name="pencil" size={14} /> Change list
+                    </button>
                     <button type="button" className="btn btn-secondary btn-sm" disabled={!missing.length || missing.every(picked)}
                         onClick={() => setPicks(p => { const n = new Map(p); missing.forEach((m: any) => n.set(idOf(m), { key: m.key, name: m.name, via: 'universal' })); return n; })}>
                         <Icon name="check" size={14} /> {missing.length ? `Pick all ${missing.length}` : 'All in the learnset'}

@@ -14,6 +14,7 @@ import { closeDialog, openDialog } from '../app/dialogs.tsx';
 import { abilityRole, prepareLearnset } from './learnset-model.ts';
 import { multihitFields, parseMultihitText, readMultihit } from '../features/multihit.ts';
 import { isFilterQuery, moveMatches, parseMoveQuery } from '../features/move-query.ts';
+import { universalForEditing } from '../features/universal-moves.ts';
 import { addNoRecommend, noRecommendEverywhere, noRecommendHere, noRecommendSet, removeNoRecommend, type NoRecommendScope } from '../features/no-recommend.ts';
 
 // ==================== SHOWDOWN DATA ====================
@@ -1311,13 +1312,16 @@ import { form } from './draft.ts';
         }
 
 // ==================== UNIVERSAL MOVES ====================
-        const UNIVERSAL_MOVES = ['Toxic', 'Hidden Power', 'Tera Blast', 'Protect', 'Frustration', 'Return', 'Double Team', 'Facade', 'Rest', 'Attract', 'Round', 'Swagger', 'Sleep Talk', 'Substitute'];
+        // The list itself (global, a region's own, one generation's) is js/features/universal-moves.ts.
+        /** The universal moves as Showdown moves, for the Fakémon in the editor. */
+        function universalMoves(): any[] {
+            return universalForEditing().ids.map(id => state.sdMoves?.[id] ? { key: id, ...state.sdMoves[id] } : null).filter(Boolean);
+        }
 
         /** The universal moves for Browse Moves, with which are in the learnset already. */
         function universalMoveChoices() {
             const added = new Set(state.learnset.filter(m => m && m.name).map(m => m.name.toLowerCase()));
-            return UNIVERSAL_MOVES.map(name => findClosestMove(name)).filter(Boolean)
-                .map((m: any) => ({ key: m.id || String(m.name).toLowerCase().replace(/[^a-z0-9]/g, ''), ...m, added: added.has(m.name.toLowerCase()) }));
+            return universalMoves().map((m: any) => ({ ...m, added: added.has(String(m.name).toLowerCase()) }));
         }
 
         async function addUniversalMoves() {
@@ -1325,8 +1329,7 @@ import { form } from './draft.ts';
             await Promise.all([fetchShowdownData(), ensureLearnsets()]);
             if (!state.sdLoaded) { api.showToast('Showdown data could not be loaded. Check your connection and try again.', 'error'); return; }
             let added = 0;
-            UNIVERSAL_MOVES.forEach(name => {
-                const move = findClosestMove(name);
+            universalMoves().forEach(move => {
                 if (move && !state.learnset.find(m => m.name === move.name)) {
                     addLearnsetMove(move, 'tm', null);
                     added++;

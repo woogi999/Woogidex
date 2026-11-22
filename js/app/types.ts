@@ -102,8 +102,11 @@ export interface CustomType extends Filed { id: Id; type: 'custom-type'; name: s
 /** A status condition, weather or terrain you made (js/features/custom-conditions.ts). */
 export interface CustomCondition extends Filed { id: Id; type: 'custom-condition'; kind: 'status' | 'weather' | 'terrain'; name: string; color?: string; [extra: string]: any; }
 
-/** state.folders holds all four, told apart by `type`. */
-export type FolderEntry = Folder | Region | CustomType | CustomCondition;
+/** The global universal moves setting (js/features/universal-moves.ts): one entry, at most. */
+export interface UniversalMovesEntry { id: Id; type: 'universal-moves'; name: string; mode?: string; gen?: number; moves?: string[]; [extra: string]: any; }
+
+/** state.folders holds all five, told apart by `type`. */
+export type FolderEntry = Folder | Region | CustomType | CustomCondition | UniversalMovesEntry;
 
 export interface User {
     id: Id;
