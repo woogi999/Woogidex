@@ -257,3 +257,15 @@
 
 /* the tools in a card's head (js/app/components/editor/EvolutionBoard.tsx) */
 .evo-method-tools { display: flex; align-items: center; gap: 4px; }
+
+/* zoom and pan (EvolutionBoard.tsx): the cards sit on a canvas that moves and scales inside the board */
+.evolution-board { cursor:grab; touch-action:none; }
+.evolution-board.is-panning { cursor:grabbing; }
+.evo-canvas { position:absolute; left:0; top:0; transform-origin:0 0; }
+.evo-canvas .evo-wires { width:auto; height:auto; inset:auto; left:0; top:0; }
+.evo-zoom { position:absolute; right:10px; bottom:10px; z-index:5; display:flex; gap:2px; padding:2px; border-radius:8px; background:var(--bg-card); border:1px solid var(--border); }
+.evo-zoom-btn { display:inline-flex; align-items:center; justify-content:center; min-width:28px; height:28px; padding:0 6px; border:0; border-radius:6px; background:transparent; color:var(--text-secondary); font:inherit; font-size:11px; font-variant-numeric:tabular-nums; cursor:pointer; transition:var(--t-ui); }
+.evo-zoom-btn:hover:not(:disabled) { background:var(--accent-soft); color:var(--accent); }
+.evo-zoom-btn:focus-visible { outline:2px solid var(--accent); outline-offset:1px; }
+.evo-zoom-btn:disabled { opacity:.4; cursor:default; }
+.evo-zoom-level { min-width:44px; }
