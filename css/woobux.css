@@ -1,0 +1,51 @@
+/* ==================== Woobux ====================
+   The coin, the account menu row, the Woobux window with the 30-day
+   calendar (js/app/dialogs/woobux.tsx), and the "Got it" on update notes
+   (js/app/dialogs/whatsNew.tsx). One surface, no outline boxes: the days are
+   soft fills. */
+
+.woobux-icon { display: inline-block; flex: 0 0 auto; vertical-align: middle; }
+
+/* ---- account menu ---- */
+.header-woobux-row strong { font-weight: 800; }
+.header-woobux-row .header-profile-popover-note { display: inline-flex; align-items: center; gap: 3px; color: #f97316; }
+
+/* ---- the window ---- */
+.wbx-dialog { width: min(620px, calc(100vw - 32px)); }
+.wbx-head { display: flex; flex-direction: column; gap: var(--sp-4); }
+.wbx-claim { display: flex; align-items: center; gap: 14px; }
+.wbx-claim > div { display: flex; flex-direction: column; gap: 2px; }
+.wbx-claim-amount { font-size: 24px; font-weight: 800; line-height: 1.1; }
+.wbx-claim small { color: var(--text-secondary); font-size: 13px; }
+.wbx-claim-coin { animation: wbx-coin 900ms var(--ease-out, ease-out) both; }
+@keyframes wbx-coin { 0% { transform: translateY(8px) scale(.6) rotate(-25deg); opacity: 0; } 60% { transform: translateY(-4px) scale(1.08) rotate(6deg); opacity: 1; } 100% { transform: none; } }
+
+.wbx-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.wbx-stats > div { padding: 10px 12px; border-radius: 8px; background: var(--bg-panel); }
+.wbx-stats dt { font-size: 11px; font-weight: 700; color: var(--text-muted); }
+.wbx-stats dd { margin: 2px 0 0; display: flex; align-items: center; gap: 6px; font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
+.wbx-calendar { list-style: none; margin: var(--sp-4) 0 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.wbx-day { position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 4px 6px; border-radius: 8px; background: var(--bg-panel); font-size: 12px; }
+.wbx-day-n { font-size: 10.5px; font-weight: 700; color: var(--text-muted); }
+.wbx-day strong { font-size: 13px; font-variant-numeric: tabular-nums; }
+.wbx-day-pass { display: inline-flex; align-items: center; gap: 2px; font-size: 10.5px; font-weight: 700; color: #3b82f6; }
+.wbx-day.is-milestone { background: color-mix(in srgb, #f6a623 14%, var(--bg-panel)); }
+.wbx-day.is-done { opacity: .5; }
+.wbx-day.is-done::after { content: '✓'; position: absolute; top: 3px; right: 6px; font-size: 11px; font-weight: 800; color: #22c55e; }
+.wbx-day.is-today { opacity: 1; box-shadow: inset 0 0 0 2px #f6a623; }
+.wbx-note { margin: var(--sp-4) 0 0; font-size: 12.5px; line-height: 1.5; color: var(--text-secondary); }
+
+/* the save pass question uses the confirm dialog; the pass takes the icon spot */
+.wbx-icon-spot { background: none; }
+
+/* ---- update notes ---- */
+.update-entry-ack { margin-top: var(--sp-4); }
+.update-ack { display: inline-flex; align-items: center; gap: 8px; }
+.update-ack.is-done { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
+
+@media (max-width: 560px) {
+    .wbx-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .wbx-calendar { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { .wbx-claim-coin { animation: none; } }

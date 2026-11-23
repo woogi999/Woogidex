@@ -10,6 +10,10 @@ import { Icon } from '../components/Icon.tsx';
 import { SkeletonDoc } from '../components/Skeleton.tsx';
 import { loadUpdates, type Update } from '../../features/updates.ts';
 import { openUpdates } from '../../features/whats-new.ts';
+import { acknowledgeUpdate, rewardedUpdates, woobux } from '../../features/woobux.ts';
+import { WoobuxIcon } from './woobux.tsx';
+import { useStore } from '../store.ts';
+import { state } from '../../core/app.ts';
 
 // **bold** and `code` become elements; everything else stays escaped text
 function Rich({ text }: { text: string }) {
@@ -22,6 +26,30 @@ function Rich({ text }: { text: string }) {
                 return part;
             })}
         </>
+    );
+}
+
+/** "v1.20.0" -> "1.20.0", the key the server pays by (rewarded_updates). */
+const plainVersion = (v: string) => String(v || '').trim().replace(/^v/i, '');
+
+/**
+ * The Woobux for reading an update, when that update pays (from v1.20.0 on).
+ * The server pays once for each account; the button only asks.
+ */
+function AcknowledgeButton({ version, close }: { version: string; close?: () => void }) {
+    useStore();
+    const [reward, setReward] = useState(0);
+    const [busy, setBusy] = useState(false);
+    const v = plainVersion(version);
+    useEffect(() => { rewardedUpdates().then(r => setReward(r[v] || 0)); }, [v]);
+    if (!reward) return null;
+    const done = !!woobux()?.acknowledged.includes(v);
+    if (done) return <span className="update-ack is-done"><WoobuxIcon size={16} />You got {reward} Woobux for this one</span>;
+    return (
+        <button type="button" className="btn btn-primary update-ack" disabled={busy}
+            onClick={async () => { setBusy(true); await acknowledgeUpdate(v); setBusy(false); close?.(); }}>
+            <WoobuxIcon size={18} />{state.user ? `Got it, +${reward} Woobux` : `Sign in to get ${reward} Woobux`}
+        </button>
     );
 }
 
@@ -41,6 +69,7 @@ export function UpdateEntry({ update, latest = false }: { update: Update; latest
                     <ul>{s.items.map((item, j) => <li key={j}><Rich text={item} /></li>)}</ul>
                 </section>
             ))}
+            {update.version && <div className="update-entry-ack"><AcknowledgeButton version={update.version} /></div>}
         </article>
     );
 }

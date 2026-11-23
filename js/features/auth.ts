@@ -1386,6 +1386,7 @@ function updateAuthUI() {
     api.onMessagingAuthChange?.();
     api.onGroupsAuthChange?.();
     api.onBusinessAuthChange?.();
+    api.onWoobuxAuthChange?.();
     // re-read whenever the signed-in user changes (including sign-out, which
     // must clear it), since the cloud-backup badge depends on it.
     api.refreshCloudManifest?.();

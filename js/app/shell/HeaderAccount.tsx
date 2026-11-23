@@ -14,6 +14,8 @@ import { usePhone } from '../hooks.ts';
 import { openUpdates, whatsNewView } from '../../features/whats-new.ts';
 import { addAccount, forgetAccount, logOutOfThisAccount, savedAccounts, switchAccount } from '../../features/accounts.ts';
 import { countLabel } from './Header.tsx';
+import { openWoobux, woobux } from '../../features/woobux.ts';
+import { WoobuxIcon } from '../dialogs/woobux.tsx';
 
 /** A Sign In button beside the account menu, signed out. */
 export function SignInButton() {
@@ -128,6 +130,21 @@ function SavedAccountRows({ close }: { close: () => void }) {
 }
 
 /** The top of the account menu: who you are, or a Sign In button. */
+/** Your Woobux and login streak, under your name. Opens the Woobux window. */
+function WoobuxRow({ close }: { close: () => void }) {
+    const w = woobux();
+    if (!w) return null;
+    const days = w.streak.current;
+    return (
+        <button type="button" className="header-profile-popover-item header-woobux-row" onClick={() => { close(); openWoobux(); }}
+            aria-label={`${w.balance} Woobux, ${days}-day login streak`}>
+            <WoobuxIcon size={20} />
+            <span><strong>{w.balance.toLocaleString()}</strong> Woobux</span>
+            <span className="header-profile-popover-note"><Icon name="fire" size={14} />{days} day{days === 1 ? '' : 's'}</span>
+        </button>
+    );
+}
+
 export function AccountMenuTop({ close }: { close: () => void }) {
     const user = state.user;
     const then = (fn: () => void) => () => { close(); fn(); };
@@ -152,6 +169,7 @@ export function AccountMenuTop({ close }: { close: () => void }) {
                     <small>{user.username ? '@' + user.username : 'Edit profile'}</small>
                 </span>
             </Link>
+            <WoobuxRow close={close} />
             <SavedAccountRows close={close} />
             <button type="button" className="header-profile-popover-item" onClick={then(() => addAccount())}><Icon name="user-plus" /><span>Add another account</span></button>
             <div className="header-profile-popover-divider" />

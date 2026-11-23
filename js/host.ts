@@ -25,6 +25,7 @@ import * as feedback from './features/feedback.ts';
 import * as social from './features/social.ts';
 import * as groups from './features/groups.ts';
 import * as business from './features/business.ts';
+import * as woobux from './features/woobux.ts';
 import * as messaging from './features/messaging.ts';
 import * as safety from './features/safety.ts';
 
@@ -35,6 +36,7 @@ import './app/dialogs/feedback.tsx';
 import './app/dialogs/mfa.tsx';
 import './app/dialogs/safety.tsx';
 import './app/dialogs/whatsNew.tsx';
+import './app/dialogs/woobux.tsx';
 import { LegalPage } from './app/pages/LegalPage.tsx';
 import { MovePage } from './app/pages/MovePage.tsx';
 import { SearchPage } from './app/pages/SearchPage.tsx';
@@ -62,7 +64,7 @@ import {
 import { MessagesDock } from './app/shell/MessagesDock.tsx';
 
 export function installHost(): void {
-    Object.assign(api, auth, community, notifications, moderation, events, cloudSave, legal, accountDeletion, oauth, globalSearch, feedback, social, messaging, safety, groups, business);
+    Object.assign(api, auth, community, notifications, moderation, events, cloudSave, legal, accountDeletion, oauth, globalSearch, feedback, social, messaging, safety, groups, business, woobux);
     // avatars come from the same masked pipe artwork does; this hands Core's
     // module a client getter rather than letting it import the account layer
     initAvatars(() => api.getClient());
