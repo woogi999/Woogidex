@@ -1148,7 +1148,7 @@ async function showUserHoverCard(userId, anchor) {
         const client = await getClient();
         let { data: profile, error } = await client
             .from('profiles')
-            .select('id, username, display_name, avatar_url, created_at, display_badges, banner_url, banner_color, accent_color')
+            .select('id, username, display_name, avatar_url, created_at, display_badges, banner_url, banner_color, accent_color, role')
             .eq('id', userId)
             .maybeSingle();
         if (error) throw error;
