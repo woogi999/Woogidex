@@ -50,33 +50,72 @@ function glints(layer: HTMLElement, x: number, y: number, n: number, reach: [num
     }
 }
 
-/** A coin's recent places, for its trail. `live` while it flies; afterwards the trail shrinks away. */
-interface Trail { pts: Array<{ x: number; y: number }>; live: boolean; get: () => { x: number; y: number } }
-const TRAIL_LEN = 16;
+/**
+ * A coin's trail: the places it passed, each with the time it was there.
+ * `live` while the coin flies. The trail is not cut when the coin lands:
+ * each point fades and shrinks with its age, so the tail tapers and dies away.
+ */
+interface Trail { pts: Array<{ x: number; y: number; t: number }>; live: boolean; get: () => { x: number; y: number } }
+const TRAIL_LIFE = 380;     // ms a point of light lasts
+const TRAIL_STEP = 3;       // px between points, filled in when a coin moves fast
+const TRAIL_SIZE = 30;      // px across the glow at the coin
 
-/** Draws every trail: a ribbon from the coin back along its path, wide and white at the coin, thin and gold at the tail. */
-function drawTrails(ctx: CanvasRenderingContext2D, trails: Trail[], width: number) {
+/**
+ * The light every point draws: a solid white-gold disc with a defined edge,
+ * then a thin soft halo past the edge. Drawn once.
+ */
+let glowSprite: HTMLCanvasElement | null = null;
+function glow(): HTMLCanvasElement {
+    if (glowSprite) return glowSprite;
+    const c = document.createElement('canvas');
+    c.width = c.height = 64;
+    const g = c.getContext('2d')!;
+    const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    r.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    r.addColorStop(0.3, 'rgba(255, 249, 222, 1)');
+    r.addColorStop(0.5, 'rgba(255, 222, 128, 1)');
+    // the edge: the disc ends in a short step, not a long fade
+    r.addColorStop(0.58, 'rgba(255, 196, 64, .9)');
+    r.addColorStop(0.64, 'rgba(255, 180, 48, .22)');
+    r.addColorStop(1, 'rgba(255, 170, 40, 0)');
+    g.fillStyle = r;
+    g.fillRect(0, 0, 64, 64);
+    return (glowSprite = c);
+}
+
+/**
+ * Draws every trail: discs of light laid along the path, the newest on top.
+ * Plain blending, not additive: overlapping discs would add up to a white
+ * blob and lose the edge.
+ */
+function drawTrails(ctx: CanvasRenderingContext2D, trails: Trail[]) {
+    const now = performance.now();
+    const sprite = glow();
+    // stronger on the dark theme, where light reads as light
+    const strength = document.documentElement.getAttribute('data-theme') === 'dark' ? 0.9 : 0.65;
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    ctx.lineCap = 'round';
-    // a warm edge, so the white head still reads on the light theme
-    ctx.shadowColor = 'rgba(214, 140, 20, .55)';
-    ctx.shadowBlur = 5;
-    for (const t of trails) {
-        if (t.live) { t.pts.push(t.get()); if (t.pts.length > TRAIL_LEN) t.pts.shift(); }
-        else if (t.pts.length) t.pts.shift();
-        const n = t.pts.length;
-        for (let i = 1; i < n; i++) {
-            const f = i / (n - 1 || 1);                 // 0 at the tail, 1 at the coin
-            ctx.lineWidth = Math.max(0.5, width * Math.pow(f, 1.4));
-            // gold at the tail turns to near-white at the coin
-            const g = Math.round(196 + 59 * f), b = Math.round(70 + 170 * f);
-            ctx.strokeStyle = `rgba(255, ${g}, ${b}, ${(0.15 + 0.85 * f).toFixed(3)})`;
-            ctx.beginPath();
-            ctx.moveTo(t.pts[i - 1].x, t.pts[i - 1].y);
-            ctx.lineTo(t.pts[i].x, t.pts[i].y);
-            ctx.stroke();
+    for (const tr of trails) {
+        if (tr.live) {
+            const p = tr.get(), last = tr.pts[tr.pts.length - 1];
+            if (!last) tr.pts.push({ ...p, t: now });
+            else {
+                // fill the gap with evenly spaced points, their times spread over the frame
+                const d = Math.hypot(p.x - last.x, p.y - last.y), n = Math.floor(d / TRAIL_STEP);
+                for (let i = 1; i <= n; i++) {
+                    const k = i / n;
+                    tr.pts.push({ x: last.x + (p.x - last.x) * k, y: last.y + (p.y - last.y) * k, t: last.t + (now - last.t) * k });
+                }
+            }
+        }
+        while (tr.pts.length && now - tr.pts[0].t > TRAIL_LIFE) tr.pts.shift();
+        for (const p of tr.pts) {
+            const k = 1 - (now - p.t) / TRAIL_LIFE;              // 1 fresh, 0 gone
+            const size = TRAIL_SIZE * (0.15 + 0.85 * Math.pow(k, 0.9));
+            ctx.globalAlpha = Math.pow(k, 1.3) * strength;
+            ctx.drawImage(sprite, p.x - size / 2, p.y - size / 2, size, size);
         }
     }
+    ctx.globalAlpha = 1;
 }
 
 /**
@@ -120,7 +159,7 @@ export function coinBurst(from: Element | null, before: number, after: number) {
     const ctx = canvas.getContext('2d')!;
     ctx.scale(dpr, dpr);
     const trails: Trail[] = [];
-    const tick = () => drawTrails(ctx, trails, 12);
+    const tick = () => drawTrails(ctx, trails);
     gsap.ticker.add(tick);
     cleanup = () => { gsap.ticker.remove(tick); layer.remove(); };
 

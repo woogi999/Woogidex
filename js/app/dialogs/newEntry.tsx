@@ -7,7 +7,7 @@ import { api, state } from '../../core/app.ts';
 import { NAME_MAX } from '../../core/data.ts';
 import { slideIn } from '../../core/motion.ts';
 import { buildSeed, LIBRARY_WORDS, templateChoices, type LibraryKind, type TemplateChoice } from '../../features/library-templates.ts';
-import { typeBackground, customByName } from '../../features/custom-types.ts';
+import { typeBackground, typeTextColor, customByName } from '../../features/custom-types.ts';
 import { CONDITION_ICON, type ConditionKind } from '../../features/custom-conditions.ts';
 import { openDialog, registerDialog, type DialogProps } from '../dialogs.tsx';
 import { Icon } from '../components/Icon.tsx';
@@ -60,7 +60,7 @@ function ChoiceMeta({ kind, choice }: { kind: LibraryKind; choice: TemplateChoic
 function ChoiceMark({ kind, choice }: { kind: LibraryKind; choice: TemplateChoice }) {
     if (kind === 'types') {
         const custom = choice.source === 'yours' ? customByName(choice.name) : null;
-        return <span className={`type-pill tpl-type-mark type-${choice.name.toLowerCase()}`} style={custom ? { background: typeBackground(custom) } : undefined}>{choice.name}</span>;
+        return <span className={`type-pill tpl-type-mark type-${choice.name.toLowerCase()}`} style={custom ? { background: typeBackground(custom), color: typeTextColor(custom) } : undefined}>{choice.name}</span>;
     }
     if (kind === 'conditions') {
         return <span className="tpl-cond-mark" style={{ background: choice.data.color }}><Icon name={CONDITION_ICON[choice.conditionKind as ConditionKind]} size={14} /></span>;

@@ -106,6 +106,7 @@ function cleanForeignType(t: any) {
     return {
         name,
         color: HEX.test(String(t.color || '')) ? String(t.color) : '#888888',
+        textColor: HEX.test(String(t.textColor || '')) ? String(t.textColor) : '',
         gradient: stops.length >= 2 ? { angle: Number.isFinite(angle) ? angle : 90, stops } : null,
         desc: String(t.desc || '').slice(0, 500),
         icon: '',
@@ -148,7 +149,7 @@ export function typesForPublishing(mons: any[]) {
     }
     return getCustomTypes()
         .filter(t => names.has(t.name.toLowerCase()))
-        .map(({ name, color, gradient, desc, icon, matchups }) => ({ name, color, gradient: gradient || null, desc: desc || '', icon: icon || '', matchups: matchups || { offense: {}, defense: {} } }));
+        .map(({ name, color, textColor, gradient, desc, icon, matchups }) => ({ name, color, textColor: textColor || '', gradient: gradient || null, desc: desc || '', icon: icon || '', matchups: matchups || { offense: {}, defense: {} } }));
 }
 
 // ---- reading ----
@@ -210,6 +211,31 @@ export function gradientStops(t) {
     return null;
 }
 
+/** Relative luminance (WCAG) of a #rrggbb colour, 0 (black) to 1 (white). */
+function luminance(hexColor: string): number {
+    const v = [1, 3, 5].map(i => parseInt(String(hexColor).slice(i, i + 2), 16) / 255)
+        .map(c => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+}
+
+/**
+ * The colour of a type's name on its fill: the one the type sets
+ * (textColor), or else black on a light fill and white on a dark one,
+ * whichever reads better (a gradient by the average of its stops).
+ */
+export function typeTextColor(t): string {
+    if (!t) return '#ffffff';
+    if (HEX.test(String(t.textColor || ''))) return String(t.textColor);
+    const colours = (gradientStops(t) || [{ color: t.color }]).map(s => s.color).filter(c => HEX.test(String(c || '')));
+    if (!colours.length) return '#ffffff';
+    const L = colours.reduce((sum, c) => sum + luminance(c), 0) / colours.length;
+    // contrast against white vs against near-black (#111: L about 0.0056)
+    return (1.05 / (L + 0.05)) >= ((L + 0.05) / 0.0556) ? '#ffffff' : '#111111';
+}
+
+/** The inline look of a type pill or badge: its fill and its text colour. */
+export const typeLookStyle = (t) => (t ? { background: typeBackground(t), color: typeTextColor(t) } : undefined);
+
 /** A type's fill: its colour, or its gradient. */
 export function typeBackground(t) {
     if (!t) return '';
@@ -256,7 +282,7 @@ export function syncCustomTypes(force = false) {
     const types = knownCustomTypes();
     const own = new Set(getCustomTypes());
     const all = allEntries();
-    const signature = JSON.stringify([...all, ...visiting].map(t => [t.name, t.vanillaOf, t.regionId, t.color, t.gradient, t.matchups]));
+    const signature = JSON.stringify([...all, ...visiting].map(t => [t.name, t.vanillaOf, t.regionId, t.color, t.textColor, t.gradient, t.matchups]));
     if (!force && signature === lastSignature) return;
     lastSignature = signature;
 
@@ -311,7 +337,7 @@ function writeTypeStyles() {
         tag.id = 'custom-type-styles';
         document.head.appendChild(tag);
     }
-    const rule = (sel, t) => `${sel} { background: ${typeBackground(t)}; color: #fff; }`;
+    const rule = (sel, t) => `${sel} { background: ${typeBackground(t)}; color: ${typeTextColor(t)}; }`;
     tag.textContent = [
         // borrowed first, so your own type of the same name (written after) wins
         ...[...borrowedLooks.values()].filter(t => !localByName(t.name)).map(t => rule(`.type-${cssEscape(t.name.toLowerCase())}`, t)),
@@ -346,6 +372,7 @@ export function customTypeDraft(editing) {
         name: editing?.name || '',
         color: editing?.color || TYPE_COLORS[getCustomTypes().length % TYPE_COLORS.length],
         gradient: normalizeGradient(editing),
+        textColor: editing?.textColor || '',
         desc: editing?.desc || '',
         icon: editing?.icon || '',
         vanillaOf: editing?.vanillaOf || null,
@@ -427,7 +454,9 @@ export function saveCustomTypeDraft(editing, draft, regionIds: any[] = []): stri
     const desc = String(draft.desc || '').trim();
     const matchups = { offense: { ...draft.offense }, defense: { ...draft.defense } };
     const gradient = draft.gradient ? { angle: Number(draft.gradient.angle) || 0, stops: draft.gradient.stops.map(s => ({ color: s.color, pos: s.pos })) } : null;
-    const look = { color: gradient ? gradient.stops[0].color : draft.color, gradient, icon: draft.icon || '' };
+    // textColor '' is automatic (black or white, typeTextColor)
+    const textColor = HEX.test(String(draft.textColor || '')) ? String(draft.textColor) : '';
+    const look = { color: gradient ? gradient.stops[0].color : draft.color, gradient, icon: draft.icon || '', textColor };
 
     if (draft.vanillaOf) {
         const regionName = api.getActiveRegion?.()?.name || 'The region';
@@ -538,7 +567,7 @@ function isSaved(entry) {
 // whether a region's version would change nothing about the main-game type
 function sameAsVanilla(entry) {
     const base = vanillaTypeEntry(entry.vanillaOf, entry.regionId);
-    const look = t => JSON.stringify([typeBackground(t), t.icon || '', String(t.desc || '').trim()]);
+    const look = t => JSON.stringify([typeBackground(t), t.icon || '', String(t.desc || '').trim(), t.textColor || '']);
     if (look(entry) !== look(base)) return false;
     // matchups are compared as the chart reads them, so an explicit 1 equals a missing one
     for (const other of allMatchupTypes()) {

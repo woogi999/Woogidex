@@ -9,7 +9,7 @@ import { createPortal } from 'react-dom';
 import { api } from '../../core/app.ts';
 import {
     ANGLES, GRADIENT_PRESETS, MATCHUP_GROUPS, MAX_STOPS, TYPE_COLORS, canDeleteCustomType, colorAt, customTypeDraft,
-    customTypeMatchups, deleteCustomType, matchupGroupOf, saveCustomTypeDraft, startGradient, typeBackground, withMatchup
+    customTypeMatchups, deleteCustomType, matchupGroupOf, saveCustomTypeDraft, startGradient, typeBackground, typeTextColor, withMatchup
 } from '../../features/custom-types.ts';
 import { entryRegionIds } from '../../features/regions.ts';
 import { registerDialog, type DialogProps } from '../dialogs.tsx';
@@ -24,6 +24,8 @@ type Stop = { color: string; pos: number };
 type Gradient = { angle: number; stops: Stop[] };
 type Draft = {
     name: string; color: string; gradient: Gradient | null; desc: string; icon: string; vanillaOf: string | null;
+    /** '' is automatic: black on a light fill, white on a dark one */
+    textColor: string;
     offense: Record<string, number>; defense: Record<string, number>;
 };
 type Side = 'offense' | 'defense';
@@ -287,6 +289,27 @@ function MatchupBoards({ draft, entry, setDraft, selfStyle }: { draft: Draft; en
     );
 }
 
+// ---- the text colour: automatic (black or white for the fill), black, white, or any colour ----
+
+function TextColourPicker({ value, auto, onChange }: { value: string; auto: string; onChange: (v: string) => void }) {
+    const v = String(value || '').toLowerCase();
+    const mode = !v ? 'auto' : v === '#111111' ? 'black' : v === '#ffffff' ? 'white' : 'custom';
+    const opts: Array<[string, string, string]> = [['auto', `Automatic (${auto === '#111111' ? 'black' : 'white'})`, ''], ['black', 'Black', '#111111'], ['white', 'White', '#ffffff']];
+    return (
+        <div className="segmented type-text-colour" role="radiogroup" aria-labelledby="custom-type-text-label">
+            {opts.map(([key, label, hex]) => (
+                <button key={key} type="button" role="radio" aria-checked={mode === key} className={mode === key ? 'active' : ''} onClick={() => onChange(hex)}>
+                    <span className="type-text-dot" style={{ background: hex || auto }} />{label}
+                </button>
+            ))}
+            <label className={`type-text-custom${mode === 'custom' ? ' active' : ''}`} title="Pick any colour">
+                <span className="type-text-dot" style={{ background: mode === 'custom' ? v : 'conic-gradient(red, yellow, lime, cyan, blue, magenta, red)' }} />Custom
+                <input type="color" value={mode === 'custom' ? v : auto} onChange={e => onChange(e.target.value)} />
+            </label>
+        </div>
+    );
+}
+
 // ---- the dialog ----
 
 
@@ -301,7 +324,7 @@ function CustomTypeDialog({ entry, seed, close }: DialogProps<{ entry: any; seed
     const [regionIds, setRegionIds] = useState<string[]>(() => entry ? entryRegionIds(entry) : [api.defaultRegionForNewFakemon?.()].filter(Boolean));
     const vanillaOf = draft.vanillaOf;
     const bg = typeBackground(draft);
-    const selfStyle = { background: bg };
+    const selfStyle = { background: bg, color: typeTextColor(draft) };
     const title = vanillaOf
         ? `${api.getActiveRegion?.()?.name || 'This region'}'s ${vanillaOf}`
         : entry ? 'Edit custom type' : 'New custom type';
@@ -340,6 +363,10 @@ function CustomTypeDialog({ entry, seed, close }: DialogProps<{ entry: any; seed
             <div className="form-group">
                 <label>Colour</label>
                 <FillEditor draft={draft} setDraft={setDraft} />
+            </div>
+            <div className="form-group">
+                <label id="custom-type-text-label">Text colour</label>
+                <TextColourPicker value={draft.textColor} auto={typeTextColor({ ...draft, textColor: '' })} onChange={textColor => setDraft(d => ({ ...d, textColor }))} />
             </div>
             <div className="form-group">
                 <label>Icon <span className="label-optional">(optional; a white symbol on a transparent background looks best)</span></label>

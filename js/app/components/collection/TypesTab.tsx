@@ -5,7 +5,7 @@
 
 import { api } from '../../../core/app.ts';
 import {
-    MULT_LABEL, TYPE_ICON_FILES, matchup, overrideFor, typeBackground, typeStrength, typeUserCount
+    MULT_LABEL, TYPE_ICON_FILES, matchup, overrideFor, typeBackground, typeStrength, typeTextColor, typeUserCount
 } from '../../../features/custom-types.ts';
 import { Icon } from '../Icon.tsx';
 import { AddCard, FolderCard, PinMark, cardActions, cardMenu, libraryDrag } from './cards.tsx';
@@ -42,7 +42,7 @@ function TypeCard({ name, bg, onClick, tag, desc, regionId, entry, pinned, actio
     const own = ownId ? { ...libraryDrag('types', ownId), 'data-entry-kind': 'types', 'data-entry-id': ownId } : {};
     const cut = ownId && isCut(ownId) ? ' is-cut' : '';
     const { strong, weak } = typeStrength(name, regionId);
-    const style = bg ? { background: bg } : undefined;
+    const style = bg ? { background: bg, color: entry ? typeTextColor(entry) : undefined } : undefined;
     const cls = `type-${name.toLowerCase()}`;
     const emblem = <span className={`library-emblem type-emblem ${cls}`} style={style}><TypeIcon name={name} entry={entry} /></span>;
     if (table) {
@@ -59,7 +59,7 @@ function TypeCard({ name, bg, onClick, tag, desc, regionId, entry, pinned, actio
             </div>
             <div className="card-body">
                 <div className="card-name">{name}</div>
-                <div className="card-meta-row"><span className="card-bst"><em>STRONG</em>{strong}</span><span className="card-bst"><em>WEAK</em>{weak}</span></div>
+                <div className="card-meta-row"><span className="card-bst"><em>Strong</em>{strong}</span><span className="card-bst"><em>Weak</em>{weak}</span></div>
                 <div className="card-types"><span className={`type-badge ${cls}`} style={style}>{name}</span></div>
             </div>
         </div>
