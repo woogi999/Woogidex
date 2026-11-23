@@ -18,7 +18,7 @@ import { Link, monPath } from '../components/Link.tsx';
 import { FeedCard, FeedSkeleton } from '../components/feed.tsx';
 import { WallComposer, WallPostCard } from '../components/comments.tsx';
 import { getThread, loadThread } from '../../features/comments.ts';
-import { BadgePicker, ProfileMons } from '../components/profile.tsx';
+import { BANNER_PRESETS, BadgePicker, ProfileMons, bannerBackground } from '../components/profile.tsx';
 import { LazyArt } from '../components/community.tsx';
 import { ShieldedArt } from '../components/ShieldedArt.tsx';
 import { useStore } from '../store.ts';
@@ -33,17 +33,8 @@ import { openCommentControls, openReportDialog } from '../../features/safety.ts'
 type Message = { text: string; ok?: boolean };
 type Tab = 'posts' | 'fakemon';
 
-// banner presets: name -> CSS background. Stored as "preset:<name>".
-export const BANNER_PRESETS: Record<string, string> = {
-    sunset: 'linear-gradient(120deg, #ff5f6d, #ffc371)',
-    ocean: 'linear-gradient(120deg, #2193b0, #6dd5ed)',
-    aurora: 'linear-gradient(120deg, #00c9a7, #845ec2 55%, #d65db1)',
-    ember: 'linear-gradient(120deg, #7a1f1f, #e2574c 50%, #f9c74f)',
-    forest: 'linear-gradient(120deg, #134e5e, #71b280)',
-    cosmic: 'linear-gradient(120deg, #0f0c29, #302b63 50%, #24243e)',
-    candy: 'linear-gradient(120deg, #f8a5c2, #a29bfe)',
-    stellar: 'linear-gradient(100deg, #f06a8e, #f5a55a 28%, #e8d35a 48%, #6cc8a0 68%, #5d8fe8 88%, #9a6cf0)'
-};
+// banner presets and bannerBackground live in components/profile.tsx (the hover card uses them too)
+export { BANNER_PRESETS };
 export const ACCENTS = ['#7c5cff', '#e07a5f', '#2bb3a8', '#e6a23c', '#3b82f6', '#c056d8', '#5aa469', '#d64f7a', '#1d2433'];
 
 // who sees what (the profiles.privacy column); the server enforces the same for
@@ -58,12 +49,6 @@ function canSee(profile: any, part: string, isOwn: boolean, following: boolean):
     return !levels.includes('followers') || following;
 }
 
-function bannerBackground(p: any): string {
-    const c = String(p?.banner_color || '');
-    if (c.startsWith('preset:')) return BANNER_PRESETS[c.slice(7)] || '';
-    if (/^#[0-9a-f]{6}$/i.test(c)) return c;
-    return '';
-}
 
 export function ProfilePage() {
     useStore();

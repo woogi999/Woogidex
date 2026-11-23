@@ -1133,11 +1133,14 @@ async function showUserHoverCard(userId, anchor) {
         const client = await getClient();
         let { data: profile, error } = await client
             .from('profiles')
-            .select('id, username, display_name, avatar_url, created_at, display_badges')
+            .select('id, username, display_name, avatar_url, created_at, display_badges, banner_url, banner_color, accent_color')
             .eq('id', userId)
             .maybeSingle();
         if (error) throw error;
-        if (profile) profile = { ...profile, bio: (await client.rpc('profile_details', { p_user: userId })).data?.bio || '' };
+        if (profile) {
+            const details = (await client.rpc('profile_details', { p_user: userId })).data;
+            profile = { ...profile, bio: details?.bio || '', pronouns: details?.pronouns || '' };
+        }
         if (!profile || requestId !== userHoverRequest) return;
         renderUserHoverCard(profile);
         positionUserHoverCard(anchor);

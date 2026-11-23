@@ -165,10 +165,10 @@ button:active:not(:disabled), .btn:active:not(:disabled) { transform: scale(0.96
 /* ======================================================================
    user hover card - skeleton support
    ====================================================================== */
-.user-hover-card-avatar.skel { border-radius: 50%; }
-.user-hover-card-identity strong.skel { display: block; }
-.user-hover-card-identity > span.skel { display: block; }
-.user-hover-card-bio .skel-text + .skel-text { margin-top: 5px; }
+.uhc-avatar.skel { border-radius: 50%; }
+.uhc-body > .skel { display: block; }
+.uhc-section .skel-text { display: block; }
+.uhc-section .skel-text + .skel-text { margin-top: 5px; }
 
 /* ======================================================================
    editor UI polish

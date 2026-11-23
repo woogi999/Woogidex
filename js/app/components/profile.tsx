@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../../core/app.ts';
 import { Avatar } from './Avatar.tsx';
 import { BadgeIcon, BadgeRow, badgeDefinition } from './Badge.tsx';
-import { ArtLoader } from './ShieldedArt.tsx';
+import { ArtLoader, ShieldedArt } from './ShieldedArt.tsx';
 import { Link, monPath } from './Link.tsx';
 
 export interface PublishedRow { id: string; user_id?: string; published_at?: string; fakemon_data?: { name?: string; type1?: string; type2?: string; artwork?: string }; }
@@ -107,51 +107,85 @@ export function BadgePicker({ owned, selected, onChange }: { owned: string[]; se
     );
 }
 
+// ==================== banner ====================
+
+// banner presets: name -> CSS background. Stored as "preset:<name>".
+export const BANNER_PRESETS: Record<string, string> = {
+    sunset: 'linear-gradient(120deg, #ff5f6d, #ffc371)',
+    ocean: 'linear-gradient(120deg, #2193b0, #6dd5ed)',
+    aurora: 'linear-gradient(120deg, #00c9a7, #845ec2 55%, #d65db1)',
+    ember: 'linear-gradient(120deg, #7a1f1f, #e2574c 50%, #f9c74f)',
+    forest: 'linear-gradient(120deg, #134e5e, #71b280)',
+    cosmic: 'linear-gradient(120deg, #0f0c29, #302b63 50%, #24243e)',
+    candy: 'linear-gradient(120deg, #f8a5c2, #a29bfe)',
+    stellar: 'linear-gradient(100deg, #f06a8e, #f5a55a 28%, #e8d35a 48%, #6cc8a0 68%, #5d8fe8 88%, #9a6cf0)'
+};
+
+/** A profile's banner as a CSS background: a preset, a hex colour, or '' (the caller's default). */
+export function bannerBackground(p: any): string {
+    const c = String(p?.banner_color || '');
+    if (c.startsWith('preset:')) return BANNER_PRESETS[c.slice(7)] || '';
+    if (/^#[0-9a-f]{6}$/i.test(c)) return c;
+    return '';
+}
+
 // ==================== hover card ====================
-// A preview of someone without leaving the page. Contents only; the caller
-// positions it against the name it's shown for.
+// A preview of someone without leaving the page, laid out like Discord's
+// profile pop-out: the banner, the picture over its lower edge, the badges
+// in a strip at the right, the name, then About me and Member since.
+// Contents only; js/features/auth.ts positions it against the name.
+
+const safeHex = (v: any) => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? String(v) : '');
 
 export function UserHoverCard({ profile = null, loading = false }: { profile?: any; loading?: boolean }) {
     if (loading || !profile) {
         return (
-            <>
-                <div className="user-hover-card-accent" />
-                <div className="user-hover-card-top">
-                    <div className="user-hover-card-avatar skel skel-circle" />
-                    <div className="user-hover-card-identity">
-                        <div className="user-hover-card-label">Trainer card</div>
-                        <strong className="skel skel-text" style={{ width: 110, height: 16 }} />
-                        <span className="skel skel-text" style={{ width: 70, marginTop: 4 }} />
+            <div className="uhc">
+                <div className="uhc-banner skel" />
+                <div className="uhc-avatar-wrap"><div className="uhc-avatar skel skel-circle" /></div>
+                <div className="uhc-body">
+                    <strong className="skel skel-text" style={{ width: 120, height: 18 }} />
+                    <span className="skel skel-text" style={{ width: 80, marginTop: 6 }} />
+                    <div className="uhc-section">
+                        <span className="skel skel-text" style={{ width: '100%' }} />
+                        <span className="skel skel-text" style={{ width: '70%' }} />
                     </div>
                 </div>
-                <div className="user-hover-card-bio">
-                    <span className="skel skel-text" style={{ width: '100%' }} />
-                    <span className="skel skel-text" style={{ width: '80%' }} />
-                </div>
-            </>
+            </div>
         );
     }
     const name = profile.display_name || profile.username || 'Trainer';
+    const accent = safeHex(profile.accent_color);
+    const banner = bannerBackground(profile) || accent || '';
+    const badges: string[] = Array.isArray(profile.display_badges) ? profile.display_badges : [];
+    const since = profile.created_at ? new Date(profile.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
     return (
-        <>
-            <div className="user-hover-card-accent" />
-            <div className="user-hover-card-top">
-                <div className="user-hover-card-avatar">
+        <div className="uhc" style={accent ? { ['--uhc-accent' as any]: accent } : undefined}>
+            <div className={`uhc-banner${profile.banner_url ? ' has-image' : ''}`} style={banner ? { background: banner } : undefined}>
+                {profile.banner_url && <ShieldedArt src={profile.banner_url} className="avatar-art" />}
+            </div>
+            <div className="uhc-avatar-wrap">
+                <div className="uhc-avatar">
                     <Avatar userId={profile.id} url={profile.avatar_url} name={name} className="profile-avatar-img" />
                 </div>
-                <div className="user-hover-card-identity">
-                    <div className="user-hover-card-label">Trainer card</div>
-                    <strong>{name}</strong>
-                    <span>@{profile.username || ''}</span>
-                </div>
+                {badges.length > 0 && <div className="uhc-badges"><BadgeRow badgeKeys={badges} size={18} /></div>}
             </div>
-            <div className="user-hover-card-badges"><BadgeRow badgeKeys={Array.isArray(profile.display_badges) ? profile.display_badges : []} size={15} /></div>
-            {profile.bio && <div className="user-hover-card-bio">{profile.bio}</div>}
-            {profile.created_at && (
-                <div className="user-hover-card-joined">
-                    Joined {new Date(profile.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })}
-                </div>
-            )}
-        </>
+            <div className="uhc-body">
+                <strong className="uhc-name">{name}</strong>
+                <span className="uhc-handle">@{profile.username || ''}{profile.pronouns ? <> · {profile.pronouns}</> : null}</span>
+                {profile.bio && (
+                    <div className="uhc-section">
+                        <h4>About me</h4>
+                        <p className="uhc-bio">{profile.bio}</p>
+                    </div>
+                )}
+                {since && (
+                    <div className="uhc-section">
+                        <h4>Member since</h4>
+                        <p>{since}</p>
+                    </div>
+                )}
+            </div>
+        </div>
     );
 }
