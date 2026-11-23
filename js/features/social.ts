@@ -20,6 +20,7 @@ import { createPoll, pollProblem, type PollDraft } from './polls.ts';
 import { applyMyReaction } from './comments.ts';
 import { effectivePhase } from './events.ts';
 import { cleanTierList } from './tier-lists.ts';
+import { DOWNLOAD_FIELDS } from './downloads.ts';
 
 // one feed, ranked "For you"; the key stays so the feed state keeps its shape
 export type FeedTab = 'foryou';
@@ -239,8 +240,26 @@ function withEmbeds(rows: any[]): any[] {
 /** Raw feed rows (community_feed, group_feed) as cards: shaped, with author info and the events they show. */
 export async function prepareFeedRows(data: any[]): Promise<FeedItem[]> {
     const rows = (data || []).map(shapeItem);
-    await Promise.all([api.attachLiveAuthorInfo?.(withEmbeds(rows)), attachPostEvents(rows), attachPostTierLists(rows)]);
+    await Promise.all([api.attachLiveAuthorInfo?.(withEmbeds(rows)), attachPostEvents(rows), attachPostTierLists(rows), attachPostDownloads(rows)]);
     return rows;
+}
+
+/** The file a staff post shares (community_posts.download_id -> site_downloads). */
+async function attachPostDownloads(rows: any[]) {
+    const posts = withEmbeds(rows).filter(r => r?.kind === 'post' && r.id);
+    if (!posts.length) return;
+    try {
+        const client = await api.getClient();
+        const { data: links, error } = await client.from('community_posts').select('id, download_id').in('id', [...new Set(posts.map(p => p.id))]).not('download_id', 'is', null);
+        if (error || !links?.length) return;
+        const { data: files } = await client.from('site_downloads').select(DOWNLOAD_FIELDS).in('id', [...new Set(links.map((l: any) => l.download_id))]);
+        const fileById = new Map((files || []).map((f: any) => [f.id, f]));
+        const byPost = new Map(links.map((l: any) => [l.id, fileById.get(l.download_id)]));
+        for (const p of posts) if (byPost.get(p.id)) p.download = byPost.get(p.id);
+    } catch (e: any) {
+        // before the column is live: posts just show without a file
+        log.debug('SOCIAL', 'Files on posts not loaded', { error: String(e?.message || e) });
+    }
 }
 
 /** The tier list a post carries (community_posts.tier_list), checked by cleanTierList: someone else's data. */
@@ -433,9 +452,10 @@ function emptyPostMessage(error: any): string {
         : '';
 }
 
-export async function createPost({ body = '', monIds = [] as string[], eventIds = [] as string[], poll = null as PollDraft | null, groupId = null as string | null, tierList = null as any }): Promise<string | null> {
+export async function createPost({ body = '', monIds = [] as string[], eventIds = [] as string[], poll = null as PollDraft | null, groupId = null as string | null, tierList = null as any, download = null as { id: string; title: string } | null }): Promise<string | null> {
     if (!api.requireAccount?.('Sign in to post.')) return null;
-    const text = String(body || '').trim();
+    // a post that only shares a file says what the file is
+    const text = String(body || '').trim() || (download ? download.title : '');
     if (!text && !monIds.length && !eventIds.length && !poll) { api.showToast?.('Write something or add a Fakemon first.', 'warning'); return null; }
     const pollIssue = poll ? pollProblem(poll) : '';
     if (pollIssue) { api.showToast?.(pollIssue, 'warning'); return null; }
@@ -446,7 +466,7 @@ export async function createPost({ body = '', monIds = [] as string[], eventIds 
     // tells the database's "a post needs something in it" rule one is coming
     const pollOnly = !!poll && !text && !monIds.length && !eventIds.length;
     const { data, error } = await client.from('community_posts')
-        .insert({ user_id: state.user!.id, body: text, mon_ids: monIds.slice(0, 12), tags: tagsIn(text), ...(eventIds.length ? { event_ids: eventIds.slice(0, 4) } : {}), ...(pollOnly ? { has_poll: true } : {}), ...(groupId ? { group_id: groupId } : {}), ...(tierList ? { tier_list: tierList } : {}) })
+        .insert({ user_id: state.user!.id, body: text, mon_ids: monIds.slice(0, 12), tags: tagsIn(text), ...(eventIds.length ? { event_ids: eventIds.slice(0, 4) } : {}), ...(pollOnly ? { has_poll: true } : {}), ...(groupId ? { group_id: groupId } : {}), ...(tierList ? { tier_list: tierList } : {}), ...(download ? { download_id: download.id } : {}) })
         .select('id').single();
     if (error) {
         log.error('SOCIAL', 'Post failed', error);
@@ -749,7 +769,7 @@ export async function fetchTimeline(userId: string, before: string | null = null
     const { data, error } = await client.rpc('profile_timeline', { p_user: userId, p_before: before, p_limit: 30 });
     if (error) throw error;
     const rows = (data || []).map(shapeItem);
-    await Promise.all([api.attachLiveAuthorInfo?.(withEmbeds(rows)), attachPostEvents(rows), attachPostTierLists(rows)]);
+    await Promise.all([api.attachLiveAuthorInfo?.(withEmbeds(rows)), attachPostEvents(rows), attachPostTierLists(rows), attachPostDownloads(rows)]);
     return rows;
 }
 

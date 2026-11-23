@@ -1,6 +1,6 @@
 /* The tier maker page (/toolbox/tier-maker, js/app/pages/TierMakerPage.tsx),
-   its board (components/tier/TierBoard.tsx), the game modes (TierModes.tsx),
-   live voting (TierLive.tsx), and a tier list in a chat (MessagesPage.tsx).
+   its board (components/tier/TierBoard.tsx), the game modes (TierModes.tsx)
+   and a tier list in a chat (MessagesPage.tsx).
    One surface, no box around the page: hairline dividers and soft fills. */
 
 .tier-maker-page {
@@ -21,9 +21,6 @@
 .tm-format { width: 220px; font-family: Inconsolata, ui-monospace, monospace; font-size: 13px; }
 .tmp-spacer { flex: 1; }
 .tmp-flag { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: var(--bg-panel); color: var(--text-secondary); font-size: 12.5px; font-weight: 700; white-space: nowrap; }
-.tmp-flag.is-live { background: color-mix(in srgb, #e05252 14%, transparent); color: #e05252; }
-.tm-live-dot { width: 8px; height: 8px; border-radius: 50%; background: #e05252; animation: tm-live 1.4s ease-in-out infinite; }
-@keyframes tm-live { 50% { opacity: .35; } }
 
 /* ---- the tool rows: plain buttons on the page, no boxes ---- */
 .tmp-bar, .tmp-add, .tmp-modes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
@@ -129,7 +126,7 @@
 /* tiers */
 .tm-rows { display: flex; flex-direction: column; gap: 4px; }
 .tm-row { display: flex; min-height: calc(var(--tm-item) + 16px); border-radius: 8px; background: color-mix(in srgb, var(--bg-panel) 88%, transparent); transition: box-shadow 120ms ease; }
-.tm-row.is-over, .tm-cell.is-over, .tm-grid.is-over, .tm-rushmore.is-over, .tm-pyramid-row.is-over, .tm-plane.is-over { box-shadow: inset 0 0 0 2px var(--accent); }
+.tm-row.is-over, .tm-cell.is-over, .tm-grid.is-over, .tm-pyramid-row.is-over, .tm-plane.is-over { box-shadow: inset 0 0 0 2px var(--accent); }
 .tm-label { flex: 0 0 var(--tm-label); display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 2px; padding: 6px 8px; border-radius: 8px 0 0 8px; color: #fff; text-align: center; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
 .tm-label strong { font-size: 17px; font-weight: 800; line-height: 1.15; overflow-wrap: anywhere; }
 .tm-label small { font-size: 11px; opacity: .85; }
@@ -155,10 +152,6 @@
 .tm-pyramid-row { display: flex; justify-content: center; gap: 6px; padding: 4px; border-radius: 10px; }
 .tm-pyramid-slot { display: grid; place-items: center; width: calc(var(--tm-item) + 12px); min-height: calc(var(--tm-item) + 22px); border-radius: 10px; background: color-mix(in srgb, var(--bg-panel) 88%, transparent); }
 
-/* Mount Rushmore: four big faces under a peak */
-.tm-rushmore { --tm-item: 132px; position: relative; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 40px 16px 16px; border-radius: 12px; background: linear-gradient(180deg, color-mix(in srgb, #8a8a8a 22%, transparent), transparent); }
-.tm-rushmore-peak { position: absolute; inset: 0 0 auto; height: 40px; background: linear-gradient(135deg, transparent 47%, color-mix(in srgb, #8a8a8a 30%, transparent) 50%, transparent 53%), linear-gradient(225deg, transparent 47%, color-mix(in srgb, #8a8a8a 30%, transparent) 50%, transparent 53%); background-size: 80px 40px; border-radius: 12px 12px 0 0; }
-.tm-rushmore-slot { display: grid; place-items: center; min-height: 170px; border-radius: 12px; background: color-mix(in srgb, var(--bg-panel) 85%, transparent); }
 
 /* quadrant */
 .tm-quadrant { display: grid; grid-template-columns: auto 1fr auto; grid-template-rows: auto 1fr auto; gap: 6px; }
@@ -209,44 +202,12 @@ button.tm-mode-card:hover { transform: translateY(-2px); box-shadow: 0 0 0 2px v
 .tm-mode-teams > div.is-now { background: var(--accent-soft); }
 .tm-mode-teams small { color: var(--text-secondary); }
 
-/* ---- live ---- */
-.tm-live { display: flex; flex-direction: column; gap: 10px; }
-.tm-live .btn { align-self: flex-start; }
-.tm-live-code { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
-.tm-live-code small { color: var(--text-muted); font-weight: 700; }
-.tm-live-code strong { font-family: Inconsolata, ui-monospace, monospace; font-size: 34px; letter-spacing: .12em; }
-.tm-live-event { display: flex; flex-direction: column; gap: 8px; }
-.tm-live-pick { display: flex; flex-wrap: wrap; gap: 4px; max-height: 180px; overflow: auto; }
-.tm-live-pick button { padding: 3px 8px; border: 0; border-radius: 6px; background: var(--bg-panel); color: var(--text-primary); font: 12px var(--font-sans); cursor: pointer; }
-.tm-live-pick button.is-on { background: var(--accent); color: #fff; }
-
-/* the viewer's page (/toolbox/live/<code>) */
-.tm-viewer { max-width: 880px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-4); }
-.tm-viewer-empty { align-items: center; text-align: center; padding-top: var(--sp-6); }
-.tm-viewer-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.tm-viewer-head h1 { flex-basis: 100%; margin: 0; font-size: 26px; font-weight: 800; }
-.tm-viewer-head small { color: #e05252; font-weight: 700; }
-.tm-viewer-stage { display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); }
-.tm-viewer-wait { color: var(--text-secondary); text-align: center; }
-.tm-viewer-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.tm-viewer-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border-light); }
-.tm-viewer-item { display: inline-flex; align-items: center; gap: 10px; }
-.tm-viewer-item .tm-mode-pic { width: 48px; height: 48px; }
-.tm-viewer-choices { display: flex; flex-wrap: wrap; gap: 4px; }
-.tm-viewer-choices button { min-width: 44px; height: 34px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--bg-panel); color: var(--text-primary); font: 800 13px var(--font-sans); cursor: pointer; box-shadow: inset 0 -3px 0 var(--c, var(--accent)); }
-.tm-viewer-choices button.is-mine { background: var(--c, var(--accent)); color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.3); }
-.tm-viewer-results h2 { font-size: 15px; margin: 0 0 6px; }
-.tm-viewer-tier { display: flex; gap: 8px; align-items: baseline; padding: 3px 0; font-size: 14px; }
-.tm-viewer-tier b { min-width: 40px; padding: 1px 6px; border-radius: 4px; color: #fff; text-align: center; font-size: 12px; }
-
 /* ---- presentation mode: the board alone, full screen ---- */
 .tier-maker-page.is-presenting { max-width: none; padding: var(--sp-5); background: var(--bg-dark); overflow: auto; height: 100%; box-sizing: border-box; }
 .tier-maker-page.is-presenting .tmp-title { font-size: 0; }
 .tier-maker-page.is-presenting .tmp-back { display: none; }
 .tier-maker-page.is-presenting .tm-board { max-width: none; }
 .tier-maker-page.is-presenting .tm-item { cursor: default; }
-.tmp-present-code { align-self: center; padding: 8px 16px; border-radius: 999px; background: var(--bg-panel); font-size: 18px; }
-.tmp-present-code strong { font-family: Inconsolata, ui-monospace, monospace; letter-spacing: .1em; }
 
 /* ---- the footer ---- */
 .tm-import textarea { width: 100%; font-family: Inconsolata, ui-monospace, monospace; }
@@ -272,11 +233,9 @@ button.tm-mode-card:hover { transform: translateY(-2px); box-shadow: 0 0 0 2px v
     .tm-format { width: 100%; }
     .tmp-head { flex-wrap: wrap; }
     .tm-label strong { font-size: 14px; }
-    .tm-rushmore { --tm-item: 72px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .tm-rushmore-slot { min-height: 100px; }
     .tm-mode-card.is-big .tm-mode-pic { width: 110px; height: 110px; }
 }
-@media (prefers-reduced-motion: reduce) { .tm-live-dot { animation: none; } }
+
 
 /* a tier list sent in a chat */
 .chat-tierlist { display: flex; flex-direction: column; gap: 6px; max-width: 320px; padding: 10px 12px; border-radius: 14px; background: var(--bg-panel); box-shadow: inset 0 0 0 1px var(--border); }
@@ -286,8 +245,8 @@ button.tm-mode-card:hover { transform: translateY(-2px); box-shadow: 0 0 0 2px v
 .chat-tierlist-tier b { display: inline-block; min-width: 34px; margin-right: 4px; padding: 0 4px; border-radius: 4px; color: #fff; text-align: center; font-size: 11px; }
 .chat-tierlist .btn { align-self: flex-start; }
 
-/* ---- the Toolbox page (/toolbox, ToolboxPage.tsx) and Downloads (/downloads, DownloadsPage.tsx) ---- */
-.toolbox-page, .downloads-page { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-4); }
+/* ---- the Toolbox page (/toolbox, ToolboxPage.tsx) ---- */
+.toolbox-page { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-4); }
 .toolbox-sub { margin: 4px 0 0; color: var(--text-secondary); }
 .toolbox-apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--sp-3); }
 .toolbox-app { display: flex; gap: 12px; align-items: center; padding: 16px; border: 0; border-radius: var(--card-r); background: var(--bg-panel); color: var(--text-primary); font: inherit; text-align: left; cursor: pointer; transition: var(--t-ui); }
@@ -298,17 +257,5 @@ button.tm-mode-card:hover { transform: translateY(-2px); box-shadow: 0 0 0 2px v
 .toolbox-app-text { flex: 1; display: flex; flex-direction: column; gap: 4px; }
 .toolbox-app-text small { color: var(--text-secondary); line-height: 1.45; }
 .toolbox-saved { display: flex; flex-direction: column; gap: 6px; }
-.toolbox-join { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.toolbox-join label { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; font-size: 14px; }
-.toolbox-join input { width: 160px; font-family: Inconsolata, ui-monospace, monospace; letter-spacing: .1em; text-transform: uppercase; }
 .toolbox-saved h2 { font-size: 18px; }
-.toolbox-empty, .downloads-help { margin: 0; color: var(--text-secondary); font-size: 14px; }
-.downloads-upload { display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: var(--card-r); background: var(--bg-panel); }
-.downloads-upload h2 { font-size: 16px; }
-.downloads-upload .btn { align-self: flex-start; }
-.downloads-list { display: flex; flex-direction: column; gap: 8px; }
-.download-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 12px 14px; border-radius: var(--card-r); background: var(--bg-panel); }
-.download-icon { color: var(--accent); }
-.download-text { flex: 1 1 240px; display: flex; flex-direction: column; gap: 2px; }
-.download-desc { font-size: 14px; color: var(--text-secondary); white-space: pre-line; }
-.download-text small { color: var(--text-muted); }
+.toolbox-empty { margin: 0; color: var(--text-secondary); font-size: 14px; }

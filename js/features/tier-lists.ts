@@ -23,7 +23,6 @@
 //   grid       one ranked order, drawn as numbered cells
 //   alignment  3 x 3: rows Lawful / Neutral / Chaotic, columns Good / Neutral / Evil
 //   quadrant   a plane with four axis labels; a mon's spot is in `pos` (0 to 1)
-//   rushmore   four big slots
 // `look` holds the display settings (background, widths, item size).
 // A `template` is a list kept to start new rankings from. A `singleUse` list
 // is never saved: it is for one picture to download. A mon with `temp` is
@@ -40,7 +39,7 @@ export interface Tier { id: string; name: string; sd: string; color: string }
  * small picture (a data URI, 96px) for picture items.
  */
 export interface TierMon { id: string; name: string; types?: string[]; from: 'fakemon' | 'pokemon' | 'custom' | 'image'; note?: string; img?: string; temp?: boolean }
-export type Layout = 'tiers' | 'pyramid' | 'grid' | 'alignment' | 'quadrant' | 'rushmore';
+export type Layout = 'tiers' | 'pyramid' | 'grid' | 'alignment' | 'quadrant';
 export interface Column { id: string; name: string }
 export interface Look { bg?: string; bgImg?: string; width?: number; itemSize?: number; labelWidth?: number }
 export interface Axes { top: string; bottom: string; left: string; right: string }
@@ -71,7 +70,6 @@ export const LAYOUTS: Array<[Layout, string, string]> = [
     ['grid', 'Grid', 'A numbered ranking from #1 down'],
     ['alignment', 'Alignment chart', 'Lawful to Chaotic, Good to Evil'],
     ['quadrant', 'Quadrant chart', 'Place each one on two axes'],
-    ['rushmore', 'Mount Rushmore', 'Only four make it']
 ];
 
 export const TIER_TYPE = 'tier-list' as const;
@@ -107,7 +105,6 @@ export const STARTS: Array<{ key: string; label: string; hint: string; make: (ti
     { key: 'grid', label: 'Ranking grid', hint: '#1 down to the last', make: t => ({ ...blankList(t, ['Ranked']), layout: 'grid' }) },
     { key: 'alignment', label: 'Alignment chart', hint: 'Lawful Good to Chaotic Evil', make: t => alignmentList(blankList(t)) },
     { key: 'quadrant', label: 'Quadrant chart', hint: 'Two axes, four corners', make: t => ({ ...blankList(t, []), layout: 'quadrant', axes: { top: 'Strong', bottom: 'Weak', left: 'Ugly', right: 'Cute' } }) },
-    { key: 'rushmore', label: 'Mount Rushmore', hint: 'The four greatest', make: t => ({ ...blankList(t, ['Mount Rushmore']), layout: 'rushmore' }) }
 ];
 
 function blankList(title = 'New tier list', names: string[] = ['S', 'A', 'B', 'C', 'D', 'F'], sd = false): TierList {
@@ -233,7 +230,6 @@ export function forSharing(list: TierList): TierList {
 /** How many items a row of a layout holds (Infinity: no limit). */
 export function rowCapacity(list: TierList, tierIndex: number): number {
     if (list.layout === 'pyramid') return tierIndex + 1;
-    if (list.layout === 'rushmore') return 4;
     return Infinity;
 }
 
@@ -260,7 +256,7 @@ export function placeByOrder(list: TierList, order: string[]): TierList {
 
 /**
  * The same items in another layout. What can carry over does: the ranked
- * order fills a pyramid, a grid or Mount Rushmore from the top; going back to
+ * order fills a pyramid or a grid from the top; going back to
  * tiers spreads that order over S to F. An alignment chart or a quadrant
  * starts empty (it has nothing to read an order into).
  */
@@ -283,7 +279,6 @@ export function convertLayout(list: TierList, layout: Layout): TierList {
         return fill(Array.from({ length: Math.max(3, levels) }, (_, i) => String(i + 1)), i => i + 1);
     }
     if (layout === 'grid') return fill(['Ranked'], () => Infinity);
-    if (layout === 'rushmore') return fill(['Mount Rushmore'], () => 4);
     if (layout === 'alignment') {
         const a = alignmentList(base);
         return { ...a, title: list.title, id: list.id, mons: list.mons, placed: { ...a.placed, [UNRANKED]: Object.keys(list.mons) } };

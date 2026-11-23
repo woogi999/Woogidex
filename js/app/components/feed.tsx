@@ -27,6 +27,7 @@ import { SkeletonRows } from './Skeleton.tsx';
 import { openCommentControls, openReportDialog } from '../../features/safety.ts';
 import { TierListCard } from './TierListCard.tsx';
 import { openTierMaker } from '../dialogs/tierMaker.tsx';
+import { canManageDownloads, discardDownload, downloadUrl, sizeLabel, uploadDownload, type DownloadRow } from '../../features/downloads.ts';
 
 // timeAgo lives with the comments now; it's re-exported for the pages that
 // already import it from here
@@ -369,6 +370,7 @@ export function PostFeedCard({ item, full = false }: { item: FeedItem; full?: bo
             <PostMons mons={item.mons || []} />
             <PostEvents events={item.events} />
             {item.tierList && <TierListCard list={item.tierList} action="Rank it yourself" onOpen={() => openTierMaker(item.tierList, null, true)} />}
+            {item.download && <PostDownload file={item.download} />}
             <PollView kind="post" parentId={item.id} />
             {item.repost && <div className="repost-embed-wrap"><RepostEmbed item={item.repost} /></div>}
             {(item.tags || []).length > 0 && (
@@ -379,6 +381,23 @@ export function PostFeedCard({ item, full = false }: { item: FeedItem; full?: bo
             <FeedActions item={item} comments={comments} onComments={() => setComments(v => !v)} />
             {comments && <InlineComments kind="post" item={item} />}
         </article>
+    );
+}
+
+/** A file a staff post shares: its name, its size, and a download button. */
+function PostDownload({ file }: { file: DownloadRow }) {
+    const [busy, setBusy] = useState(false);
+    const get = async () => {
+        setBusy(true);
+        try { const a = document.createElement('a'); a.href = await downloadUrl(file); a.rel = 'noopener'; a.click(); }
+        finally { setBusy(false); }
+    };
+    return (
+        <div className="post-download">
+            <span className="post-download-icon"><Icon name="document-arrow-down" size={22} /></span>
+            <span className="post-download-text"><strong>{file.file_name}</strong><small>{sizeLabel(file.size)}</small></span>
+            <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={get}><Icon name="arrow-down-tray" size={14} />Download</button>
+        </div>
     );
 }
 
@@ -460,16 +479,28 @@ export function PostComposer({ onPosted, group }: { onPosted?: () => void; group
     const [evs, setEvs] = useState<any[]>([]);
     const [poll, setPoll] = useState<PollDraft | null>(null);
     const [busy, setBusy] = useState(false);
+    // staff with the downloads permission share a file in a post (js/features/downloads.ts)
+    const [file, setFile] = useState<DownloadRow | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const filePick = useRef<HTMLInputElement>(null);
     const user = state.user;
     if (!user) return null;
     const name = user.displayName || user.username || 'you';
     async function post() {
         if (busy) return;
         setBusy(true);
-        const id = await api.createPost({ body: text, monIds: mons.map(m => m.id), eventIds: evs.map(e => e.id), poll, groupId: group?.id || where || null });
+        const id = await api.createPost({ body: text, monIds: mons.map(m => m.id), eventIds: evs.map(e => e.id), poll, groupId: group?.id || where || null, download: file });
         setBusy(false);
-        if (id) { setText(''); setMons([]); setEvs([]); setPoll(null); setOpen(false); onPosted?.(); }
+        if (id) { setText(''); setMons([]); setEvs([]); setPoll(null); setFile(null); setOpen(false); onPosted?.(); }
     }
+    async function attach(picked: File | undefined) {
+        if (!picked) return;
+        setUploading(true);
+        const row = await uploadDownload(picked);
+        setUploading(false);
+        if (row) { if (file) discardDownload(file); setFile(row); }
+    }
+    const dropFile = () => { if (file) discardDownload(file); setFile(null); };
     if (!open) {
         return (
             <div className="post-composer is-collapsed">
@@ -498,6 +529,13 @@ export function PostComposer({ onPosted, group }: { onPosted?: () => void; group
             <EmojiInput value={text} onChange={setText} maxLength={4000} rows={4} autoFocus toolbar
                 placeholder="Say something! Use #tags, @mentions and :emojis: (try typing :sob or :tatsu)" />
             {poll && <PollEditor value={poll} onChange={setPoll} onRemove={() => setPoll(null)} />}
+            {file && (
+                <div className="post-download is-draft">
+                    <span className="post-download-icon"><Icon name="document-arrow-down" size={20} /></span>
+                    <span className="post-download-text"><strong>{file.file_name}</strong><small>{sizeLabel(file.size)}</small></span>
+                    <button type="button" className="btn btn-secondary btn-sm" aria-label={`Remove ${file.file_name}`} onClick={dropFile}><Icon name="x" size={14} /></button>
+                </div>
+            )}
             {(mons.length > 0 || evs.length > 0) && (
                 <div className="post-composer-mons">
                     {mons.map(m => (
@@ -522,9 +560,17 @@ export function PostComposer({ onPosted, group }: { onPosted?: () => void; group
                     <Icon name="trophy" size={14} /> {evs.length ? `Events (${evs.length})` : 'Add event'}
                 </button>
                 {!poll && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setPoll(emptyPoll())}><Icon name="chart-bar" size={14} /> Poll</button>}
+                {canManageDownloads() && (
+                    <>
+                        <button type="button" className="btn btn-secondary btn-sm" disabled={uploading} onClick={() => filePick.current?.click()} title="Share a file everyone can download (staff, up to 50 MB)">
+                            <Icon name="paper-clip" size={14} /> {uploading ? 'Uploading…' : file ? 'Change file' : 'Attach a file'}
+                        </button>
+                        <input ref={filePick} type="file" hidden onChange={e => { attach(e.target.files?.[0]); e.target.value = ''; }} />
+                    </>
+                )}
                 <span className="post-composer-count">{text.length}/4000</span>
-                <button type="button" className="btn btn-secondary btn-sm" onClick={() => { setOpen(false); }}>Cancel</button>
-                <button type="button" className="btn btn-primary btn-sm" disabled={busy || (!text.trim() && !mons.length && !evs.length && !poll)} onClick={post}>{busy ? 'Posting…' : 'Post'}</button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => { dropFile(); setOpen(false); }}>Cancel</button>
+                <button type="button" className="btn btn-primary btn-sm" disabled={busy || uploading || (!text.trim() && !mons.length && !evs.length && !poll && !file)} onClick={post}>{busy ? 'Posting…' : 'Post'}</button>
             </div>
         </div>
     );

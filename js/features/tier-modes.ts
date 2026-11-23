@@ -211,7 +211,7 @@ export function snakeList(list: TierList, s: Snake): TierList {
  */
 export function applyOrder(list: TierList, order: string[]): TierList {
     const base = list.layout === 'quadrant' || list.layout === 'alignment' ? convertLayout(list, 'tiers') : list;
-    if (base.layout === 'pyramid' || base.layout === 'rushmore' || base.layout === 'grid') {
+    if (base.layout === 'pyramid' || base.layout === 'grid') {
         // these fill from the top, a row at a time
         return convertLayout(placeByOrder({ ...base, layout: 'tiers' }, order), base.layout);
     }

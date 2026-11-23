@@ -1,11 +1,8 @@
 // /toolbox/tier-maker: the tier maker, the Toolbox's first app, as a whole
 // page (no window, no card around it). Rank Fakémon, Pokémon, pictures or
-// words into any tiers you like, in six layouts (js/features/tier-lists.ts),
-// with game modes (TierModes.tsx), live voting (TierLive.tsx), your own look,
-// a presentation mode for streams, and the exports. The board is
-// js/app/components/tier/TierBoard.tsx.
-//
-// /toolbox/live/<code> is a viewer's page for someone's live list.
+// words into any tiers you like, in five layouts (js/features/tier-lists.ts),
+// with game modes (TierModes.tsx), your own look, a presentation mode for
+// streams, and the exports. The board is js/app/components/tier/TierBoard.tsx.
 //
 // Where a list comes from: openTierMaker() in js/app/dialogs/tierMaker.tsx
 // (the Toolbox, a group, a chat, a post). A list from someone else opens as
@@ -22,10 +19,9 @@ import { confirmDialog } from '../../core/confirm-dialog.ts';
 import { BANNER_PRESETS } from '../components/profile.tsx';
 import { TierBoard } from '../components/tier/TierBoard.tsx';
 import { ModePanel } from '../components/tier/TierModes.tsx';
-import { LiveHost, LiveViewer } from '../components/tier/TierLive.tsx';
+import { openContextMenu } from '../components/ContextMenu.tsx';
 import { currentTierMakerStart, type GroupContext } from '../dialogs/tierMaker.tsx';
 import { MODES, type ModeKey } from '../../features/tier-modes.ts';
-import type { LiveSession } from '../../features/tier-live.ts';
 import {
     BG_IMG_CHARS, LAYOUTS, LOOK_LIMITS, MAX_IMAGES, SD_TIERS, STARTS, UNRANKED, addColumn, addMons, addTier, applyPlacement, averageList,
     changelog, collectionMons, columnOf, convertLayout, exportFormatsData, exportText, forSharing, fromTemplate, importText,
@@ -98,16 +94,17 @@ function download(name: string, text: string) {
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
 }
 
-const TILE_COLORS = ['#7c5cff', '#e05252', '#3aa0c0', '#3ab07a', '#e0a83a', '#b05ac0', '#1d2433'];
+/** A file name from the list's title. */
+const fileBase = (list: TierList) => (list.title || 'tier-list').replace(/[^a-z0-9-]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase() || 'tier-list';
 
-type Side = 'item' | 'rows' | 'look' | 'changes' | 'live' | 'templates' | null;
+const TILE_COLORS =['#7c5cff', '#e05252', '#3aa0c0', '#3ab07a', '#e0a83a', '#b05ac0', '#1d2433'];
+
+type Side = 'item' | 'rows' | 'look' | 'changes' | 'templates' | null;
 
 // ---------- the page ----------
 
 export function TierMakerPage() {
     useStore();
-    const param = (location.pathname.split('/').filter(Boolean)[1] || '').toLowerCase();
-    if (param === 'live') return <LiveViewer code={(location.pathname.split('/').filter(Boolean)[2] || '').toUpperCase()} />;
     return <TierMaker />;
 }
 
@@ -172,8 +169,6 @@ function TierMaker() {
     const [importing, setImporting] = useState(false);
     const [importBox, setImportBox] = useState('');
     const [sendTo, setSendTo] = useState(conversationId || '');
-    const [session, setSession] = useState<LiveSession | null>(null);
-    const [badge, setBadge] = useState<((id: string) => React.ReactNode) | null>(null);
     const page = useRef<HTMLDivElement>(null);
     const board = useRef<HTMLDivElement>(null);
     const pictures = useRef<HTMLInputElement>(null);
@@ -359,7 +354,7 @@ function TierMaker() {
                                     <button type="button" aria-label={`Delete ${t.name}`} disabled={list.tiers.length <= 1} onClick={() => change(removeTier(list, t.id))}><Icon name="x" size={14} /></button>
                                 </div>
                             ))}
-                            {!['grid', 'rushmore'].includes(layout) && (
+                            {layout !== 'grid' && (
                                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => change(addTier(list, layout === 'pyramid' ? String(list.tiers.length + 1) : 'New tier'))}><Icon name="plus" size={14} />{layout === 'pyramid' ? 'Level' : 'Row'}</button>
                             )}
                             {(layout === 'tiers' || layout === 'alignment') && (
@@ -438,14 +433,6 @@ function TierMaker() {
                 </section>
             );
         }
-        if (side === 'live') {
-            return (
-                <section className="tm-side-section" aria-label="Live">
-                    <header><h3>Live</h3><button type="button" className="tm-x" aria-label="Close" onClick={() => setSide(null)}><Icon name="x" size={16} /></button></header>
-                    <LiveHost list={list} session={session} setSession={setSession} onApply={change} onBadge={fn => setBadge(() => fn)} />
-                </section>
-            );
-        }
         return null;
     })();
 
@@ -458,7 +445,6 @@ function TierMaker() {
                     onChange={e => change({ ...list, format: e.target.value.replace(/[^a-z0-9]/gi, '').toLowerCase() })} />}
                 <span className="tmp-spacer" />
                 {list.singleUse && <span className="tmp-flag" title="Nothing saves. Download a picture when you are done."><Icon name="sparkles" size={14} />Single-use</span>}
-                {session?.status === 'open' && <span className="tmp-flag is-live"><span className="tm-live-dot" aria-hidden="true" />Live · {session.code}</span>}
                 <button type="button" className="tmp-icon" aria-label="Undo" title="Undo (Ctrl+Z)" disabled={!history.length} onClick={undo}><Icon name="arrow-uturn-left" size={18} /></button>
                 <button type="button" className="tmp-icon" aria-label="Redo" title="Redo (Ctrl+Y)" disabled={!future.length} onClick={redo}><Icon name="arrow-uturn-right" size={18} /></button>
                 <button type="button" className={`tmp-icon${present ? ' is-on' : ''}`} aria-pressed={present} title="Presentation mode: the board alone, for streams and screen sharing" aria-label="Presentation mode" onClick={togglePresent}><Icon name={present ? 'arrows-pointing-in' : 'arrows-pointing-out'} size={18} /></button>
@@ -475,7 +461,6 @@ function TierMaker() {
                     <button type="button" className={`tmp-tool${side === 'templates' ? ' is-on' : ''}`} onClick={() => setSide(side === 'templates' ? null : 'templates')}><Icon name="squares-plus" size={16} />New and templates</button>
                     <button type="button" className={`tmp-tool${side === 'rows' ? ' is-on' : ''}`} onClick={() => setSide(side === 'rows' ? null : 'rows')}><Icon name="bars-3" size={16} />{layout === 'quadrant' ? 'Axes' : 'Rows and columns'}</button>
                     <button type="button" className={`tmp-tool${side === 'look' ? ' is-on' : ''}`} onClick={() => setSide(side === 'look' ? null : 'look')}><Icon name="swatch" size={16} />Look</button>
-                    <button type="button" className={`tmp-tool${side === 'live' ? ' is-on' : ''}`} onClick={() => setSide(side === 'live' ? null : 'live')}><Icon name="signal" size={16} />Live</button>
                     <button type="button" className={`tmp-tool${side === 'changes' ? ' is-on' : ''}`} onClick={() => setSide(side === 'changes' ? null : 'changes')}><Icon name="arrows-up-down" size={16} />Changes ({changes.length})</button>
                 </div>
             )}
@@ -528,9 +513,8 @@ function TierMaker() {
                     )}
                     {(!mode || mode === 'blind') && (
                         <TierBoard list={list} onChange={change} picked={present ? null : picked} onPick={present ? () => {} : setPicked}
-                            locked={mode === 'blind'} badge={badge || undefined} boardRef={board} hideUnranked={present} />
+                            locked={mode === 'blind'} boardRef={board} hideUnranked={present} />
                     )}
-                    {present && session?.status === 'open' && <div className="tmp-present-code">Vote at {location.host}/toolbox/live · code <strong>{session.code}</strong></div>}
                 </div>
                 {!present && sidePanel && <aside className="tmp-side">{sidePanel}</aside>}
             </div>
@@ -548,15 +532,20 @@ function TierMaker() {
             {!present && (
                 <footer className="tmp-foot">
                     <div className="tm-actions">
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={saveImage}><Icon name="photo" size={14} /><span>Save as image</span></button>
-                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy(exportText(list), 'Tier text')}><Icon name="document-text" size={14} /><span>Copy text</span></button>
+                        <button type="button" className="btn btn-secondary btn-sm" aria-haspopup="menu" onClick={e => openContextMenu(e, {
+                            title: 'Export as',
+                            items: [
+                                { label: 'Image (PNG)', icon: 'photo', run: saveImage },
+                                { label: 'Text file (.txt)', icon: 'document-text', run: () => download(`${fileBase(list)}.txt`, exportText(list)) },
+                                { label: 'Copy as text', icon: 'clipboard-document', run: () => copy(exportText(list), 'Tier text') },
+                                ...(showdown ? [
+                                    'sep' as const,
+                                    { label: 'Showdown formats-data.ts', icon: 'arrow-down-tray', run: () => download(`${list.format || 'formats'}-data.ts`, exportFormatsData(forSharing(list))) },
+                                    { label: 'Copy Showdown code', icon: 'code-bracket', run: () => copy(exportFormatsData(forSharing(list)), 'Showdown code') }
+                                ] : [])
+                            ]
+                        })}><Icon name="arrow-down-tray" size={14} /><span>Export as</span><Icon name="chevron-down" size={12} /></button>
                         <button type="button" className="btn btn-secondary btn-sm" onClick={() => setImporting(v => !v)}><Icon name="arrow-up-tray" size={14} /><span>Import text</span></button>
-                        {showdown && (
-                            <>
-                                <button type="button" className="btn btn-secondary btn-sm" onClick={() => download(`${list.format || 'formats'}-data.ts`, exportFormatsData(forSharing(list)))}><Icon name="arrow-down-tray" size={14} /><span>formats-data.ts</span></button>
-                                <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy(exportFormatsData(forSharing(list)), 'Showdown code')}><Icon name="clipboard-document" size={14} /><span>Copy code</span></button>
-                            </>
-                        )}
                         {!group && !conversationId && !list.singleUse && (
                             <button type="button" className="btn btn-secondary btn-sm" onClick={() => api.postTierList?.(forSharing(list))} title="Post it on the Community Hub, where others can rank their own copy">
                                 <Icon name="megaphone" size={14} /><span>Post</span>

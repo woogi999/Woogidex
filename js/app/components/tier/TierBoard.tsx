@@ -3,7 +3,7 @@
 //
 // Moving an item: drag it (mouse or finger) onto a row, a cell or the plane,
 // or tap it and pick where in the side panel (keyboard and screen readers
-// use the panel too). A full pyramid row or Mount Rushmore refuses more.
+// use the panel too). A full pyramid row refuses more.
 
 import { useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import { api, state } from '../../../core/app.ts';
@@ -156,7 +156,7 @@ export function TierBoard({ list, onChange, picked, onPick, locked = false, badg
         if (index >= 0) {
             const room = rowCapacity(list, index);
             const inRow = (list.placed[tierId] || []).filter(x => x !== id).length;
-            if (inRow >= room) { api.showToast?.(layout === 'rushmore' ? 'Mount Rushmore only has room for four.' : 'That row is full. Move one out first.', 'info'); return; }
+            if (inRow >= room) { api.showToast?.('That row is full. Move one out first.', 'info'); return; }
         }
         const { [id]: _gone, ...pos } = list.pos || {};
         onChange(moveMonTo({ ...list, ...(list.pos ? { pos } : {}) }, id, tierId, colId, beforeId && beforeId !== id ? beforeId : null));
@@ -219,17 +219,6 @@ export function TierBoard({ list, onChange, picked, onPick, locked = false, badg
                 {(list.placed[t.id] || []).map((id, i) => list.mons[id] && <li key={id}><span className="tm-grid-n">#{i + 1}</span>{item(id)}</li>)}
                 <li className="tm-grid-next" aria-hidden="true"><span className="tm-grid-n">#{(list.placed[t.id] || []).length + 1}</span><span className="tm-empty">Drop here</span></li>
             </ol>
-        );
-    } else if (layout === 'rushmore') {
-        const t = list.tiers[0];
-        const ids = t ? list.placed[t.id] || [] : [];
-        body = t && (
-            <div className="tm-rushmore" data-tier={t.id} data-drop>
-                <div className="tm-rushmore-peak" aria-hidden="true" />
-                {Array.from({ length: 4 }, (_, i) => (
-                    <div key={i} className="tm-rushmore-slot">{ids[i] ? item(ids[i]) : <span className="tm-empty">Face {i + 1}</span>}</div>
-                ))}
-            </div>
         );
     } else if (layout === 'pyramid') {
         body = (
