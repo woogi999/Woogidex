@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<defs>
+<linearGradient id="developerr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b495f9"/><stop offset=".55" stop-color="#8b5cf6"/><stop offset="1" stop-color="#5a3ca0"/></linearGradient>
+<linearGradient id="developerf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ab8af9"/><stop offset="1" stop-color="#8055e2"/></linearGradient>
+<radialGradient id="developerh" cx=".32" cy=".25" r=".6"><stop offset="0" stop-color="#ffffff" stop-opacity=".55"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<linearGradient id="developerg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#e2d6fd"/></linearGradient>
+</defs>
+<g fill="#4c3387" transform="translate(0 1.6)"><polygon points="57.11,46.50 32.00,61.00 6.89,46.50 6.89,17.50 32.00,3.00 57.11,17.50" stroke-linejoin="round"/></g>
+<g fill="url(#developerr)"><polygon points="57.11,46.50 32.00,61.00 6.89,46.50 6.89,17.50 32.00,3.00 57.11,17.50" stroke-linejoin="round"/></g>
+<g fill="url(#developerf)"><polygon points="52.35,43.75 32.00,55.50 11.65,43.75 11.65,20.25 32.00,8.50 52.35,20.25" stroke-linejoin="round"/></g>
+<g fill="url(#developerh)"><polygon points="52.35,43.75 32.00,55.50 11.65,43.75 11.65,20.25 32.00,8.50 52.35,20.25" stroke-linejoin="round"/></g>
+
+<g fill="#4c3387" stroke="#4c3387" opacity=".55" transform="translate(0 1.4)"><path d="M25 22 15 32l10 10" fill="none" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M39 22l10 10-10 10" fill="none" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M35 19l-6 26" fill="none" stroke-width="5" stroke-linecap="round"/></g>
+<g fill="url(#developerg)" stroke="url(#developerg)"><path d="M25 22 15 32l10 10" fill="none" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M39 22l10 10-10 10" fill="none" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><path d="M35 19l-6 26" fill="none" stroke-width="5" stroke-linecap="round"/></g>
+</svg>

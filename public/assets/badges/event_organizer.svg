@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<defs>
+<linearGradient id="eventorganizerr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6fd996"/><stop offset=".55" stop-color="#22c55e"/><stop offset="1" stop-color="#16803d"/></linearGradient>
+<linearGradient id="eventorganizerf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#60d58b"/><stop offset="1" stop-color="#1fb556"/></linearGradient>
+<radialGradient id="eventorganizerh" cx=".32" cy=".25" r=".6"><stop offset="0" stop-color="#ffffff" stop-opacity=".55"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<linearGradient id="eventorganizerg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#c8f1d7"/></linearGradient>
+</defs>
+<g fill="#136c34" transform="translate(0 1.6)"><rect x="5.899999999999999" y="5.899999999999999" width="52.2" height="52.2" rx="11.02"/></g>
+<g fill="url(#eventorganizerr)"><rect x="5.899999999999999" y="5.899999999999999" width="52.2" height="52.2" rx="11.02"/></g>
+<g fill="url(#eventorganizerf)"><rect x="10.849999999999998" y="10.849999999999998" width="42.300000000000004" height="42.300000000000004" rx="8.93"/></g>
+<g fill="url(#eventorganizerh)"><rect x="10.849999999999998" y="10.849999999999998" width="42.300000000000004" height="42.300000000000004" rx="8.93"/></g>
+
+<g fill="#136c34" stroke="#136c34" opacity=".55" transform="translate(0 1.4)"><rect x="20" y="15" width="4.5" height="35" rx="2.25"/><path d="M24 17c6-3 10 3 17 0s6-1 6-1v17s-1-2-6 1-11-3-17 0Z"/></g>
+<g fill="url(#eventorganizerg)" stroke="url(#eventorganizerg)"><rect x="20" y="15" width="4.5" height="35" rx="2.25"/><path d="M24 17c6-3 10 3 17 0s6-1 6-1v17s-1-2-6 1-11-3-17 0Z"/></g>
+</svg>

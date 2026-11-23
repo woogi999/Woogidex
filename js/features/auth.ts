@@ -64,20 +64,35 @@ async function fetchProfile(userId) {
     return data;
 }
 
+/**
+ * Every badge the user holds: given by hand, given by a role, or earned for a
+ * count (user_badge_keys() in Woogidex-DB). Badges are cosmetic; roles give
+ * the permissions. Before the badge tables exist, the roles they hold.
+ */
 async function fetchBadges(userId) {
     const client = await getClient();
+    const held = await client.rpc('user_badge_keys', { uid: userId });
+    if (!held.error && Array.isArray(held.data)) return held.data as string[];
     const { data, error } = await client.from('profile_badges').select('badge_key').eq('user_id', userId);
     if (error) { log.error('AUTH', 'Badge fetch failed', error); return []; }
     return (data || []).map(row => row.badge_key);
 }
 
+/** The badge definitions (cosmetic_badges), or the old role rows before that table exists. */
+async function loadBadgeRows(client: any): Promise<any[]> {
+    const fresh = await client.from('cosmetic_badges').select('key, label, description, art, image, color, sort').order('sort');
+    if (!fresh.error) return fresh.data || [];
+    const old = await client.from('badges').select('key, label, icon, icon_image, color, description, rank').order('rank', { ascending: false });
+    if (old.error) throw old.error;
+    return old.data || [];
+}
+
 async function refreshBadgeDefinitions() {
     try {
         const client = await getClient();
-        const { data, error } = await client.from('badges').select('key, label, icon, icon_image, color, description, rank').order('rank', { ascending: false });
-        if (error) throw error;
-        api.setBadgeDefinitions?.(data || []);
-        return data || [];
+        const data = await loadBadgeRows(client);
+        api.setBadgeDefinitions?.(data);
+        return data;
     } catch (e: any) {
         log.warn('AUTH', 'Could not load live badge definitions; using cached defaults', e);
         return [];
@@ -1440,6 +1455,6 @@ export {
     showProfileView, showUserProfile, handleProfileRoute, exitProfileRoute, editOwnProfile, cancelEditOwnProfile, openProfileModal, closeProfileModal, renderProfilePage, renderProfileLoading,
     saveProfileDetails, saveUsername, saveEmail, removeAccountEmail, saveDisplayedBadges, avatarFileProblem, bannerFileProblem, usernameChangesRemainingText,
     handleSignOutClick, updateAuthUI, promptUsernameIfMissing, submitAccountSetup, closeAccountSetupModal,
-    fetchBadges, currentRole, isStaff, isAdminOrDev, canDeleteAnyContent,
+    fetchBadges, loadBadgeRows, currentRole, isStaff, isAdminOrDev, canDeleteAnyContent,
     fetchPermissions, recordAuthEvent
 };

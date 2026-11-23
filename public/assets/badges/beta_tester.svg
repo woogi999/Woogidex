@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<defs>
+<linearGradient id="betatesterr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#62c5f1"/><stop offset=".55" stop-color="#0ea5e9"/><stop offset="1" stop-color="#096b97"/></linearGradient>
+<linearGradient id="betatesterf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#51beef"/><stop offset="1" stop-color="#0d98d6"/></linearGradient>
+<radialGradient id="betatesterh" cx=".32" cy=".25" r=".6"><stop offset="0" stop-color="#ffffff" stop-opacity=".55"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<linearGradient id="betatesterg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#c3e9fa"/></linearGradient>
+</defs>
+<g fill="#085b80" transform="translate(0 1.6)"><circle cx="32" cy="32" r="29"/></g>
+<g fill="url(#betatesterr)"><circle cx="32" cy="32" r="29"/></g>
+<g fill="url(#betatesterf)"><circle cx="32" cy="32" r="23.5"/></g>
+<g fill="url(#betatesterh)"><circle cx="32" cy="32" r="23.5"/></g>
+
+<g fill="#085b80" stroke="#085b80" opacity=".55" transform="translate(0 1.4)"><path d="M27 15h10v12l10 17c1.4 2.6-.4 5-3 5H20c-2.6 0-4.4-2.4-3-5l10-17Z" stroke-linejoin="round" stroke-width="2"/><rect x="25" y="13" width="14" height="4" rx="2"/></g>
+<g fill="url(#betatesterg)" stroke="url(#betatesterg)"><path d="M27 15h10v12l10 17c1.4 2.6-.4 5-3 5H20c-2.6 0-4.4-2.4-3-5l10-17Z" stroke-linejoin="round" stroke-width="2"/><rect x="25" y="13" width="14" height="4" rx="2"/></g>
+</svg>

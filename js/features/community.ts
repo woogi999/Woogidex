@@ -48,10 +48,10 @@ async function attachLiveAuthorInfo(rows) {
     ensureCommunityState().rolesMap = await getRolesMap();
     if (!userIds.length) return rows;
 
-    const [{ data: profiles }, { data: badgeRows }, { data: badgeDefinitions }] = await Promise.all([
+    const [{ data: profiles }, { data: badgeRows }, badgeDefinitions] = await Promise.all([
         client.from('profiles').select('id, username, display_name, avatar_url, role, display_badges').in('id', userIds),
         client.from('profile_badges').select('user_id, badge_key').in('user_id', userIds),
-        client.from('badges').select('key, label, icon, icon_image, color, description, rank').order('rank', { ascending: false })
+        (api.loadBadgeRows?.(client) as Promise<any[]> | undefined)?.catch(() => []) ?? Promise.resolve([])
     ]);
     if (Array.isArray(badgeDefinitions) && badgeDefinitions.length) api.setBadgeDefinitions?.(badgeDefinitions);
 

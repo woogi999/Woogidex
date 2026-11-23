@@ -11,10 +11,14 @@ const badgeDefs = BADGES as Record<string, BadgeDefinition>;
 
 interface BadgeIconProps { badge: BadgeDefinition; size?: number; className?: string; style?: CSSProperties; }
 
-/** A badge's own picture: its uploaded image when it has one, else its Heroicon. */
+/**
+ * A badge's own picture: its uploaded image, else its built-in art
+ * (public/assets/badges/<art>.svg, Discord-style emblems), else its Heroicon.
+ */
 export function BadgeIcon({ badge, size = 14, className = 'profile-badge', style }: BadgeIconProps) {
-    if (badge.image) {
-        return <img src={badge.image} className={`${className} profile-badge-image`.trim()} style={{ width: size, height: size, ...style }} alt={badge.label} draggable={false} />;
+    const src = badge.image || (badge.art ? `assets/badges/${badge.art}.svg` : '');
+    if (src) {
+        return <img src={src} className={`${className} profile-badge-image`.trim()} style={{ width: size, height: size, ...style }} alt={badge.label} draggable={false} />;
     }
     return (
         <Icon name={badge.icon || 'star'} size={size} className={className}

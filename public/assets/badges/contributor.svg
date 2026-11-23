@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<defs>
+<linearGradient id="contributorr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f388bd"/><stop offset=".55" stop-color="#ec4899"/><stop offset="1" stop-color="#992f63"/></linearGradient>
+<linearGradient id="contributorf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f17bb6"/><stop offset="1" stop-color="#d9428d"/></linearGradient>
+<radialGradient id="contributorh" cx=".32" cy=".25" r=".6"><stop offset="0" stop-color="#ffffff" stop-opacity=".55"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<linearGradient id="contributorg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#fad1e6"/></linearGradient>
+</defs>
+<g fill="#822854" transform="translate(0 1.6)"><circle cx="32" cy="32" r="29"/></g>
+<g fill="url(#contributorr)"><circle cx="32" cy="32" r="29"/></g>
+<g fill="url(#contributorf)"><circle cx="32" cy="32" r="23.5"/></g>
+<g fill="url(#contributorh)"><circle cx="32" cy="32" r="23.5"/></g>
+
+<g fill="#822854" stroke="#822854" opacity=".55" transform="translate(0 1.4)"><path d="M32 47S16 37.5 16 27c0-5 4-9 8.5-9 3.3 0 5.9 1.8 7.5 4.5C33.6 19.8 36.2 18 39.5 18 44 18 48 22 48 27c0 10.5-16 20-16 20Z"/></g>
+<g fill="url(#contributorg)" stroke="url(#contributorg)"><path d="M32 47S16 37.5 16 27c0-5 4-9 8.5-9 3.3 0 5.9 1.8 7.5 4.5C33.6 19.8 36.2 18 39.5 18 44 18 48 22 48 27c0 10.5-16 20-16 20Z"/></g>
+</svg>

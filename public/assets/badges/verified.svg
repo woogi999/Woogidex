@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<defs>
+<linearGradient id="verifiedr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#95b8ff"/><stop offset=".55" stop-color="#5c92ff"/><stop offset="1" stop-color="#3c5fa6"/></linearGradient>
+<linearGradient id="verifiedf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8ab1ff"/><stop offset="1" stop-color="#5586eb"/></linearGradient>
+<radialGradient id="verifiedh" cx=".32" cy=".25" r=".6"><stop offset="0" stop-color="#ffffff" stop-opacity=".55"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<linearGradient id="verifiedg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d6e4ff"/></linearGradient>
+</defs>
+<g fill="#33508c" transform="translate(0 1.6)"><polygon points="32.00,3.00 38.61,7.35 46.50,6.89 50.05,13.95 57.11,17.50 56.65,25.39 61.00,32.00 56.65,38.61 57.11,46.50 50.05,50.05 46.50,57.11 38.61,56.65 32.00,61.00 25.39,56.65 17.50,57.11 13.95,50.05 6.89,46.50 7.35,38.61 3.00,32.00 7.35,25.39 6.89,17.50 13.95,13.95 17.50,6.89 25.39,7.35" stroke-linejoin="round"/></g>
+<g fill="url(#verifiedr)"><polygon points="32.00,3.00 38.61,7.35 46.50,6.89 50.05,13.95 57.11,17.50 56.65,25.39 61.00,32.00 56.65,38.61 57.11,46.50 50.05,50.05 46.50,57.11 38.61,56.65 32.00,61.00 25.39,56.65 17.50,57.11 13.95,50.05 6.89,46.50 7.35,38.61 3.00,32.00 7.35,25.39 6.89,17.50 13.95,13.95 17.50,6.89 25.39,7.35" stroke-linejoin="round"/></g>
+<g fill="url(#verifiedf)"><polygon points="32.00,8.50 37.35,12.02 43.75,11.65 46.62,17.38 52.35,20.25 51.98,26.65 55.50,32.00 51.98,37.35 52.35,43.75 46.62,46.62 43.75,52.35 37.35,51.98 32.00,55.50 26.65,51.98 20.25,52.35 17.38,46.62 11.65,43.75 12.02,37.35 8.50,32.00 12.02,26.65 11.65,20.25 17.38,17.38 20.25,11.65 26.65,12.02" stroke-linejoin="round"/></g>
+<g fill="url(#verifiedh)"><polygon points="32.00,8.50 37.35,12.02 43.75,11.65 46.62,17.38 52.35,20.25 51.98,26.65 55.50,32.00 51.98,37.35 52.35,43.75 46.62,46.62 43.75,52.35 37.35,51.98 32.00,55.50 26.65,51.98 20.25,52.35 17.38,46.62 11.65,43.75 12.02,37.35 8.50,32.00 12.02,26.65 11.65,20.25 17.38,17.38 20.25,11.65 26.65,12.02" stroke-linejoin="round"/></g>
+
+<g fill="#33508c" stroke="#33508c" opacity=".55" transform="translate(0 1.4)"><path d="M20 33l8 8 16-17" fill="none" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/></g>
+<g fill="url(#verifiedg)" stroke="url(#verifiedg)"><path d="M20 33l8 8 16-17" fill="none" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round"/></g>
+</svg>

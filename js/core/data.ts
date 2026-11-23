@@ -201,21 +201,32 @@ function canDeleteAnyContent(role) {
     return !!ROLES[role]?.canDeleteAny;
 }
 
-// Drawn by js/app/components/Badge.tsx (and by the staff console, Woogidex-Console).
-// icon is a Heroicon name (solid); image, when a badge has one, is a 64x64 PNG
-// data URI uploaded in the staff panel and drawn instead of the icon.
+// Badges are cosmetic (roles give the permissions). Drawn by
+// js/app/components/Badge.tsx (and by the staff console, Woogidex-Console).
+// art names a built-in picture, public/assets/badges/<art>.svg; image, when a
+// badge has one, is a PNG data URI uploaded in the staff console and drawn
+// instead; icon (a Heroicon) is the last fallback, for the old role rows.
+const BADGE_ART = /^[a-z0-9_-]{2,40}$/;
 const BADGES = {
-    admin:        { label: 'Admin',        icon: 'user-circle',   color: '#ef4444', tooltip: 'Site Administrator - can manage roles, badges, and delete any content' },
-    developer:    { label: 'Developer',    icon: 'code-bracket',  color: '#a855f7', tooltip: 'Site Developer - builds and maintains the site' },
-    moderator:    { label: 'Moderator',    icon: 'shield-check',  color: '#3b82f6', tooltip: 'Community Moderator - helps keep the community hub clean' },
-    beta_tester:  { label: 'Beta Tester',  icon: 'beaker',        color: '#06b6d4', tooltip: 'Helped test the site early on' },
-    artist:       { label: 'Artist',       icon: 'paint-brush',   color: '#ec4899', tooltip: 'Recognized for standout Fakemon art' },
-    contributor:  { label: 'Contributor',  icon: 'star',          color: '#eab308', tooltip: 'Notable community contributor' },
-    veteran:      { label: 'Veteran',      icon: 'trophy',        color: '#f97316', tooltip: 'Long-time member' }
+    developer:       { label: 'Developer',       icon: 'code-bracket',  art: 'developer',       color: '#a855f7', tooltip: 'Builds and keeps Woogidex running' },
+    admin:           { label: 'Admin',           icon: 'user-circle',   art: 'admin',           color: '#ef4444', tooltip: 'Runs the site' },
+    moderator:       { label: 'Moderator',       icon: 'shield-check',  art: 'moderator',       color: '#f59e0b', tooltip: 'Keeps the community safe and friendly' },
+    event_organizer: { label: 'Event Organizer', icon: 'calendar-days', art: 'event_organizer', color: '#22c55e', tooltip: 'Hosts events and contests' },
+    verified:        { label: 'Verified',        icon: 'check-badge',   art: 'verified',        color: '#5c92ff', tooltip: 'A verified account' },
+    contributor:     { label: 'Supporter',       icon: 'heart',         art: 'contributor',     color: '#ec4899', tooltip: 'Supports Woogidex' },
+    bug_hunter:      { label: 'Bug Hunter',      icon: 'bug-ant',       art: 'bug_hunter',      color: '#10b981', tooltip: 'Found and reported a real bug' },
+    beta_tester:     { label: 'Beta Tester',     icon: 'beaker',        art: 'beta_tester',     color: '#0ea5e9', tooltip: 'Helped test the site early on' },
+    creator_1:       { label: 'First Fakémon',   icon: 'sparkles',      art: 'creator_1',       color: '#94a3b8', tooltip: 'Published a first Fakémon' },
+    creator_10:      { label: 'Rising Creator',  icon: 'sparkles',      art: 'creator_10',      color: '#cd7f32', tooltip: 'Published 10 Fakémon' },
+    creator_50:      { label: 'Dex Builder',     icon: 'sparkles',      art: 'creator_50',      color: '#c0c0c0', tooltip: 'Published 50 Fakémon' },
+    creator_100:     { label: 'Master Creator',  icon: 'sparkles',      art: 'creator_100',     color: '#f5b301', tooltip: 'Published 100 Fakémon' },
+    streak_30:       { label: 'Dedicated',       icon: 'fire',          art: 'streak_30',       color: '#f97316', tooltip: 'Kept a 30-day login streak' }
 };
 
 // BADGES is deliberately mutable so seed values can be replaced with live
-// database values without making every renderer async
+// database values without making every renderer async. Rows come from
+// cosmetic_badges (key, label, description, art, image, color) or, before
+// that table exists, the old role rows (icon, icon_image, rank).
 function setBadgeDefinitions(rows) {
     if (!Array.isArray(rows)) return;
     Object.keys(BADGES).forEach(key => delete BADGES[key]);
@@ -224,7 +235,8 @@ function setBadgeDefinitions(rows) {
         BADGES[row.key] = {
             label: row.label || row.key,
             icon: row.icon || 'star',
-            image: safeBadgeImage(row.icon_image),
+            art: BADGE_ART.test(String(row.art || '')) ? row.art : (BADGE_ART.test(row.key) && !row.icon ? row.key : ''),
+            image: safeBadgeImage(row.image ?? row.icon_image),
             color: row.color || '#6b7280',
             tooltip: row.description || row.label || row.key,
             rank: Number(row.rank) || 0

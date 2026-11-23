@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<defs>
+<linearGradient id="moderatorr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f9c060"/><stop offset=".55" stop-color="#f59e0b"/><stop offset="1" stop-color="#9f6707"/></linearGradient>
+<linearGradient id="moderatorf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8b94f"/><stop offset="1" stop-color="#e1910a"/></linearGradient>
+<radialGradient id="moderatorh" cx=".32" cy=".25" r=".6"><stop offset="0" stop-color="#ffffff" stop-opacity=".55"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<linearGradient id="moderatorg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#fde7c2"/></linearGradient>
+</defs>
+<g fill="#875706" transform="translate(0 1.6)"><path d="M32.00 3.00 C41.32 9.21 49.61 10.25 56.86 10.25 C56.86 25.79 56.86 44.43 32.00 61.00 C7.14 44.43 7.14 25.79 7.14 10.25 C14.39 10.25 22.68 9.21 32.00 3.00Z"/></g>
+<g fill="url(#moderatorr)"><path d="M32.00 3.00 C41.32 9.21 49.61 10.25 56.86 10.25 C56.86 25.79 56.86 44.43 32.00 61.00 C7.14 44.43 7.14 25.79 7.14 10.25 C14.39 10.25 22.68 9.21 32.00 3.00Z"/></g>
+<g fill="url(#moderatorf)"><path d="M32.00 8.50 C39.55 13.54 46.27 14.38 52.14 14.38 C52.14 26.96 52.14 42.07 32.00 55.50 C11.86 42.07 11.86 26.96 11.86 14.38 C17.73 14.38 24.45 13.54 32.00 8.50Z"/></g>
+<g fill="url(#moderatorh)"><path d="M32.00 8.50 C39.55 13.54 46.27 14.38 52.14 14.38 C52.14 26.96 52.14 42.07 32.00 55.50 C11.86 42.07 11.86 26.96 11.86 14.38 C17.73 14.38 24.45 13.54 32.00 8.50Z"/></g>
+
+<g fill="#875706" stroke="#875706" opacity=".55" transform="translate(0 1.4)"><g transform="rotate(-40 32 32)"><rect x="19" y="13" width="26" height="12" rx="3"/><rect x="29" y="23" width="6" height="28" rx="3"/></g></g>
+<g fill="url(#moderatorg)" stroke="url(#moderatorg)"><g transform="rotate(-40 32 32)"><rect x="19" y="13" width="26" height="12" rx="3"/><rect x="29" y="23" width="6" height="28" rx="3"/></g></g>
+</svg>

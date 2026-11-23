@@ -129,6 +129,7 @@ export interface User {
     [extra: string]: any;
 }
 
-export interface BadgeDefinition { label: string; icon: string; image?: string; color: string; tooltip: string; rank?: number; }
+/** A cosmetic badge (js/core/data.ts BADGES). `art` is a built-in picture in public/assets/badges/. */
+export interface BadgeDefinition { label: string; icon: string; art?: string; image?: string; color: string; tooltip: string; rank?: number; }
 
 export type ToastKind = 'success' | 'error' | 'info' | 'warning';

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+<defs>
+<linearGradient id="bughunterr" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#64d2ad"/><stop offset=".55" stop-color="#10b981"/><stop offset="1" stop-color="#0a7854"/></linearGradient>
+<linearGradient id="bughunterf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#53cda4"/><stop offset="1" stop-color="#0faa77"/></linearGradient>
+<radialGradient id="bughunterh" cx=".32" cy=".25" r=".6"><stop offset="0" stop-color="#ffffff" stop-opacity=".55"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></radialGradient>
+<linearGradient id="bughunterg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#c3eee0"/></linearGradient>
+</defs>
+<g fill="#096647" transform="translate(0 1.6)"><polygon points="57.11,46.50 32.00,61.00 6.89,46.50 6.89,17.50 32.00,3.00 57.11,17.50" stroke-linejoin="round"/></g>
+<g fill="url(#bughunterr)"><polygon points="57.11,46.50 32.00,61.00 6.89,46.50 6.89,17.50 32.00,3.00 57.11,17.50" stroke-linejoin="round"/></g>
+<g fill="url(#bughunterf)"><polygon points="52.35,43.75 32.00,55.50 11.65,43.75 11.65,20.25 32.00,8.50 52.35,20.25" stroke-linejoin="round"/></g>
+<g fill="url(#bughunterh)"><polygon points="52.35,43.75 32.00,55.50 11.65,43.75 11.65,20.25 32.00,8.50 52.35,20.25" stroke-linejoin="round"/></g>
+
+<g fill="#096647" stroke="#096647" opacity=".55" transform="translate(0 1.4)"><ellipse cx="32" cy="35" rx="9" ry="12"/><circle cx="32" cy="21" r="6"/><path d="M23 30h-7M23 38h-7M41 30h7M41 38h7M27 17l-4-4M37 17l4-4" fill="none" stroke-width="3.5" stroke-linecap="round"/></g>
+<g fill="url(#bughunterg)" stroke="url(#bughunterg)"><ellipse cx="32" cy="35" rx="9" ry="12"/><circle cx="32" cy="21" r="6"/><path d="M23 30h-7M23 38h-7M41 30h7M41 38h7M27 17l-4-4M37 17l4-4" fill="none" stroke-width="3.5" stroke-linecap="round"/></g>
+</svg>
