@@ -158,11 +158,18 @@ export function FeedbackMenuItem({ close }: { close: () => void }) {
 /** After Feedback: every update, with a dot while the newest is unread. */
 export function UpdatesMenuItem({ close }: { close: () => void }) {
     const unseen = !!whatsNewView()?.unseen;
-    return (
+    return (<>
         <button type="button" className="header-profile-popover-item" onClick={() => { close(); openUpdates(); }}>
             <Icon name="newspaper" /><span>Updates</span>{unseen && <span className="header-menu-dot" aria-label="New" />}
         </button>
-    );
+        {/* the Toolbox (apps like the tier maker) and the team's downloads */}
+        <button type="button" className="header-profile-popover-item" onClick={() => { close(); api.openPath?.('toolbox'); }}>
+            <Icon name="trophy" /><span>Toolbox</span>
+        </button>
+        <button type="button" className="header-profile-popover-item" onClick={() => { close(); api.openPath?.('downloads'); }}>
+            <Icon name="arrow-down-tray" /><span>Downloads</span>
+        </button>
+    </>);
 }
 
 /** The bottom of the account menu: sign out, and the policy links. */

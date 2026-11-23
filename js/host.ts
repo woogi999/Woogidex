@@ -44,6 +44,8 @@ import { CommunityDetailPage } from './app/pages/CommunityDetailPage.tsx';
 import { PostPage } from './app/pages/PostPage.tsx';
 import { MessagesPage } from './app/pages/MessagesPage.tsx';
 import { NotificationsPage } from './app/pages/NotificationsPage.tsx';
+import { ToolboxPage } from './app/pages/ToolboxPage.tsx';
+import { DownloadsPage } from './app/pages/DownloadsPage.tsx';
 import { maybeShowWhatsNew, openUpdates, openWhatsNew } from './features/whats-new.ts';
 import { resumeAddAccount } from './features/accounts.ts';
 import { LandingPage } from './app/pages/LandingPage.tsx';
@@ -75,6 +77,8 @@ export function installHost(): void {
     registerPage({ view: 'post-view', Page: PostPage, lazy: true });
     registerPage({ view: 'messages-view', Page: MessagesPage, lazy: true });
     registerPage({ view: 'notifications-view', Page: NotificationsPage, lazy: true });
+    registerPage({ view: 'toolbox-view', Page: ToolboxPage, lazy: true });
+    registerPage({ view: 'downloads-view', Page: DownloadsPage, lazy: true });
 
     // ---- routes ----
     // a page that shows the server's data waits (briefly) for sign-in at boot
@@ -89,6 +93,13 @@ export function installHost(): void {
     registerRoute('post', { needsAccount: true, open: async param => !!param && await api.openPost?.(param, { preserveRoute: true }) === true });
     registerRoute('groups', { needsAccount: true, open: async param => { await api.openGroups?.(param); return true; } });
     registerRoute('messages', { needsAccount: true, open: async param => await api.handleMessagesRoute?.(param) === true });
+    // the Toolbox (/toolbox) and Downloads (/downloads) work signed out too
+    registerRoute('toolbox', {
+        open: async () => { api.activateTopLevelView?.('toolbox-view'); api.setPageTitle?.('Toolbox'); return true; }
+    });
+    registerRoute('downloads', {
+        open: async () => { api.activateTopLevelView?.('downloads-view'); api.setPageTitle?.('Downloads'); return true; }
+    });
     // every notification, with tabs (the bell's panel shows the newest)
     registerRoute('notifications', {
         needsAccount: true,

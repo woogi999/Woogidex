@@ -102,3 +102,27 @@
 .tm-chip-img { display: block; width: 64px; height: 64px; object-fit: contain; }
 .tm-chip.has-img .tm-chip-name { font-size: 11px; max-width: 96px; }
 .tm-board[data-mode="average"] .tm-chip { cursor: default; }
+
+/* ---- the Toolbox page (/toolbox, ToolboxPage.tsx) and Downloads (/downloads, DownloadsPage.tsx) ---- */
+.toolbox-page, .downloads-page { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: var(--sp-4); }
+.toolbox-sub { margin: 4px 0 0; color: var(--text-secondary); }
+.toolbox-apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--sp-3); }
+.toolbox-app { display: flex; gap: 12px; align-items: center; padding: 16px; border: 0; border-radius: var(--card-r); background: var(--bg-panel); color: var(--text-primary); font: inherit; text-align: left; cursor: pointer; transition: var(--t-ui); }
+.toolbox-app:hover:not(.is-soon) { background: var(--accent-soft); }
+.toolbox-app:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.toolbox-app.is-soon { cursor: default; opacity: .75; }
+.toolbox-app-icon { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
+.toolbox-app-text { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.toolbox-app-text small { color: var(--text-secondary); line-height: 1.45; }
+.toolbox-saved { display: flex; flex-direction: column; gap: 6px; }
+.toolbox-saved h2 { font-size: 18px; }
+.toolbox-empty, .downloads-help { margin: 0; color: var(--text-secondary); font-size: 14px; }
+.downloads-upload { display: flex; flex-direction: column; gap: 8px; padding: 16px; border-radius: var(--card-r); background: var(--bg-panel); }
+.downloads-upload h2 { font-size: 16px; }
+.downloads-upload .btn { align-self: flex-start; }
+.downloads-list { display: flex; flex-direction: column; gap: 8px; }
+.download-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 12px 14px; border-radius: var(--card-r); background: var(--bg-panel); }
+.download-icon { color: var(--accent); }
+.download-text { flex: 1 1 240px; display: flex; flex-direction: column; gap: 2px; }
+.download-desc { font-size: 14px; color: var(--text-secondary); white-space: pre-line; }
+.download-text small { color: var(--text-muted); }
