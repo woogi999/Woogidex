@@ -1068,8 +1068,10 @@ export class Battle {
         // A custom move is never overridden by Showdown's table -- the same
         // precedence _compileAbility gives a custom ability -- but it does get
         // the pipeline, so its author's own hand-written entry runs there.
+        // A custom move set to "behave like" a main-game move runs that move's
+        // handlers when it has no hand-written ones of its own.
         const fx = move.custom
-            ? this._rawMoveFx(move)
+            ? (this._rawMoveFx(move) || (move.behavesLike && this.caps.sdMoves ? showdownMoveEffects(move.behavesLike) : null))
             : (this.caps.sdMoves ? showdownMoveEffects(move.id) : null);
         this._moveFx.set(key, fx);
         return fx;
@@ -1354,6 +1356,10 @@ export class Battle {
         if (move.recoil && totalDealt > 0) {
             this.damage(Math.max(1, Math.round(totalDealt * move.recoil[0] / move.recoil[1])), user, user, 'recoil');
         }
+        // Explosion and Self-Destruct: the user faints after the hits
+        if (move.selfdestruct && !user.fainted && user.hp > 0) {
+            this.damage(user.hp, user, user, 'selfdestruct');
+        }
 
         // Struggle costs its user a quarter of its maximum HP for having had to
         // resort to it -- recoil in its own right, not the move's.
@@ -1613,6 +1619,9 @@ export class Battle {
     //           'foe'  when its opponent does.
     _boostsIgnored(owner, other, role, move) {
         if (!owner) return false;
+        // Sacred Sword and Chip Away: the target's defense and evasion stages do not count
+        if (move?.ignoreDefensive && role === 'defensive') return true;
+        if (move?.ignoreEvasion && role === 'evasion') return true;
         if (this.runEvent('ignoreBoosts', owner, { role, whose: 'self', move, value: false }) === true) return true;
         if (!other) return false;
         return this.runEvent('ignoreBoosts', other, { role, whose: 'foe', move, value: false }) === true;

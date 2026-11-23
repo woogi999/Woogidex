@@ -97,15 +97,17 @@ export async function acknowledgeUpdate(version: string): Promise<number> {
 }
 
 /** The update versions that pay, and how much. Public: signed out, they show what you would get. */
-let rewarded: Record<string, number> | null = null;
-export async function rewardedUpdates(): Promise<Record<string, number>> {
-    if (rewarded) return rewarded;
-    try {
-        const client = await api.getClient();
-        const { data, error } = await client.from('rewarded_updates').select('version, reward');
-        if (error) throw error;
-        rewarded = Object.fromEntries((data || []).map((r: any) => [String(r.version), Number(r.reward) || 0]));
-    } catch { rewarded = {}; }
+let rewarded: Promise<Record<string, number>> | null = null;
+export function rewardedUpdates(): Promise<Record<string, number>> {
+    // one request for every caller (What's New and the Updates list ask at once)
+    rewarded ||= (async () => {
+        try {
+            const client = await api.getClient();
+            const { data, error } = await client.from('rewarded_updates').select('version, reward');
+            if (error) throw error;
+            return Object.fromEntries((data || []).map((r: any) => [String(r.version), Number(r.reward) || 0]));
+        } catch { return {}; }
+    })();
     return rewarded;
 }
 

@@ -8,6 +8,7 @@ import { SELECTABLE_TYPES } from '../core/data.ts';
 // never disagree about what a paste means
 import { parseRawEntry } from '../battle/engine/sd-hooks.ts';
 import { showdownMultihitLines } from '../features/multihit.ts';
+import { behavesLikeOf, hasModifiers, showdownModifierLines } from '../features/move-modifiers.ts';
 import { holdsFunction, moveDataLines, toSource, translateEntry, type BlockCompiler, type EntryKind } from './code-to-blocks.ts';
 
 // ==================== ability block coding ====================
@@ -2063,7 +2064,10 @@ function compileShowdownMove(move) {
     const id = toShowdownAbilityId(move.name);
     if (!id) return null;
     const esc = (v) => String(v || '').replace(/"/g, '\\"');
+    // "Behaves like": Showdown's own entry first, then this move's fields over it
+    const like = behavesLikeOf(move);
     const fields = [
+        ...(like ? [`\t\t...BaseMoves[${JSON.stringify(like)}],`] : []),
         `\t\tnum: -1,`,
         `\t\tname: "${esc(move.name)}",`,
         `\t\ttype: "${esc(move.type || 'Normal')}",`,
@@ -2075,7 +2079,8 @@ function compileShowdownMove(move) {
         `\t\tflags: ${JSON.stringify(showdownMoveFlags(move))},`,
         `\t\tshortDesc: "${esc(move.desc)}",`,
         `\t\ttarget: "${esc(move.target || 'normal')}",`,
-        ...showdownMultihitLines(move, move.rawCode)
+        ...showdownMultihitLines(move, move.rawCode),
+        ...showdownModifierLines(move, move.rawCode)
     ];
     const blockBody = compileShowdownMoveBlocks(move);
     if (blockBody) fields.push(blockBody + ',');
@@ -2149,7 +2154,9 @@ function buildShowdownMovesFile(fakemonList) {
     if (!moves.length) return null;
     const entries = moves.map(compileShowdownMove).filter(Boolean);
     if (!entries.length) return null;
-    return `// Made with Woogidex! Custom move logic from the move editor.\n// Drop this into data/mods/<modname>/moves.ts alongside pokedex.ts.\n// This is a strong starting point - read it over before using it live.\nexport const Moves: {[k: string]: Partial<import('../../../../sim/dex-moves').MoveData>} = {\n${entries.join('\n')}\n};\n`;
+    // a move that behaves like a main-game one spreads Showdown's own entry (data/moves.ts)
+    const base = moves.some(m => behavesLikeOf(m)) ? `import {Moves as BaseMoves} from '../../moves';\n` : '';
+    return `// Made with Woogidex! Custom move logic from the move editor.\n// Drop this into data/mods/<modname>/moves.ts alongside pokedex.ts.\n// This is a strong starting point - read it over before using it live.\n${base}export const Moves: {[k: string]: Partial<import('../../../../sim/dex-moves').MoveData>} = {\n${entries.join('\n')}\n};\n`;
 }
 
 function buildShowdownItemsFile(fakemonList) {
@@ -2229,6 +2236,11 @@ function hasExportableCode(lib: any): lib is Record<string, any> {
     return !!hasBlocks || !!String(lib.rawCode || '').trim();
 }
 
+/** A custom move with something for Showdown: blocks, code, modifiers or a hit count. */
+function customMoveExportable(lib: any): lib is Record<string, any> {
+    return hasExportableCode(lib) || (!!lib && (hasModifiers(lib) || lib.multihit != null));
+}
+
 function collectUsedCustomAbilitiesWithCode(fakemonList) {
     const seen = new Map();
     (fakemonList || []).forEach(f => (f.abilities || []).forEach(a => {
@@ -2249,7 +2261,7 @@ function collectUsedCustomMovesWithCode(fakemonList) {
         if (!m || !(m.source === 'custom' || m.custom)) return;
         const lib = (state.customMoves || []).find(x => x.id === m.customId)
             || (state.customMoves || []).find(x => String(x.name || '').toLowerCase() === String(m.name || '').toLowerCase());
-        if (hasExportableCode(lib) && !seen.has(lib.id)) seen.set(lib.id, lib);
+        if (customMoveExportable(lib) && !seen.has(lib.id)) seen.set(lib.id, lib);
     }));
     return [...seen.values()];
 }
@@ -3088,6 +3100,6 @@ export {
     startAbilityBlockMove, moveAbilityBlockPointer, finishAbilityBlockMove,
     handlePaletteDragStart, handlePaletteEventDragStart, handleWorkspaceDrop, allowWorkspaceDrop,
     buildShowdownAbilitiesFile, buildEssentialsAbilitiesFile,
-    buildShowdownMovesFile, buildShowdownItemsFile, hasExportableCode,
+    buildShowdownMovesFile, buildShowdownItemsFile, hasExportableCode, customMoveExportable,
     compileShowdownAbility, compileShowdownMove, compileShowdownItem, compileEssentialsAbility
 };

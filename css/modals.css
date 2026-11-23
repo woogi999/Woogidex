@@ -246,6 +246,40 @@
 .multihit-range span { font-size: 13px; color: var(--text-secondary); }
 .multihit-style button { width: auto; padding: 0 12px; font: 600 13px var(--font-sans); white-space: nowrap; }
 .multihit-style button.active { background: var(--bg-panel); color: var(--text-primary); box-shadow: 0 1px 2px rgba(29,36,51,.12); }
+/* move modifiers (js/app/components/editor/ModifiersField.tsx): soft fills, no boxes */
+.mod-panel { display: grid; gap: var(--sp-4); padding-bottom: var(--sp-3); }
+.mod-panel > .lib-hint { margin: 0; }
+.mod-section { display: grid; gap: 8px; }
+.mod-section h5 { margin: 0; font-size: 12px; font-weight: 700; color: var(--text-secondary); }
+.mod-section .lib-hint { margin: 0; }
+.mod-effect { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px 8px; border-radius: var(--ctl-r); background: var(--bg-panel); }
+.mod-effect select { width: auto; min-width: 0; flex: 0 1 auto; }
+.mod-chance { display: inline-flex; align-items: center; gap: 2px; font-size: 13px; color: var(--text-secondary); }
+.mod-chance input { width: 58px; }
+.mod-remove { margin-left: auto; display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; }
+.mod-remove:hover { background: var(--bg-input); color: var(--danger); }
+.mod-presets { display: flex; flex-wrap: wrap; gap: 6px; }
+.mod-preset { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border: 1px dashed var(--border); border-radius: 999px; background: transparent; color: var(--text-secondary); font: 600 12px var(--font-sans); cursor: pointer; }
+.mod-preset:hover { border-style: solid; color: var(--text-primary); border-color: var(--accent); }
+.mod-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.mod-pct { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+.mod-pct-input { display: inline-flex; align-items: center; gap: 4px; }
+.mod-pct-input input { width: 72px; }
+.mod-toggles { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 4px 12px; }
+.mod-toggle { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; font-size: 13px; cursor: pointer; }
+.mod-toggle input { margin-top: 2px; width: 16px; height: 16px; accent-color: var(--accent); }
+.mod-toggle span { display: flex; flex-direction: column; }
+.mod-toggle small { font-size: 11.5px; color: var(--text-muted); }
+.mod-like { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.mod-like strong { font-size: 14px; margin-right: auto; }
+.mod-like-search { position: relative; display: flex; align-items: center; gap: 6px; color: var(--text-muted); }
+.mod-like-search input { flex: 1; }
+.mod-like-results { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 5; display: flex; flex-direction: column; padding: 4px; border-radius: 8px; background: var(--bg-card); box-shadow: 0 0 0 1px var(--border), 0 8px 24px rgba(0,0,0,.16); }
+.mod-like-results button { display: flex; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 0; border-radius: 6px; background: transparent; color: var(--text-primary); font: 13px var(--font-sans); text-align: left; cursor: pointer; }
+.mod-like-results button:hover, .mod-like-results button:focus-visible { background: var(--accent-soft); outline: none; }
+.mod-like-results small { color: var(--text-muted); }
+.mod-summary { margin: 0; padding: 8px 12px 8px 26px; border-radius: var(--ctl-r); background: var(--accent-soft); font-size: 12.5px; line-height: 1.6; color: var(--text-primary); }
+
 .multihit-step { display: flex; flex-direction: column; }
 .multihit-step input { width: 96px; }
 .multihit-summary { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-secondary); }

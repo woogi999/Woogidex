@@ -190,7 +190,7 @@ import { toId as toShowdownId } from '../core/html.ts';
         function customMoveHasCode(entry) {
             const lib = (state.customMoves || []).find(x => x.id === entry.customId)
                 || (state.customMoves || []).find(x => String(x.name || '').toLowerCase() === String(entry.name || '').toLowerCase());
-            return !!api.hasExportableCode?.(lib);
+            return !!(api.customMoveExportable || api.hasExportableCode)?.(lib);
         }
 
         function buildLearnsetLines(fakemon) {

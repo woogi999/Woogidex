@@ -187,8 +187,11 @@ function num(v, fallback) {
 }
 
 function normalizeCustomMove(entry, fallbackId) {
-    // the move's own fields win; its Move effect blocks fill in the rest
-    const m = { ...moveDataFields(entry.blocks), ...entry };
+    // the move's own fields win; its Move effect blocks fill in the rest. A
+    // saved move keeps every modifier key, unset ones as undefined
+    // (js/features/move-modifiers.ts), and those must not erase a block's value.
+    const own = Object.fromEntries(Object.entries(entry || {}).filter(([, v]) => v !== undefined));
+    const m: any = { ...moveDataFields(entry.blocks), ...own };
     return Object.freeze({
         id: toId(m.name) || fallbackId,
         name: m.name || 'Custom Move',
@@ -232,6 +235,12 @@ function normalizeCustomMove(entry, fallbackId) {
         ignoreImmunity: m.ignoreImmunity || false,
         overrideOffensiveStat: m.overrideOffensiveStat || null,
         overrideDefensiveStat: m.overrideDefensiveStat || null,
+        // modifier fields Showdown has and the slim copy above did not list
+        ignoreDefensive: m.ignoreDefensive || false,
+        ignoreEvasion: m.ignoreEvasion || false,
+        selfdestruct: m.selfdestruct || null,
+        // a main-game move whose Showdown code this one runs (battle.ts _moveEffects)
+        behavesLike: typeof m.behavesLike === 'string' ? m.behavesLike : '',
         program: m.blocks || null,
         // hand-written hooks; only run when trusted - see sd-hooks.ts compileRawHooks
         rawCode: m.rawCode || ''

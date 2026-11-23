@@ -13,6 +13,7 @@ import { notify, notifySync } from '../app/store.ts';
 import { closeDialog, openDialog } from '../app/dialogs.tsx';
 import { abilityRole, prepareLearnset } from './learnset-model.ts';
 import { multihitFields, parseMultihitText, readMultihit } from '../features/multihit.ts';
+import { modifierFields, modifiersFromShowdown, readModifiers } from '../features/move-modifiers.ts';
 import { isFilterQuery, moveMatches, parseMoveQuery } from '../features/move-query.ts';
 import { universalForEditing } from '../features/universal-moves.ts';
 import { addNoRecommend, noRecommendEverywhere, noRecommendHere, noRecommendSet, removeNoRecommend, type NoRecommendScope } from '../features/no-recommend.ts';
@@ -2162,6 +2163,8 @@ function editCustomItemLibrary(id) { openCustomItemModal(id); }
                 target: m?.target || 'normal',
                 pp: m?.pp || 10, priority: m?.priority || 0, desc: m?.desc || '', rawCode: m?.rawCode || '',
                 multihit: readMultihit(m),
+                // a move made before modifiers (or from a main-game template) keeps its Showdown fields as modifiers
+                modifiers: m?.modifiers ? readModifiers(m) : modifiersFromShowdown(m),
                 flags: Object.fromEntries(Object.entries<any>(m?.flags || {}).filter(([, v]) => v).map(([k]) => [k, true])),
                 regionIds: libMove ? api.entryRegionIds(libMove) : [api.defaultRegionForNewFakemon?.()].filter(Boolean)
             };
@@ -2191,6 +2194,7 @@ function editCustomItemLibrary(id) { openCustomItemModal(id); }
             if (hitFields.multihit != null) flags.multihit = 1;
             const move = {
                 ...hitFields,
+                ...modifierFields(draft.modifiers, category),
                 rawCode: repairRawCode(draft.rawCode, 'move'), name, type: draft.type || 'Normal', category,
                 basePower: parseInt(draft.basePower) || 0, accuracy: parseInt(draft.accuracy) === 0 ? true : (parseInt(draft.accuracy) || 100), pp: parseInt(draft.pp) || 10,
                 priority: parseInt(draft.priority) || 0, flags, desc: String(draft.desc || '').trim(),

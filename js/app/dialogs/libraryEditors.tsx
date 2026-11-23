@@ -12,6 +12,7 @@ import { CategoryBadge } from '../components/MoveCategory.tsx';
 import { FlagPicker } from '../components/editor/FlagPicker.tsx';
 import { BattleEffect } from '../components/editor/BattleEffect.tsx';
 import { MultihitField } from '../components/editor/MultihitField.tsx';
+import { ModifiersField } from '../components/editor/ModifiersField.tsx';
 import { TemplateNote } from '../components/editor/TemplateNote.tsx';
 import { NAME_MAX } from '../../core/data.ts';
 
@@ -233,6 +234,7 @@ function CustomMoveDialog({ index, libraryId, seed, close }: DialogProps<{ index
                     </select>
                 </div>
             </div>
+            <ModifiersField value={draft.modifiers} category={draft.category} onChange={modifiers => set({ modifiers })} />
             <details className="lib-details">
                 <summary><Icon name="chevron-right" size={14} className="lib-details-mark" />Flags<span className="lib-details-count">{Object.entries(draft.flags).filter(([k, on]) => on && k !== 'multihit').length || 'None'} on</span></summary>
                 <FlagPicker value={draft.flags} onChange={flags => set({ flags })} statusOnly={statusOnly} />
