@@ -81,6 +81,12 @@ function TierMakerDialog({ close, list: start, conversationId = null }: DialogPr
                 d.ghost = g;
             }
             ev.preventDefault();
+            // near the board's top or bottom edge, the board scrolls
+            const edge = board.current?.getBoundingClientRect();
+            if (edge && board.current) {
+                if (ev.clientY < edge.top + 40) board.current.scrollTop -= 14;
+                else if (ev.clientY > edge.bottom - 40) board.current.scrollTop += 14;
+            }
             // pointer numbers are window pixels; the transform is CSS pixels (js/core/ui-scale.ts)
             const z = effectiveZoom(document.documentElement);
             d.ghost!.style.transform = `translate(${(ev.clientX + 8) / z}px, ${(ev.clientY + 8) / z}px)`;
@@ -126,7 +132,8 @@ function TierMakerDialog({ close, list: start, conversationId = null }: DialogPr
         catch { download('tiers.txt', text); }
     };
 
-    const rows = [...list.tiers.map(t => ({ ...t, unranked: false })), { id: UNRANKED, name: 'Unranked', sd: '', color: 'transparent', unranked: true }];
+    // the pool of unranked mons leads, and stays in view while the tiers scroll (css/tier-maker.css)
+    const rows = [{ id: UNRANKED, name: 'Unranked', sd: '', color: 'transparent', unranked: true }, ...list.tiers.map(t => ({ ...t, unranked: false }))];
     const pickedMon = picked ? list.mons[picked] : null;
 
     return (
@@ -178,8 +185,8 @@ function TierMakerDialog({ close, list: start, conversationId = null }: DialogPr
                                             {SD_TIERS.map(s => <option key={s} value={s}>{s}</option>)}
                                         </select>
                                         <span className="tm-label-tools">
-                                            <button type="button" aria-label="Move tier up" disabled={i === 0} onClick={() => change(moveTier(list, t.id, -1))}><Icon name="chevron-up" size={12} /></button>
-                                            <button type="button" aria-label="Move tier down" disabled={i === list.tiers.length - 1} onClick={() => change(moveTier(list, t.id, 1))}><Icon name="chevron-down" size={12} /></button>
+                                            <button type="button" aria-label="Move tier up" disabled={i === 1} onClick={() => change(moveTier(list, t.id, -1))}><Icon name="chevron-up" size={12} /></button>
+                                            <button type="button" aria-label="Move tier down" disabled={i === list.tiers.length} onClick={() => change(moveTier(list, t.id, 1))}><Icon name="chevron-down" size={12} /></button>
                                             <input type="color" aria-label="Tier colour" value={t.color} onChange={e => change({ ...list, tiers: list.tiers.map(x => x.id === t.id ? { ...x, color: e.target.value } : x) })} />
                                             <button type="button" aria-label="Delete tier" onClick={() => change(removeTier(list, t.id))}><Icon name="x" size={12} /></button>
                                         </span>
@@ -189,7 +196,7 @@ function TierMakerDialog({ close, list: start, conversationId = null }: DialogPr
                             </div>
                             <div className="tm-drop">
                                 {(list.placed[t.id] || []).map(id => list.mons[id] && <Chip key={id} list={list} id={id} onPick={() => setPicked(id)} onDragStart={startDrag(id)} />)}
-                                {!(list.placed[t.id] || []).length && <span className="tm-empty">{t.unranked ? 'Add Fakémon above, then drag them up into a tier.' : 'Drop here'}</span>}
+                                {!(list.placed[t.id] || []).length && <span className="tm-empty">{t.unranked ? 'Add Fakémon above, then drag them into a tier, or tap one to pick its tier.' : 'Drop here'}</span>}
                             </div>
                         </div>
                     ))}

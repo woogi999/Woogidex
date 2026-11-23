@@ -20,7 +20,7 @@
 .tm-board { flex: 1 1 auto; min-width: 0; overflow: auto; display: flex; flex-direction: column; gap: 4px; }
 .tm-row { display: flex; min-height: 56px; border-radius: 8px; background: var(--bg-panel); transition: box-shadow 120ms ease; }
 .tm-row.is-over { box-shadow: inset 0 0 0 2px var(--accent); }
-.tm-row.is-unranked { margin-top: var(--sp-2); background: transparent; box-shadow: inset 0 0 0 1px dashed var(--border); border: 1px dashed var(--border); }
+.tm-row.is-unranked { margin-top: var(--sp-2); background: transparent; border: 1px dashed var(--border); }
 .tm-label { position: relative; flex: 0 0 132px; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 8px; border-radius: 8px 0 0 8px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
 .tm-row.is-unranked .tm-label { color: var(--text-secondary); text-shadow: none; }
 .tm-label input:not([type=color]) { width: 100%; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 800; font-size: 15px; padding: 0; }
@@ -82,3 +82,17 @@
 .chat-tierlist-tiers { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--text-secondary); }
 .chat-tierlist-tier b { display: inline-block; min-width: 34px; margin-right: 4px; padding: 0 4px; border-radius: 4px; color: #fff; text-align: center; font-size: 11px; }
 .chat-tierlist .btn { align-self: flex-start; }
+
+/* the pool stays at the top of the board while the tiers scroll */
+.tm-board { user-select: none; -webkit-user-select: none; }
+.tm-board input, .tm-board select { user-select: text; -webkit-user-select: text; }
+.tm-row.is-unranked { position: sticky; top: 0; z-index: 2; margin: 0 0 var(--sp-2); background: var(--bg-card); max-height: 30vh; overflow: auto; }
+/* the tier label: name and count on one line, the Showdown tier and the tools on the next */
+.tm-row { min-height: 68px; }
+.tm-label { flex-basis: 168px; display: grid; grid-template-columns: 1fr auto; grid-template-rows: auto auto; align-content: center; gap: 4px 6px; }
+.tm-label > input { grid-column: 1; }
+.tm-label .tm-count { position: static; grid-column: 2; grid-row: 1; align-self: center; }
+.tm-label select { grid-column: 1; grid-row: 2; }
+.tm-label-tools { grid-column: 2; grid-row: 2; }
+.tm-row.is-unranked .tm-label { display: flex; flex-direction: row; justify-content: space-between; align-items: center; }
+@media (max-width: 760px) { .tm-label { flex-basis: 120px; } .tm-label-tools button[aria-label^="Move"] { display: none; } }
