@@ -19,6 +19,7 @@ import { notify } from '../app/store.ts';
 import { navigateRoute } from '../core/router.ts';
 import { confirmDialog } from '../core/confirm-dialog.ts';
 import * as C from './messaging-crypto.ts';
+import { cleanTierList, type TierList } from './tier-lists.ts';
 
 export const MAX_FILE_BYTES = 10 * 1024 * 1024;
 export const MAX_FILES_PER_MESSAGE = 6;
@@ -42,6 +43,8 @@ export interface ChatMessage {
     key_version: number;
     /** decrypted */
     text?: string; attachments?: Attachment[]; replyTo?: string | null; event?: any;
+    /** a tier list sent in the chat (js/features/tier-lists.ts), checked by cleanTierList */
+    tierList?: TierList | null;
     /** the message's own key, kept to answer a report without asking again */
     msgKey?: string;
     error?: string; pending?: boolean;
@@ -236,7 +239,7 @@ async function loadPreviews() {
             const who = row.sender_id === state.user?.id ? 'You: ' : '';
             convo.preview = msg.deleted_at ? `${who}Message deleted`
                 : msg.error ? '🔒 Encrypted message'
-                : `${who}${msg.text?.trim() || attachmentSummary(msg.attachments || [])}`;
+                : `${who}${msg.text?.trim() || (msg.tierList ? `Sent the tier list "${msg.tierList.title}"` : attachmentSummary(msg.attachments || []))}`;
         }));
         notify();
     } catch (e: any) {
@@ -534,7 +537,11 @@ async function decryptRow(row: any, { fetchKey = true } = {}): Promise<ChatMessa
         const key = await chatKey(row.conversation_id, row.key_version, { fetchKey });
         if (!key) return { ...base, error: 'locked' };
         const { payload, msgKey } = await C.openMessage(row, key.key, row.conversation_id);
-        return { ...base, text: String(payload?.text || ''), attachments: Array.isArray(payload?.attachments) ? payload.attachments : [], replyTo: payload?.replyTo || null, msgKey };
+        return {
+            ...base, text: String(payload?.text || ''), attachments: Array.isArray(payload?.attachments) ? payload.attachments : [], replyTo: payload?.replyTo || null, msgKey,
+            // another person's data: checked and capped before anything reads it
+            ...(payload?.tierList ? { tierList: cleanTierList(payload.tierList) } : {})
+        };
     } catch (e: any) {
         return { ...base, error: 'unreadable' };
     }
@@ -703,13 +710,13 @@ export function fileProblem(file: File): string {
 
 export interface Outgoing { file: File; voice?: boolean; duration?: number; }
 
-export async function sendMessage(conversationId: string, text: string, files: Outgoing[] = [], replyTo: string | null = null): Promise<boolean> {
+export async function sendMessage(conversationId: string, text: string, files: Outgoing[] = [], replyTo: string | null = null, extra: { tierList?: TierList } = {}): Promise<boolean> {
     const m = ms();
     const uid = state.user?.id;
     const convo = m.conversations.find(c => c.id === conversationId);
     if (!uid || !convo || m.status !== 'ready') return false;
     const body = String(text || '').trim();
-    if (!body && !files.length) return false;
+    if (!body && !files.length && !extra.tierList) return false;
     if (body.length > 4000) { api.showToast?.('Messages can be up to 4000 characters.', 'warning'); return false; }
     if (files.length > MAX_FILES_PER_MESSAGE) { api.showToast?.(`Up to ${MAX_FILES_PER_MESSAGE} files per message.`, 'warning'); return false; }
     for (const f of files) { const p = fileProblem(f.file); if (p) { api.showToast?.(p, 'warning'); return false; } }
@@ -747,7 +754,7 @@ export async function sendMessage(conversationId: string, text: string, files: O
                 ...(out.duration ? { duration: out.duration } : {})
             });
         }
-        const payload = { v: 1, text: body, attachments, replyTo };
+        const payload = { v: 1, text: body, attachments, replyTo, ...(extra.tierList ? { tierList: extra.tierList } : {}) };
         const sealed = await C.sealMessage(payload, key.key, conversationId);
         const { data, error } = await client.from('messages').insert({
             conversation_id: conversationId, sender_id: uid, kind: 'message', key_version: convo.key_version,
@@ -757,7 +764,7 @@ export async function sendMessage(conversationId: string, text: string, files: O
         const sent = await decryptRow(data);
         t.items = t.items.map(x => (x.id === tempId ? sent : x)).filter((x, i, all) => all.findIndex(y => y.id === x.id) === i);
         convo.last_message_at = sent.created_at;
-        convo.preview = `You: ${body || attachmentSummary(attachments)}`;
+        convo.preview = `You: ${body || (extra.tierList ? `Sent the tier list "${extra.tierList.title}"` : attachmentSummary(attachments))}`;
         m.conversations = [convo, ...m.conversations.filter(c => c.id !== convo.id)];
         notify();
         return true;

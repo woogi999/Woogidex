@@ -18,6 +18,7 @@ import { LANDING_PAGE } from '../../core/flags.ts';
 import { UI_SCALE_DEFAULT, UI_SCALE_MAX, UI_SCALE_MIN, UI_SCALE_STEP, getUiScale, setUiScale } from '../../core/ui-scale.ts';
 import { DeviceTransferGroup } from '../components/DeviceTransfer.tsx';
 import { openUniversalMoves } from '../dialogs/universalMoves.tsx';
+import { openTierLists } from '../dialogs/tierMaker.tsx';
 import { PHONE_TAB_CHOICES, PHONE_TABS_MAX, PHONE_TABS_MIN, phoneTabs, resetPhoneTabs, togglePhoneTab } from '../shell/phoneTabs.ts';
 
 // A row: `setting` names a boolean in app.ts's BOOLEAN_SETTINGS (it gets a
@@ -82,8 +83,9 @@ const CORE_SECTIONS: Section[] = [
                 ]
             },
             {
-                id: 'universal', title: 'Universal moves',
+                id: 'universal', title: 'Tiers and universal moves',
                 items: [
+                    { id: 'tier-lists', label: 'Tier lists', text: 'tier list tier maker rank ou uu showdown formats-data pokeathlon', desc: 'Rank Fakémon into tiers with your team and export them as Showdown code. In a chat or group, the trophy button starts one.', control: () => <button type="button" className="btn btn-secondary btn-sm" onClick={openTierLists}>Open</button> },
                     { id: 'universal-list', label: 'The global universal moves', text: 'universal moves tm generation list region', desc: "The moves Browse Moves offers as universal: Woogidex's list, one generation's, or your own. A region can have its own list on its page.", control: () => <button type="button" className="btn btn-secondary btn-sm" onClick={() => openUniversalMoves(null)}>Change</button> }
                 ]
             }

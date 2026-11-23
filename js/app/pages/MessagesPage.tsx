@@ -21,6 +21,8 @@ import { NAME_MAX } from '../../core/data.ts';
 import { isEmojiOnly } from '../../core/emoji.ts';
 import { NetworkNotice } from '../components/NetworkNotice.tsx';
 import { SkeletonBlock, SkeletonRows } from '../components/Skeleton.tsx';
+import { openTierMaker } from '../dialogs/tierMaker.tsx';
+import { changelog } from '../../features/tier-lists.ts';
 
 /** True inside the chat dock: a chat opens in the dock, not on the page. */
 export const DockContext = createContext(false);
@@ -311,6 +313,7 @@ function Bubble({ msg, mine, sender, showName, tail, replyTarget, onReply }:
                         : (
                             <div className={`chat-bubble-stack${onlyEmoji ? ' is-emoji' : ''}`}>
                                 {(msg.attachments || []).length > 0 && <Attachments conversationId={msg.conversation_id} list={msg.attachments!} />}
+                                {msg.tierList && <TierListCard msg={msg} />}
                                 {msg.text && <div className={`chat-bubble${onlyEmoji ? ' is-emoji' : ''}`} title={time}><RichText text={msg.text} /></div>}
                             </div>
                         )}
@@ -441,6 +444,25 @@ function Lightbox({ close, url, att, conversationId }: DialogProps<{ url: string
 }
 registerDialog('chat-lightbox', Lightbox);
 
+/** A tier list someone sent: its name, size and top tiers, and a button to open it. */
+function TierListCard({ msg }: { msg: ChatMessage }) {
+    const l = msg.tierList!;
+    const top = l.tiers.filter(t => (l.placed[t.id] || []).length).slice(0, 3);
+    const changes = changelog(l).length;
+    return (
+        <div className="chat-tierlist">
+            <span className="chat-tierlist-head"><Icon name="trophy" size={16} /><strong>{l.title}</strong></span>
+            <small>{Object.keys(l.mons).length} ranked{l.format ? ` · ${l.format}` : ''}{changes ? ` · ${changes} change${changes === 1 ? '' : 's'}` : ''}{l.updatedBy ? ` · by ${l.updatedBy}` : ''}</small>
+            {top.length > 0 && (
+                <span className="chat-tierlist-tiers">
+                    {top.map(t => <span key={t.id} className="chat-tierlist-tier"><b style={{ background: t.color }}>{t.name}</b> {(l.placed[t.id] || []).slice(0, 4).map(id => l.mons[id]?.name).filter(Boolean).join(', ')}{(l.placed[t.id] || []).length > 4 ? '…' : ''}</span>)}
+                </span>
+            )}
+            <button type="button" className="btn btn-secondary btn-sm" onClick={() => openTierMaker(l, msg.conversation_id, true)}>Open in the tier maker</button>
+        </div>
+    );
+}
+
 // ==================== writing ====================
 
 function Composer({ conversationId, replyTo, clearReply, byId }: { conversationId: string; replyTo: ChatMessage | null; clearReply: () => void; byId: Map<string, ChatMember> }) {
@@ -501,6 +523,7 @@ function Composer({ conversationId, replyTo, clearReply, byId }: { conversationI
             <div className="chat-composer-row">
                 <button type="button" className="chat-icon-btn" title="Attach photos, videos or files (up to 10 MB each)" aria-label="Attach files" onClick={() => fileInput.current?.click()}><Icon name="paper-clip" size={20} /></button>
                 <input ref={fileInput} type="file" multiple style={{ display: 'none' }} onChange={(e: ChangeEvent<HTMLInputElement>) => { addFiles(e.target.files); e.target.value = ''; }} />
+                <button type="button" className="chat-icon-btn" title="Make a tier list with this chat" aria-label="Tier list" onClick={() => openTierMaker(null, conversationId)}><Icon name="trophy" size={20} /></button>
                 <VoiceRecorder onDone={(file, duration) => send([{ file, voice: true, duration }])} />
                 <EmojiInput value={text} onChange={setText} rows={1} maxLength={4000} placeholder="Aa" onSubmit={() => send()} onPaste={onPaste} ariaLabel="Message" className="chat-input" />
                 <button type="button" className="chat-send" disabled={sending || (!text.trim() && !files.length)} onClick={() => send()} aria-label="Send"><Icon name="paper-airplane" size={20} /></button>

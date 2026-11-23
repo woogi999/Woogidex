@@ -1,0 +1,84 @@
+/* The tier maker (js/app/dialogs/tierMaker.tsx) and a tier list in a chat (MessagesPage.tsx). */
+
+.tier-maker { width: min(1180px, 96vw); max-width: none; max-height: 92vh; display: flex; flex-direction: column; gap: var(--sp-3); }
+.tm-head { display: flex; gap: var(--sp-2); align-items: center; }
+.tm-title { flex: 1 1 auto; min-width: 0; font-size: 20px; font-weight: 800; border: 0; background: transparent; color: var(--text-primary); padding: 4px 0; }
+.tm-title:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.tm-format { width: 220px; font-family: Inconsolata, ui-monospace, monospace; font-size: 13px; }
+
+.tm-tools { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+.tm-add { position: relative; flex: 1 1 260px; display: flex; align-items: center; gap: 6px; }
+.tm-add > svg { position: absolute; left: 10px; color: var(--text-muted); pointer-events: none; }
+.tm-add input { width: 100%; padding-left: 30px; }
+.tm-results { position: absolute; top: calc(100% + 4px); left: 0; right: 0; z-index: 10; max-height: 300px; overflow: auto; border-radius: 8px; background: var(--bg-card); box-shadow: 0 0 0 1px var(--border), 0 8px 24px rgba(0,0,0,.14); }
+.tm-results button { display: flex; width: 100%; justify-content: space-between; gap: 8px; padding: 8px 12px; border: 0; background: transparent; color: var(--text-primary); font: inherit; text-align: left; cursor: pointer; }
+.tm-results button:hover:not(:disabled), .tm-results button:focus-visible { background: var(--accent-soft); }
+.tm-results button:disabled { opacity: .5; cursor: default; }
+.tm-results small { color: var(--text-muted); }
+
+.tm-body { display: flex; gap: var(--sp-3); min-height: 0; flex: 1 1 auto; }
+.tm-board { flex: 1 1 auto; min-width: 0; overflow: auto; display: flex; flex-direction: column; gap: 4px; }
+.tm-row { display: flex; min-height: 56px; border-radius: 8px; background: var(--bg-panel); transition: box-shadow 120ms ease; }
+.tm-row.is-over { box-shadow: inset 0 0 0 2px var(--accent); }
+.tm-row.is-unranked { margin-top: var(--sp-2); background: transparent; box-shadow: inset 0 0 0 1px dashed var(--border); border: 1px dashed var(--border); }
+.tm-label { position: relative; flex: 0 0 132px; display: flex; flex-direction: column; justify-content: center; gap: 2px; padding: 6px 8px; border-radius: 8px 0 0 8px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.35); }
+.tm-row.is-unranked .tm-label { color: var(--text-secondary); text-shadow: none; }
+.tm-label input:not([type=color]) { width: 100%; border: 0; background: transparent; color: inherit; font: inherit; font-weight: 800; font-size: 15px; padding: 0; }
+.tm-label select { width: 100%; font-size: 11px; padding: 1px 4px; background: rgba(0,0,0,.18); color: inherit; border: 0; border-radius: 4px; }
+.tm-label-tools { display: flex; gap: 2px; align-items: center; }
+.tm-label-tools button { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border: 0; border-radius: 4px; background: rgba(0,0,0,.18); color: inherit; cursor: pointer; padding: 0; }
+.tm-label-tools button:disabled { opacity: .35; cursor: default; }
+.tm-label-tools input[type=color] { width: 20px; height: 20px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.tm-count { position: absolute; top: 4px; right: 6px; font-size: 11px; font-variant-numeric: tabular-nums; opacity: .85; }
+.tm-drop { flex: 1 1 auto; display: flex; flex-wrap: wrap; align-content: flex-start; gap: 6px; padding: 8px; min-width: 0; }
+.tm-empty { align-self: center; color: var(--text-muted); font-size: 13px; }
+
+.tm-chip { display: inline-flex; align-items: center; gap: 4px; max-width: 200px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg-card); color: var(--text-primary); font: inherit; font-size: 13px; cursor: grab; touch-action: none; user-select: none; }
+.tm-chip:hover { border-color: var(--accent); }
+.tm-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tm-chip.is-fakemon { font-weight: 700; }
+.tm-chip-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tm-chip.is-up .tm-chip-move { color: var(--success, #22a06b); }
+.tm-chip.is-down .tm-chip-move { color: var(--danger); }
+.tm-chip-note { color: var(--text-muted); }
+.tm-ghost { position: fixed; left: 0; top: 0; z-index: 2000; pointer-events: none; padding: 6px 10px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.2); }
+
+.tm-side { flex: 0 0 280px; display: flex; flex-direction: column; gap: var(--sp-2); overflow: auto; }
+.tm-panel { display: flex; flex-direction: column; gap: 8px; padding: 12px; border-radius: 8px; background: var(--bg-panel); }
+.tm-panel header { display: flex; justify-content: space-between; align-items: center; }
+.tm-panel header button { border: 0; background: transparent; color: var(--text-secondary); cursor: pointer; }
+.tm-panel small { color: var(--text-muted); }
+.tm-move { display: flex; flex-wrap: wrap; gap: 4px; }
+.tm-move button { padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-card); color: var(--text-primary); font: inherit; font-size: 12px; cursor: pointer; }
+.tm-move button.is-on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent); font-weight: 700; }
+.tm-note { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; }
+.tm-changes { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.5; }
+.tm-import textarea { width: 100%; font-family: Inconsolata, ui-monospace, monospace; }
+.tm-foot { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+.tm-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; }
+.tm-spacer { flex: 1; }
+.tm-chat { max-width: 200px; }
+
+.tm-saved { display: flex; flex-direction: column; gap: 6px; margin: var(--sp-3) 0; }
+.tm-saved-row { display: flex; gap: 8px; align-items: center; }
+.tm-saved-open { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; border: 0; border-radius: 8px; background: var(--bg-panel); color: var(--text-primary); font: inherit; text-align: left; cursor: pointer; }
+.tm-saved-open:hover { background: var(--accent-soft); }
+.tm-saved-open small { color: var(--text-muted); }
+
+@media (max-width: 760px) {
+    .tier-maker { width: 100%; max-height: none; }
+    .tm-format { width: 100%; }
+    .tm-head { flex-wrap: wrap; }
+    .tm-body { flex-direction: column; }
+    .tm-side { flex: 0 0 auto; }
+    .tm-label { flex-basis: 96px; }
+    .tm-label-tools input[type=color] { display: none; }
+}
+
+/* a tier list sent in a chat */
+.chat-tierlist { display: flex; flex-direction: column; gap: 6px; max-width: 320px; padding: 10px 12px; border-radius: 14px; background: var(--bg-panel); box-shadow: inset 0 0 0 1px var(--border); }
+.chat-tierlist-head { display: flex; gap: 6px; align-items: center; color: var(--text-primary); }
+.chat-tierlist small { color: var(--text-muted); }
+.chat-tierlist-tiers { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--text-secondary); }
+.chat-tierlist-tier b { display: inline-block; min-width: 34px; margin-right: 4px; padding: 0 4px; border-radius: 4px; color: #fff; text-align: center; font-size: 11px; }
+.chat-tierlist .btn { align-self: flex-start; }

@@ -105,8 +105,11 @@ export interface CustomCondition extends Filed { id: Id; type: 'custom-condition
 /** The global universal moves setting (js/features/universal-moves.ts): one entry, at most. */
 export interface UniversalMovesEntry { id: Id; type: 'universal-moves'; name: string; mode?: string; gen?: number; moves?: string[]; [extra: string]: any; }
 
-/** state.folders holds all five, told apart by `type`. */
-export type FolderEntry = Folder | Region | CustomType | CustomCondition | UniversalMovesEntry;
+/** A tier list saved on this device (js/features/tier-lists.ts). */
+export interface TierListEntry { id: Id; type: 'tier-list'; name: string; list: any; [extra: string]: any; }
+
+/** state.folders holds all six, told apart by `type`. */
+export type FolderEntry = Folder | Region | CustomType | CustomCondition | UniversalMovesEntry | TierListEntry;
 
 export interface User {
     id: Id;
