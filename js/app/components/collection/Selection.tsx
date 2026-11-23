@@ -107,6 +107,24 @@ export function useSelection(listing: RefObject<HTMLElement | null>, view: Entry
         };
         let boxPending = false;
         const onDragStart = (e: DragEvent) => { if (boxPending) e.preventDefault(); };
+        // A selected card carries the whole selection, as in a file manager:
+        // the drag picture says how many, and the others look picked up too.
+        // A card outside the selection drags alone, and the selection clears.
+        const onCardDrag = (e: DragEvent) => {
+            const card = (e.target as Element).closest<HTMLElement>(ENTRY);
+            if (!card) return;
+            if (!isSelected(idOf(card))) { if (selectionSize()) clearSelection(); return; }
+            const n = selectionSize();
+            if (n < 2) return;
+            root.classList.add('is-dragging-selection');
+            const tag = document.createElement('div');
+            tag.className = 'selection-drag-tag';
+            tag.textContent = `${n} selected`;
+            document.body.appendChild(tag);
+            try { e.dataTransfer?.setDragImage(tag, 12, 12); } catch { /* the browser's own picture */ }
+            setTimeout(() => tag.remove(), 0);
+        };
+        const onDragEnd = () => root.classList.remove('is-dragging-selection');
         const onDown = (e: PointerEvent) => {
             if (e.pointerType === 'touch') { startPress(e); return; }
             const target = e.target as Element;
@@ -181,6 +199,8 @@ export function useSelection(listing: RefObject<HTMLElement | null>, view: Entry
         root.addEventListener('contextmenu', onMenu, true);
         root.addEventListener('pointerdown', onDown);
         root.addEventListener('dragstart', onDragStart, true);
+        root.addEventListener('dragstart', onCardDrag);
+        root.addEventListener('dragend', onDragEnd);
         root.addEventListener('pointermove', pressMove);
         root.addEventListener('pointerup', pressEnd);
         root.addEventListener('pointercancel', pressEnd);
@@ -189,6 +209,8 @@ export function useSelection(listing: RefObject<HTMLElement | null>, view: Entry
             root.removeEventListener('contextmenu', onMenu, true);
             root.removeEventListener('pointerdown', onDown);
             root.removeEventListener('dragstart', onDragStart, true);
+            root.removeEventListener('dragstart', onCardDrag);
+            root.removeEventListener('dragend', onDragEnd);
             root.removeEventListener('pointermove', pressMove);
             root.removeEventListener('pointerup', pressEnd);
             root.removeEventListener('pointercancel', pressEnd);

@@ -496,3 +496,6 @@ body.is-box-selecting, body.is-box-selecting * { user-select: none !important; c
 #collection-listing { min-height: 60vh; padding-bottom: 48px; }
 /* table: a drag from a row's stat or description cells draws a box, so those cells do not start a text selection */
 #collection-listing .dex-row[data-entry-id] > td:not(.col-name):not(.col-icon) { user-select: none; -webkit-user-select: none; }
+/* dragging a selected card carries the selection: the others look picked up, and the drag picture counts them */
+#collection-listing.is-dragging-selection .is-selected { opacity: .55; }
+.selection-drag-tag { position: fixed; top: -100px; left: 0; padding: 6px 12px; border-radius: 999px; background: var(--accent); color: #fff; font-size: 13px; font-weight: 700; }

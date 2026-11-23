@@ -27,6 +27,7 @@ import type { Region } from '../app/types.ts';
 import { openDialog } from '../app/dialogs.tsx';
 import { MOVE_FLAG_OPTIONS } from '../editor/learnset-model.ts';
 import { entriesOf } from './collection-entries.ts';
+import { isSelected, selectedIds, selectionKind, selectionSize } from './selection.ts';
 
 export const REGION_TYPE = 'region' as const;
 const ACTIVE_KEY = 'woogidex.collection.region.v1';
@@ -311,6 +312,14 @@ export function isDraggingCard() {
 export function dropOnRegion(regionId, event) {
     event.preventDefault();
     const lib = api.getDraggedLibraryItem?.();
+    // a selected card brings the rest of the selection with it (js/features/selection.ts)
+    const draggedId = lib?.id || api.getDraggedFakemonId?.();
+    const kind = selectionKind();
+    if (draggedId && kind && isSelected(draggedId) && selectionSize() > 1) {
+        for (const id of selectedIds()) setEntryRegion(kind === 'fakemon' ? 'fakemon' : kind, id, regionId);
+        api.handleCardDragEnd?.();
+        return;
+    }
     if (lib) setEntryRegion(lib.kind, lib.id, regionId);
     else {
         const id = api.getDraggedFakemonId?.() || event.dataTransfer?.getData('text/plain');
