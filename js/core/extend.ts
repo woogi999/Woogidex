@@ -26,10 +26,12 @@ export interface NavItem {
     icon: string;
     /** the route path the tab links to, e.g. 'collection' */
     path: string;
-    /** where it sits; Core uses 10 (Collection) and 30 (Battle) */
+    /** where it sits; Core uses 10 (Collection), the host 20 (Community) and 30 (Fun) */
     order: number;
     /** the small count on the tab, or 0 */
     badge?: () => number;
+    /** a red ping with no number: something waits there (today's login reward) */
+    ping?: () => boolean;
     /** other pages that light this tab up (a post lights up Community) */
     alsoFor?: string[];
 }

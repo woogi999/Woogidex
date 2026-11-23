@@ -11,7 +11,7 @@ import { Link, profilePath } from '../components/Link.tsx';
 import { useClickAway } from '../components/editor/fields.tsx';
 import { NotificationItem, NotificationSkeleton, WhatsNewRow } from '../components/NotificationList.tsx';
 import { usePhone } from '../hooks.ts';
-import { openUpdates, whatsNewView } from '../../features/whats-new.ts';
+import { openUpdates, updatePingShown } from '../../features/whats-new.ts';
 import { addAccount, forgetAccount, logOutOfThisAccount, savedAccounts, switchAccount } from '../../features/accounts.ts';
 import { countLabel } from './Header.tsx';
 import { openWoobux, woobux } from '../../features/woobux.ts';
@@ -52,8 +52,8 @@ export function Notifications() {
     const phone = usePhone();
     const ref = useClickAway(v.open, () => api.closeNotificationsPanel());
     if (!v.signedIn) return null;
-    // the badge also counts a "What's New" you have not opened
-    const unread = v.unread + (whatsNewView()?.unseen ? 1 : 0);
+    // the badge also counts a "What's New" you have not opened (unless its pings are off)
+    const unread = v.unread + (updatePingShown() ? 1 : 0);
     const badge = unread > 0 && <span className="notifications-badge">{countLabel(unread)}</span>;
     // a phone opens the whole page, like an app's notifications tab
     if (phone) {
@@ -193,7 +193,7 @@ export function FeedbackMenuItem({ close }: { close: () => void }) {
 
 /** After Feedback: every update, with a dot while the newest is unread. */
 export function UpdatesMenuItem({ close }: { close: () => void }) {
-    const unseen = !!whatsNewView()?.unseen;
+    const unseen = updatePingShown();
     return (
         <button type="button" className="header-profile-popover-item" onClick={() => { close(); openUpdates(); }}>
             <Icon name="newspaper" /><span>Updates</span>{unseen && <span className="header-menu-dot" aria-label="New" />}

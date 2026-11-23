@@ -165,6 +165,18 @@ const BOOLEAN_SETTINGS = {
     // the first-visit tips (js/features/onboarding.ts)
     ShowTips: {
         storageKey: 'woogidex-show-tips', defaultValue: true
+    },
+    // Settings > Notifications > Pings and pop-ups: the red dot on the Fun tab
+    // for today's login reward, the dot for an unread update, and the update pop-up
+    // (a change re-renders through updateSettingsUI, so the dots follow at once)
+    FunPings: {
+        storageKey: 'woogidex-fun-pings', defaultValue: true
+    },
+    UpdatePings: {
+        storageKey: 'woogidex-update-pings', defaultValue: true
+    },
+    UpdatePopups: {
+        storageKey: 'woogidex-update-popups', defaultValue: true
     }
 };
 

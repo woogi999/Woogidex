@@ -3,11 +3,11 @@
 // icon-only on narrow screens; each carries its name in title/aria-label.
 // A host adds tabs, buttons and menu rows (js/core/extend.ts).
 //
-// On a phone (css/phone.css) the tabs are a bar of icons along the bottom,
-// drawn like the desktop tabs (an active marker, no labels). Which tabs it
-// shows is a choice in Settings (./phoneTabs.ts): by default Collection,
-// Community, Create, Search, then You. Create opens a sheet of things to
-// make; You is the account menu, as a sheet.
+// Which tabs the middle row shows is a choice in Settings (./phoneTabs.ts):
+// on a computer the "Header bar" (by default Collection, Community, Fun), on
+// a phone the "Phone tab bar", a floating bar of icons along the bottom
+// (css/phone.css; by default Collection, Community, Create, Fun, then You).
+// Create opens a sheet of things to make; You is the account menu, as a sheet.
 
 import { useLayoutEffect, useRef } from 'react';
 import { api } from '../../core/app.ts';
@@ -19,11 +19,10 @@ import { useClickAway } from '../components/editor/fields.tsx';
 import { openContextMenu, openQuickSearch, type MenuItem } from '../components/ContextMenu.tsx';
 import { usePhone } from '../hooks.ts';
 import { notificationsView } from '../../core/notifications.ts';
-import { phoneTabs, type PhoneTab } from './phoneTabs.ts';
+import { barTabs, type PhoneTab } from './phoneTabs.ts';
 import { notify, useStore } from '../store.ts';
 
 registerNav({ page: 'collection-view', label: 'Collection', title: 'My Collection', icon: 'library', order: 10, path: 'collection' });
-registerNav({ page: 'battle-view', label: 'Battle', title: 'Battle', icon: 'swords', order: 30, path: 'battle' });
 
 /** A badge's number: 9+ past nine. */
 export const countLabel = (n: number) => (n > 9 ? '9+' : String(n));
@@ -100,9 +99,8 @@ export function Header() {
             </div>
             <nav className="header-nav" aria-label="Main navigation" ref={nav}>
                 <span className="header-nav-ink" aria-hidden="true" />
-                {phone
-                    ? <>{phoneTabs().map(t => <PhoneTabButton key={t} tab={t} section={section} />)}<AccountMenu tab /></>
-                    : ext.nav.map(n => <NavTab key={n.page} n={n} section={section} />)}
+                {barTabs(phone ? 'phone' : 'header').map(t => <BarTabButton key={t} tab={t} section={section} />)}
+                {phone && <AccountMenu tab />}
             </nav>
             <div className="header-actions">
                 {slots(ext.headerActions).map((Slot, i) => <Slot key={i} />)}
@@ -115,19 +113,21 @@ export function Header() {
 /** One place in the tab row: an icon, a hidden name, and its count. */
 function NavTab({ n, section }: { n: (typeof ext.nav)[number]; section: string }) {
     const badge = n.badge?.() || 0;
+    const ping = !badge && !!n.ping?.();
     return (
         <Link to={n.path} className={`header-nav-btn${section === n.page ? ' active' : ''}`}
-            title={n.title} aria-label={n.title} aria-current={section === n.page ? 'page' : undefined}>
+            title={n.title} aria-label={ping ? `${n.title}, something new` : n.title} aria-current={section === n.page ? 'page' : undefined}>
             <Icon name={n.icon} /><span className="header-nav-label">{n.label}</span>
             {badge > 0 && <span className="header-nav-badge">{countLabel(badge)}</span>}
+            {ping && <span className="header-nav-badge is-ping" aria-hidden="true" />}
         </Link>
     );
 }
 
-const NAV_PAGE: Partial<Record<PhoneTab, string>> = { collection: 'collection-view', community: 'community-view', battle: 'battle-view' };
+const NAV_PAGE: Partial<Record<PhoneTab, string>> = { collection: 'collection-view', community: 'community-view', fun: 'fun-view' };
 
-/** A tab of the phone's bottom bar. Messages and notifications need an account; signed out they are left out. */
-function PhoneTabButton({ tab, section }: { tab: PhoneTab; section: string }) {
+/** A tab of a bar (the header's middle row, or the phone's bottom bar). Messages and notifications need an account; signed out they are left out. */
+function BarTabButton({ tab, section }: { tab: PhoneTab; section: string }) {
     const page = NAV_PAGE[tab];
     if (page) {
         const n = ext.nav.find(x => x.page === page);
@@ -143,10 +143,12 @@ function PhoneTabButton({ tab, section }: { tab: PhoneTab; section: string }) {
     const signedIn = !!api.isLoggedIn?.();
     if ((tab === 'messages' || tab === 'notifications') && !signedIn) return null;
     const spec = {
-        search: { to: 'search', view: 'search-view', icon: 'search', title: 'Search', count: 0 },
+        toolbox: { to: 'toolbox', view: 'toolbox-view', icon: 'toolbox', title: 'Toolbox', count: 0 },
         messages: { to: 'messages', view: 'messages-view', icon: 'chat-bubble-oval-left-ellipsis', title: 'Messages', count: Number(api.unreadMessageTotal?.() || 0) },
-        notifications: { to: 'notifications', view: 'notifications-view', icon: 'bell', title: 'Notifications', count: notificationsView().unread }
-    }[tab as 'search' | 'messages' | 'notifications'];
+        // an update you have not opened counts too, unless its pings are off (Settings > Notifications)
+        notifications: { to: 'notifications', view: 'notifications-view', icon: 'bell', title: 'Notifications', count: notificationsView().unread + (api.updatePingShown?.() ? 1 : 0) }
+    }[tab as 'toolbox' | 'messages' | 'notifications'];
+    if (!spec) return null;
     const on = section === spec.view;
     return (
         <Link to={spec.to} className={`header-nav-btn${on ? ' active' : ''}`} title={spec.title}
@@ -179,7 +181,6 @@ function AccountMenu({ tab = false }: { tab?: boolean }) {
                     {tab && <span className="ctx-grip" aria-hidden="true" />}
                     {slots(ext.accountMenuTop).map((Slot, i) => <Slot key={i} close={close} />)}
                     <Link to="settings" className="header-profile-popover-item" onClick={close}><Icon name="settings" /><span>Settings</span></Link>
-                    {tab && <Link to="battle" className="header-profile-popover-item" onClick={close}><Icon name="swords" /><span>Battle</span><span className="header-profile-popover-note">Paused</span></Link>}
                     {slots(ext.accountMenuItems).map((Slot, i) => <Slot key={i} close={close} />)}
                     {/* a switch, not a one-shot button, so it reads as a setting and shows which theme is on */}
                     <label className="header-profile-popover-item header-theme-row">

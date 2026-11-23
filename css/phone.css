@@ -8,10 +8,12 @@
    parts grows instead (the spacing tokens are bigger here). The old phone
    look had big controls packed close, like a phone for grandparents.
 
-   - a slim top bar (logo, messages, notifications) with plain gray icons;
-   - a bottom tab bar of icons, drawn like the desktop tabs (a marker on the
-     active one, no labels). Which tabs it has is a setting
-     (js/app/shell/phoneTabs.ts). Create and You open sheets;
+   - a slim top bar (logo, search, messages, notifications) with plain gray icons;
+   - a floating tab bar of icons, like iOS: a rounded bar that hovers above
+     the bottom edge, a soft pill behind the active tab, no labels. Which
+     tabs it has is a setting (js/app/shell/phoneTabs.ts). Create and You
+     open sheets. --bottom-nav-h is the room it takes (the bar and the gap
+     under it), so everything that keeps clear of it uses that one token;
    - menus and dialogs are sheets along the bottom, in reach of the thumb;
    - soft filled controls instead of outlined boxes;
    - the editor takes the whole screen.
@@ -28,7 +30,10 @@
 @media (max-width: 760px) {
     :root {
         --header-h: 48px;
-        --bottom-nav-h: 50px;
+        /* the floating bar, and the room it takes: the bar plus the gap under it */
+        --bottom-bar-h: 56px;
+        --bottom-bar-gap: 10px;
+        --bottom-nav-h: calc(var(--bottom-bar-h) + var(--bottom-bar-gap));
         --sheet-r: 14px;
         /* small controls */
         --ctl-h: 34px;
@@ -47,9 +52,10 @@
     /* ==================== the top bar ==================== */
     .header { padding: 0 8px 0 var(--sp-4); gap: 4px; }
     .logo img, .logo-button img { height: 22px; width: auto; }
-    /* search is a tab in the bottom bar */
-    .header .global-search { display: none; }
     .header-actions { gap: 0; }
+    /* search sits in the top bar again, as a round icon (css/header.css folds it under 900px) */
+    .header .global-search-toggle { width: 38px; height: 38px; flex-basis: 38px; background: transparent; }
+    .header .global-search-toggle svg { width: 21px; height: 21px; }
     .header .notifications-bell-btn {
         width: 38px; height: 38px;
         background: transparent;
@@ -57,25 +63,43 @@
     .header .notifications-bell-btn:hover { background: var(--bg-panel); }
     .header .notifications-bell-btn svg { width: 22px; height: 22px; }
     /* a tab in the bottom bar leaves the top bar (js/app/shell/phoneTabs.ts) */
+    html[data-phone-tabs~="toolbox"] .header-actions .header-toolbox-btn,
     html[data-phone-tabs~="messages"] .header-actions .header-messages-btn,
     html[data-phone-tabs~="notifications"] .header-actions .header-bell-btn { display: none; }
 
-    /* ==================== the bottom tab bar ==================== */
+    /* ==================== the floating tab bar ====================
+       a rounded bar above the bottom edge, like iOS. It floats, so it gets
+       the floating shadow; no blur (the site has none). The tabs share the
+       width evenly. */
     .header-nav {
+        left: 12px; right: 12px;
+        bottom: calc(var(--bottom-bar-gap) + env(safe-area-inset-bottom, 0px));
+        height: var(--bottom-bar-h);
+        padding: 0 6px;
+        border: 1px solid var(--border-light);
+        border-radius: 999px;
         background: var(--bg-card);
-        border-top: 1px solid var(--border-light);
-        box-shadow: none;
+        box-shadow: 0 10px 30px rgba(17, 17, 20, .16), 0 2px 6px rgba(17, 17, 20, .06);
     }
-    .header-nav-btn { color: var(--text-secondary); }
-    .header-nav-btn::before { inset: 6px 10px; }
-    .header-nav-btn svg { width: 24px; height: 24px; }
-    .header-nav-btn:active svg { transform: scale(.9); }
+    [data-theme="dark"] .header-nav { border-color: var(--border); box-shadow: 0 10px 30px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .3); }
+    .header-nav-btn { position: relative; z-index: 1; justify-content: center; color: var(--text-secondary); }
+    .header-nav-btn::before { inset: 6px 3px; border-radius: 999px; }
+    .header-nav-btn.active::before { background: transparent; }
+    .header-nav-btn svg { width: 24px; height: 24px; transition: transform .18s var(--ease-out); }
+    .header-nav-btn:active svg { transform: scale(.88); }
     /* icons only, like the desktop tabs: the name is in aria-label and title */
     .header-nav-label { display: none !important; }
     .header-nav-btn.active { color: var(--accent); }
-    /* the desktop's marker, on the bar's top edge */
-    .header-nav-ink { display: block; top: -1px; bottom: auto; height: 3px; border-radius: 0 0 3px 3px; --ink-inset: 0.3; }
-    .header-nav-badge { top: 6px; left: calc(50% + 6px); }
+    /* the marker: a soft pill behind the active tab (navInk in js/core/motion.ts slides it) */
+    .header-nav-ink {
+        display: block; z-index: 0;
+        top: 6px; bottom: 6px; height: auto;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        --ink-inset: 0.06;
+    }
+    .header-nav-badge { top: 7px; left: calc(50% + 6px); }
+    .header-nav-badge.is-ping { top: 11px; left: calc(50% + 8px); }
     /* You: your picture in place of an icon */
     .header-profile-wrap.is-tab { position: static; display: flex; flex: 1 1 0; min-width: 0; }
     .header-profile-wrap.is-tab .header-profile-btn {
@@ -174,9 +198,11 @@
     .species-evo-toggles { gap: var(--sp-4); }
     /* the Stats tab's own fields: the same soft fill as every other field */
     .stat-template-row .stat-template-select, .stat-template-row .stat-template-bst-input, .editor-stat-input { border-color: transparent; background: var(--bg-panel); }
-    /* tabs: a quieter strip */
+    /* tabs: a quieter strip, the tabs justified across the width (they share
+       it evenly; a strip too long for the screen still scrolls) */
     .tabs { margin-bottom: var(--sp-5); gap: 0; }
     .tab { font-size: 13px; padding: 10px var(--sp-3); }
+    .tabs > .tab { flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; text-align: center; }
 
     /* ==================== My Collection ==================== */
     .collection-header-actions { gap: 8px !important; }
@@ -301,6 +327,8 @@
         left: 12px; right: 12px;
         bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + 10px);
     }
+    /* the Woobux balance chip (css/woobux.css): lower left, above the tab bar */
+    .wbx-bank { left: 16px; bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px) + 12px); }
     .toast { min-width: 0; width: 100%; font-size: 13px; }
 
     /* ==================== search: rows on the page, not in a box ==================== */

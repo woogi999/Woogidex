@@ -8,9 +8,9 @@ import { api, state } from '../../core/app.ts';
 import { Icon } from './Icon.tsx';
 import { Link } from './Link.tsx';
 import { Avatar } from './Avatar.tsx';
-import { Modal } from './Modal.tsx';
+import { ShieldedArt } from './ShieldedArt.tsx';
+import { cropThen } from '../dialogs/cropImage.tsx';
 import { FeedCard, FeedSkeleton, PostComposer, timeAgo } from './feed.tsx';
-import { registerDialog, openDialog, type DialogProps } from '../dialogs.tsx';
 import { SkeletonRows } from './Skeleton.tsx';
 import { staggerIn } from '../../core/motion.ts';
 import type { Group, GroupDraft, GroupTab, GroupSort, GroupRoleRow, Member, MemberAction, ToolboxItem, ToolboxMode } from '../../features/groups.ts';
@@ -30,9 +30,22 @@ export function GroupsPanel() {
     return <GroupList />;
 }
 
-/** A group's letter tile: the first letter on the group's color. */
-export function GroupTile({ group, size = 'md' }: { group: Pick<Group, 'name' | 'color'>; size?: 'sm' | 'md' | 'lg' }) {
+/** A group's picture, or its letter tile (the first letter on the group's color) when it has none. */
+export function GroupTile({ group, size = 'md' }: { group: Pick<Group, 'name' | 'color'> & { avatar_url?: string }; size?: 'sm' | 'md' | 'lg' }) {
+    if (group.avatar_url) {
+        // community art goes through the art shield, like profile pictures
+        return <span className={`group-tile group-tile-${size} has-art`} style={tint(group)} aria-hidden="true"><ShieldedArt src={group.avatar_url} className="group-tile-art" /></span>;
+    }
     return <span className={`group-tile group-tile-${size}`} style={tint(group)} aria-hidden="true">{(group.name || '?').trim().charAt(0).toUpperCase()}</span>;
+}
+
+/** The group's banner: its own picture, or a wash of the group's color. */
+function GroupCover({ group }: { group: Pick<Group, 'banner_url'> }) {
+    return (
+        <div className={`group-cover${group.banner_url ? ' has-art' : ''}`}>
+            {group.banner_url && <ShieldedArt src={group.banner_url} className="group-cover-art" />}
+        </div>
+    );
 }
 
 const memberLabel = (n: number) => `${n.toLocaleString()} ${n === 1 ? 'member' : 'members'}`;
@@ -235,10 +248,13 @@ function GroupPage({ slug, tab }: { slug: string; tab: GroupTab }) {
     // Manage shows when your roles let you edit the group, its roles or its chat
     const mod = api.canInGroup(group.id, 'edit_group') || api.canInGroup(group.id, 'manage_roles') || api.canInGroup(group.id, 'manage_chat');
     const go = (t: GroupTab) => api.showGroupView({ kind: 'group', slug, tab: t });
+    // Settings is a tab, for the people who can change something there
+    const tabs: GroupTab[] = mod ? ['posts', 'toolbox', 'about', 'members', 'settings'] : ['posts', 'toolbox', 'about', 'members'];
+    const LABEL: Record<GroupTab, string> = { posts: 'Posts', toolbox: 'Toolbox', about: 'About', members: 'Members', settings: 'Settings' };
     return (
         <div className="groups group-page" style={tint(group)}>
             <Link to="groups" className="link-btn groups-back"><Icon name="arrow-left" size={14} /> All groups</Link>
-            <div className="group-cover" />
+            <GroupCover group={group} />
             <header className="group-head">
                 <GroupTile group={group} size="lg" />
                 <div className="group-head-text">
@@ -255,13 +271,12 @@ function GroupPage({ slug, tab }: { slug: string; tab: GroupTab }) {
                         onClick={() => { navigator.clipboard?.writeText(api.groupShareUrl(group)); api.showToast?.('Link copied.', 'success'); }}>
                         <Icon name="link" size={14} />
                     </button>
-                    {mod && <button type="button" className="btn btn-secondary btn-sm" onClick={() => openDialog('group-settings', { group })}><Icon name="cog-6-tooth" size={14} /> Manage</button>}
                 </div>
             </header>
             <nav className="tabs group-tabs" role="tablist" aria-label="Group">
-                {(['posts', 'toolbox', 'about', 'members'] as GroupTab[]).map(t => (
+                {tabs.map(t => (
                     <button key={t} type="button" role="tab" aria-selected={tab === t} className={`tab${tab === t ? ' active' : ''}`} onClick={() => go(t)}>
-                        {t === 'posts' ? 'Posts' : t === 'toolbox' ? 'Toolbox' : t === 'about' ? 'About' : 'Members'}
+                        {t === 'settings' && <Icon name="cog-6-tooth" size={14} />}{LABEL[t]}
                     </button>
                 ))}
             </nav>
@@ -271,8 +286,11 @@ function GroupPage({ slug, tab }: { slug: string; tab: GroupTab }) {
                     {tab === 'toolbox' && (canSee ? <GroupToolbox group={group} /> : <PrivateNotice group={group} status={status} />)}
                     {tab === 'about' && <GroupAbout group={group} />}
                     {tab === 'members' && (canSee ? <GroupMembers group={group} /> : <PrivateNotice group={group} status={status} />)}
+                    {tab === 'settings' && (mod
+                        ? <GroupSettings key={group.id} group={group} />
+                        : <div className="feed-empty"><Icon name="lock-closed" size={20} /><p>Only the people who run this group can change its settings.</p></div>)}
                 </div>
-                {tab !== 'about' && (
+                {tab !== 'about' && tab !== 'settings' && (
                     <aside className="group-side" aria-label="About this group">
                         <GroupAbout group={group} compact />
                     </aside>
@@ -611,27 +629,89 @@ function MemberMenu({ group, m, owner }: { group: Group; m: Member; owner: boole
 
 // ==================== settings ====================
 
-function GroupSettings({ close, group }: DialogProps<{ group: Group }>) {
+// The group's Settings tab (it was a "Manage" window): the picture and
+// banner, the details, the roles, the connected chat, and archiving. Each
+// part shows only for the roles that allow it.
+
+function GroupSettings({ group }: { group: Group }) {
     const owner = api.myGroupRole(group.id) === 'owner' || !!api.isStaff?.();
-    const [d, setD] = useState({ name: group.name, description: group.description, rules: group.rules, visibility: group.visibility, color: group.color });
+    const canEdit = api.canInGroup(group.id, 'edit_group');
+    const start = { name: group.name, description: group.description, rules: group.rules, visibility: group.visibility, color: group.color };
+    const [d, setD] = useState(start);
     const [busy, setBusy] = useState(false);
     const set = (p: Partial<GroupDraft>) => setD(cur => ({ ...cur, ...p }));
+    const dirty = JSON.stringify(d) !== JSON.stringify(start);
     return (
-        <Modal onClose={close} title="Manage group" className="groups-settings">
-            <form className="groups-form" onSubmit={async e => { e.preventDefault(); setBusy(true); if (await api.updateGroup(group, d)) close(); setBusy(false); }}>
-                {api.canInGroup(group.id, 'edit_group') && <GroupFields d={d} set={set} lockVisibility={!owner} />}
-                {api.canInGroup(group.id, 'manage_roles') && <RolesEditor group={group} />}
-                {api.canInGroup(group.id, 'manage_chat') && <ChatLink group={group} />}
-                <div className="modal-actions">
-                    {owner && <button type="button" className="btn btn-danger groups-archive" onClick={() => { close(); api.archiveGroup(group); }}>Archive group</button>}
-                    <button type="button" className="btn btn-secondary" onClick={close}>Cancel</button>
-                    <button type="submit" className="btn btn-primary" disabled={busy || d.name.trim().length < 3}>{busy ? 'Saving…' : 'Save'}</button>
-                </div>
-            </form>
-        </Modal>
+        <div className="group-settings">
+            {canEdit && <GroupArtFields group={group} />}
+            {canEdit && (
+                <form className="groups-form group-settings-section" onSubmit={async e => { e.preventDefault(); setBusy(true); await api.updateGroup(group, d); setBusy(false); }}>
+                    <h3>Details</h3>
+                    <GroupFields d={d} set={set} lockVisibility={!owner} />
+                    <div className="group-settings-actions">
+                        <button type="button" className="btn btn-secondary" disabled={!dirty || busy} onClick={() => setD(start)}>Undo changes</button>
+                        <button type="submit" className="btn btn-primary" disabled={!dirty || busy || d.name.trim().length < 3}>{busy ? 'Saving…' : 'Save changes'}</button>
+                    </div>
+                </form>
+            )}
+            {api.canInGroup(group.id, 'manage_roles') && <div className="group-settings-section"><RolesEditor group={group} /></div>}
+            {api.canInGroup(group.id, 'manage_chat') && <div className="group-settings-section"><ChatLink group={group} /></div>}
+            {owner && (
+                <section className="group-settings-section group-settings-danger">
+                    <h3>Archive the group</h3>
+                    <p className="groups-help">The group closes: nobody can post or join, and it leaves the list. Nothing is deleted.</p>
+                    <button type="button" className="btn btn-danger" onClick={() => api.archiveGroup(group)}>Archive group</button>
+                </section>
+            )}
+        </div>
     );
 }
-registerDialog('group-settings', GroupSettings);
+
+/** The picture (square) and the banner (wide): pick a file, crop it, and it saves at once. */
+function GroupArtFields({ group }: { group: Group }) {
+    const [busy, setBusy] = useState<'' | 'avatar' | 'banner'>('');
+    const pick = (kind: 'avatar' | 'banner') => (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        e.target.value = '';
+        if (!file) return;
+        if (file.size > 12 * 1024 * 1024) { api.showToast?.('That image is too big to open. Choose one under 12 MB.', 'error'); return; }
+        // the crop makes a small file of the right shape; the save checks the size again
+        cropThen(file, kind === 'avatar' ? 1 : 4, async cropped => {
+            setBusy(kind);
+            await api.setGroupArt(group, kind, cropped);
+            setBusy('');
+        });
+    };
+    const clear = async (kind: 'avatar' | 'banner') => { setBusy(kind); await api.setGroupArt(group, kind, null); setBusy(''); };
+    return (
+        <section className="group-settings-section group-art-fields">
+            <h3>Picture and banner</h3>
+            <p className="groups-help">They show on the group page, in the group list and in the feed. PNG, JPG, WebP or GIF.</p>
+            <div className="group-art-row">
+                <div className="group-art-slot">
+                    <GroupTile group={group} size="lg" />
+                    <div className="group-art-btns">
+                        <label className={`btn btn-secondary btn-sm${busy ? ' is-disabled' : ''}`}>
+                            <Icon name="photo" size={14} /> {busy === 'avatar' ? 'Saving…' : group.avatar_url ? 'Change picture' : 'Add a picture'}
+                            <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden disabled={!!busy} onChange={pick('avatar')} />
+                        </label>
+                        {group.avatar_url && <button type="button" className="btn btn-secondary btn-sm btn-danger-ghost" disabled={!!busy} onClick={() => clear('avatar')}>Remove</button>}
+                    </div>
+                </div>
+                <div className="group-art-slot is-banner">
+                    <GroupCover group={group} />
+                    <div className="group-art-btns">
+                        <label className={`btn btn-secondary btn-sm${busy ? ' is-disabled' : ''}`}>
+                            <Icon name="photo" size={14} /> {busy === 'banner' ? 'Saving…' : group.banner_url ? 'Change banner' : 'Add a banner'}
+                            <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden disabled={!!busy} onChange={pick('banner')} />
+                        </label>
+                        {group.banner_url && <button type="button" className="btn btn-secondary btn-sm btn-danger-ghost" disabled={!!busy} onClick={() => clear('banner')}>Remove</button>}
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+}
 
 // ==================== the hub rail ====================
 

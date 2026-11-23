@@ -33,10 +33,19 @@ export function registerAccountSettings(): void {
         api.updateConnectedAccountsUI?.();
     });
     registerSettingsSection({
-        key: 'notifications', label: 'Notifications', when: signedIn, order: 30,
-        blurb: 'Choose what you hear about.',
+        key: 'notifications', label: 'Notifications', order: 30,
+        blurb: 'Choose what you hear about, and which red pings and pop-ups show.',
         groups: [
-            { id: 'notifications', title: 'Notify me about', render: () => <NotificationsGroup />, keywords: 'notifications alerts bell follow comments wall repost share pause mute mentions tagged events announcements email' }
+            { id: 'notifications', title: 'Notify me about', when: signedIn, render: () => <NotificationsGroup />, keywords: 'notifications alerts bell follow comments wall repost share pause mute mentions tagged events announcements email' },
+            // this device only (js/core/app.ts BOOLEAN_SETTINGS), so they work signed out too
+            {
+                id: 'pings', title: 'Pings and pop-ups',
+                items: [
+                    { id: 'fun-pings', setting: 'FunPings', label: 'Ping me about the daily reward', desc: 'A red dot on the Fun tab when today’s login reward is ready to collect.' },
+                    { id: 'update-pings', setting: 'UpdatePings', label: 'Ping me about new updates', desc: 'A red dot on the bell and on Updates in the menu until you read a new update.' },
+                    { id: 'update-popups', setting: 'UpdatePopups', label: 'Show new updates in a pop-up', desc: 'Opens the newest update once, after a release. Turn it off to read updates only when you want, from the menu.' }
+                ]
+            }
         ]
     });
     registerSettingsSection({

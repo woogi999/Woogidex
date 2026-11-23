@@ -18,9 +18,28 @@ const APPS = [
     }
 ];
 
-export function ToolboxPage() {
+/** The tier lists saved on this device, to open or delete. Also on Fun > Tier maker. */
+export function SavedTierLists() {
     useStore();
     const lists = savedTierLists();
+    return (
+        <section className="toolbox-saved">
+            <h2>Your tier lists</h2>
+            {!lists.length && <p className="toolbox-empty">Nothing saved on this device yet. Make one with the tier maker.</p>}
+            {lists.map(l => (
+                <div key={l.id} className="tm-saved-row">
+                    <button type="button" className="tm-saved-open" onClick={() => openTierMaker(l)}>
+                        <strong>{l.title}</strong><small>{Object.keys(l.mons).length} in it · {new Date(l.updatedAt).toLocaleDateString()}</small>
+                    </button>
+                    <button type="button" className="btn btn-secondary btn-sm" aria-label={`Delete ${l.title}`} onClick={() => deleteTierList(l.id)}><Icon name="trash-2" size={14} /></button>
+                </div>
+            ))}
+        </section>
+    );
+}
+
+export function ToolboxPage() {
+    useStore();
     return (
         <div className="toolbox-page">
             <header className="page-header">
@@ -42,18 +61,7 @@ export function ToolboxPage() {
                     <span className="toolbox-app-text"><strong>More apps soon</strong><small>Tell us what you want next in <Link to="settings/about">feedback</Link>.</small></span>
                 </div>
             </section>
-            <section className="toolbox-saved">
-                <h2>Your tier lists</h2>
-                {!lists.length && <p className="toolbox-empty">Nothing saved on this device yet. Make one with the tier maker.</p>}
-                {lists.map(l => (
-                    <div key={l.id} className="tm-saved-row">
-                        <button type="button" className="tm-saved-open" onClick={() => openTierMaker(l)}>
-                            <strong>{l.title}</strong><small>{Object.keys(l.mons).length} in it · {new Date(l.updatedAt).toLocaleDateString()}</small>
-                        </button>
-                        <button type="button" className="btn btn-secondary btn-sm" aria-label={`Delete ${l.title}`} onClick={() => deleteTierList(l.id)}><Icon name="trash-2" size={14} /></button>
-                    </div>
-                ))}
-            </section>
+            <SavedTierLists />
         </div>
     );
 }

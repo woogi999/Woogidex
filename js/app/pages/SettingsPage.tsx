@@ -9,7 +9,7 @@ import { api, state } from '../../core/app.ts';
 import { isLowEndDevice } from '../../core/device.ts';
 import { Icon } from '../components/Icon.tsx';
 import { useStore, useViewShown } from '../store.ts';
-import { useRoute, useSlide, useSwipeTabs } from '../hooks.ts';
+import { usePhone, useRoute, useSlide, useSwipeTabs } from '../hooks.ts';
 import { Link } from '../components/Link.tsx';
 import { slideIn } from '../../core/motion.ts';
 import { ext, type SettingsGroup as Group, type SettingsItem as Item, type SettingsSection as Section } from '../../core/extend.ts';
@@ -19,7 +19,7 @@ import { UI_SCALE_DEFAULT, UI_SCALE_MAX, UI_SCALE_MIN, UI_SCALE_STEP, getUiScale
 import { DeviceTransferGroup } from '../components/DeviceTransfer.tsx';
 import { openUniversalMoves } from '../dialogs/universalMoves.tsx';
 import { openTierLists } from '../dialogs/tierMaker.tsx';
-import { PHONE_TAB_CHOICES, PHONE_TABS_MAX, PHONE_TABS_MIN, phoneTabs, resetPhoneTabs, togglePhoneTab } from '../shell/phoneTabs.ts';
+import { PHONE_TAB_CHOICES, barLimits, barTabs, resetBarTabs, toggleBarTab } from '../shell/phoneTabs.ts';
 
 // A row: `setting` names a boolean in app.ts's BOOLEAN_SETTINGS (it gets a
 // switch); otherwise `control` draws whatever sits on the right. A group is
@@ -33,7 +33,7 @@ const CORE_SECTIONS: Section[] = [
         groups: [
             { id: 'theme', title: 'Theme', render: () => <ThemePicker />, keywords: 'theme dark mode light mode colors night' },
             { id: 'size', title: 'Interface size', render: () => <UiScaleGroup />, keywords: 'interface size zoom scale bigger smaller text font ui accessibility' },
-            { id: 'phone-tabs', title: 'Phone tab bar', render: () => <PhoneTabsGroup />, keywords: 'phone mobile tab bar bottom navigation icons tabs' },
+            { id: 'phone-tabs', title: 'Header bar and tab bar', render: () => <BarTabsGroup />, keywords: 'header bar top phone mobile tab bar bottom navigation icons tabs fun toolbox messages notifications' },
             {
                 id: 'effects', title: 'Motion & effects',
                 desc: () => isLowEndDevice()
@@ -386,30 +386,40 @@ function ThemePicker() {
 
 // ---- appearance: interface size ----
 
-/** Which tabs the phone's bottom bar shows (js/app/shell/phoneTabs.ts). This device only. */
-function PhoneTabsGroup() {
+/**
+ * Which tabs a bar shows (js/app/shell/phoneTabs.ts), this device only: on a
+ * computer the header's middle row ("Header bar"), on a phone the floating
+ * bar along the bottom ("Phone tab bar").
+ */
+function BarTabsGroup() {
     useStore();
-    const on = phoneTabs();
+    const phone = usePhone();
+    const kind = phone ? 'phone' : 'header';
+    const on = barTabs(kind);
+    const { min, max } = barLimits(kind);
+    const desc = phone
+        ? `Put the pages you open most in the bar at the bottom, so each is one tap away. Pick ${min} to ${max}. A page you leave out stays in the top bar or the menu, and the menu button is always last. Saved on this device only.`
+        : `Pick what sits in the middle of the header, up to ${max}. Toolbox, Messages and Notifications move there from the icons on the right. Saved on this device only.`;
     return (
         <section className="st-group">
-            <GroupHead title="Phone tab bar" desc={`Put the pages you open most in the bar at the bottom, so each is one tap away. Pick ${PHONE_TABS_MIN} to ${PHONE_TABS_MAX}. A page you leave out stays in the top bar or the menu, and the menu button is always last. Saved on this device only.`} />
+            <GroupHead title={phone ? 'Phone tab bar' : 'Header bar'} desc={desc} />
             <div className="st-card">
                 {PHONE_TAB_CHOICES.map(([key, label, icon]) => {
                     const checked = on.includes(key);
-                    const locked = checked ? on.length <= PHONE_TABS_MIN : on.length >= PHONE_TABS_MAX;
-                    const id = `phone-tab-${key}`;
+                    const locked = checked ? on.length <= min : on.length >= max;
+                    const id = `${kind}-tab-${key}`;
                     return (
                         <div key={key} className={`st-row st-phone-tab${locked ? ' is-locked' : ''}`}>
                             <span className="st-phone-tab-icon" aria-hidden="true"><Icon name={icon} size={18} /></span>
                             <span className="st-row-text"><span className="st-label" id={id}>{label}</span></span>
                             <span className="st-row-control">
-                                <Switch checked={checked} labelledBy={id} onChange={v => { if (!locked) togglePhoneTab(key, v); }} />
+                                <Switch checked={checked} labelledBy={id} onChange={v => { if (!locked) toggleBarTab(kind, key, v); }} />
                             </span>
                         </div>
                     );
                 })}
             </div>
-            <button type="button" className="btn btn-secondary btn-sm st-phone-tab-reset" onClick={resetPhoneTabs}>Back to the default tabs</button>
+            <button type="button" className="btn btn-secondary btn-sm st-phone-tab-reset" onClick={() => resetBarTabs(kind)}>Back to the default tabs</button>
         </section>
     );
 }

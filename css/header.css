@@ -54,6 +54,14 @@
     display: flex; align-items: center; justify-content: center;
     box-sizing: content-box;
 }
+/* a ping: something waits on that tab (the daily reward on Fun), no number */
+.header-nav-badge.is-ping { min-width: 0; width: 8px; height: 8px; padding: 0; top: 12px; left: calc(50% + 8px); }
+/* a tab the Header bar setting put in the middle row leaves the icons on the right (js/app/shell/phoneTabs.ts) */
+@media (min-width: 761px) {
+    html[data-header-tabs~="toolbox"] .header-actions .header-toolbox-btn,
+    html[data-header-tabs~="messages"] .header-actions .header-messages-btn,
+    html[data-header-tabs~="notifications"] .header-actions .notifications-wrap { display: none; }
+}
 
 /* ---------- global search ---------- */
 .global-search { position: relative; min-width: 0; }
@@ -419,4 +427,8 @@ input[type="search"]::-webkit-search-decoration { -webkit-appearance: none; appe
 /* the box is as wide as its field, so no empty space sits between it and the icons */
 .header-actions .global-search { width: auto; }
 .header-actions .global-search-field { width: clamp(170px, 15vw, 230px); }
+/* the search moved to the right, so its results open to the left, lined up with the field's right edge */
+@media (min-width: 901px) {
+    .header-actions .global-search-results { left: auto; right: 0; }
+}
 @media (max-width: 760px) { .game-switcher-name { display: none; } .header-actions .global-search { width: auto; } }

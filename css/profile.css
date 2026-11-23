@@ -80,23 +80,25 @@
 /* ==================== user hover card (a profile pop-out, like Discord's) ==================== */
 .user-hover-card { position:fixed; z-index:12950; width:300px; max-width:calc(100vw - 24px); box-sizing:border-box; padding:0; border-radius:10px; background:var(--bg-card); color:var(--text-primary); box-shadow:0 0 0 1px var(--border), 0 18px 45px rgba(0,0,0,.22); pointer-events:auto; overflow:hidden; }
 .uhc { --uhc-accent: var(--accent); position:relative; }
+/* one 16px inset for the picture, the badges and the text, so their edges line up */
+.uhc { --uhc-pad: 16px; }
 .uhc-banner { position:relative; height:96px; background:var(--uhc-accent); overflow:hidden; }
-.uhc-banner.has-image .avatar-art, .uhc-banner.has-image img { width:100%; height:100%; object-fit:cover; display:block; }
-.uhc-avatar-wrap { position:relative; display:flex; align-items:flex-end; justify-content:space-between; gap:8px; padding:0 14px; margin-top:-40px; min-height:40px; }
+/* the banner art (a shielded canvas or an img) fills the banner whatever its own size */
+.uhc-banner.has-image > * { position:absolute; inset:0; width:100%; height:100%; }
+.uhc-banner.has-image .avatar-art, .uhc-banner.has-image img, .uhc-banner.has-image canvas { width:100%; height:100%; object-fit:cover; display:block; }
+/* the picture sits half over the banner; the badges line up with its lower half, under the banner */
+.uhc-avatar-wrap { position:relative; display:flex; align-items:flex-end; justify-content:space-between; gap:8px; padding:0 var(--uhc-pad); margin-top:-44px; }
 /* the ring is the card's own colour, so the picture looks cut out of the banner */
-.uhc-avatar { width:80px; height:80px; flex:0 0 80px; border-radius:50%; overflow:hidden; border:6px solid var(--bg-card); background:var(--bg-input); display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:800; color:var(--text-secondary); box-sizing:border-box; }
-.uhc-avatar img { width:100%; height:100%; object-fit:cover; }
-.uhc-badges { display:flex; align-items:center; padding:4px 6px; margin-bottom:4px; border-radius:8px; background:var(--bg-panel); max-width:60%; overflow:hidden; }
-.uhc-body { display:flex; flex-direction:column; padding:8px 16px 16px; }
+.uhc-avatar { width:88px; height:88px; flex:0 0 88px; margin-left:-6px; border-radius:50%; overflow:hidden; border:6px solid var(--bg-card); background:var(--bg-input); display:flex; align-items:center; justify-content:center; font-size:28px; font-weight:800; color:var(--text-secondary); box-sizing:border-box; }
+.uhc-avatar > *, .uhc-avatar img, .uhc-avatar canvas { width:100%; height:100%; object-fit:cover; border-radius:50%; }
+.uhc-badges { display:flex; align-items:center; gap:2px; min-height:28px; padding:3px 6px; margin-bottom:6px; border-radius:8px; background:var(--bg-panel); max-width:calc(100% - 96px); overflow:hidden; }
+.uhc-body { display:flex; flex-direction:column; padding:10px var(--uhc-pad) var(--uhc-pad); }
 .uhc-name { font-size:19px; font-weight:800; line-height:1.2; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .uhc-handle { margin-top:2px; font-size:13px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .uhc-section { margin-top:12px; padding-top:12px; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:4px; }
 .uhc-section + .uhc-section { border-top:0; padding-top:0; }
 .uhc-section h4 { margin:0; font-size:11px; font-weight:800; color:var(--text-secondary); }
 .uhc-section p { margin:0; font-size:13px; line-height:1.45; color:var(--text-primary); }
-.uhc-roles { display:flex; flex-wrap:wrap; gap:4px; }
-.uhc-role { display:inline-flex; align-items:center; gap:6px; padding:2px 8px; border-radius:6px; background:var(--bg-panel); font-size:12px; font-weight:600; }
-.uhc-role-dot { width:10px; height:10px; border-radius:50%; }
 .uhc-bio { display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; white-space:pre-line; }
 
 /* a badge with its own uploaded picture (64x64 PNG) instead of a Heroicon */

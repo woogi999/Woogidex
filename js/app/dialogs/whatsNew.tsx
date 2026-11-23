@@ -12,6 +12,7 @@ import { loadUpdates, type Update } from '../../features/updates.ts';
 import { openUpdates } from '../../features/whats-new.ts';
 import { acknowledgeUpdate, rewardedUpdates, woobux } from '../../features/woobux.ts';
 import { WoobuxIcon } from './woobux.tsx';
+import { coinBurst } from '../components/coinBurst.ts';
 import { useStore } from '../store.ts';
 import { state } from '../../core/app.ts';
 
@@ -47,7 +48,16 @@ function AcknowledgeButton({ version, close }: { version: string; close?: () => 
     if (done) return <span className="update-ack is-done"><WoobuxIcon size={16} />You got {reward} Woobux for this one</span>;
     return (
         <button type="button" className="btn btn-primary update-ack" disabled={busy}
-            onClick={async () => { setBusy(true); await acknowledgeUpdate(v); setBusy(false); close?.(); }}>
+            onClick={async e => {
+                const btn = e.currentTarget;
+                const before = woobux()?.balance ?? 0;
+                setBusy(true);
+                const paid = await acknowledgeUpdate(v);
+                setBusy(false);
+                // the coins fly from this button to your balance (js/app/components/coinBurst.ts)
+                if (paid) coinBurst(btn, before, woobux()?.balance ?? before + paid);
+                close?.();
+            }}>
             <WoobuxIcon size={18} />{state.user ? `Got it, +${reward} Woobux` : `Sign in to get ${reward} Woobux`}
         </button>
     );

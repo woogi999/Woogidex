@@ -24,16 +24,19 @@ export interface Group {
     id: string; slug: string; name: string; description: string; rules: string;
     visibility: 'public' | 'private'; color: string; owner_id: string;
     member_count: number; post_count: number; created_at: string; archived_at: string | null;
+    /** the group's picture and banner in the group-art bucket; '' (or missing before Woogidex-DB 20261123190000) for none */
+    avatar_url?: string; banner_url?: string;
 }
 export type GroupRole = 'owner' | 'moderator' | 'member';
 export type MemberStatus = 'active' | 'pending' | 'left' | 'removed' | 'banned';
 export interface Membership { group_id: string; user_id: string; role: GroupRole; status: MemberStatus; joined_at: string; }
 export interface Member extends Membership { profile: { id: string; username?: string; display_name?: string; avatar_url?: string } | null; }
-export type GroupTab = 'posts' | 'toolbox' | 'about' | 'members';
+/** 'settings' shows only to people whose roles let them edit the group, its roles or its chat. */
+export type GroupTab = 'posts' | 'toolbox' | 'about' | 'members' | 'settings';
 export type GroupSort = 'new' | 'top';
 export type GroupView = { kind: 'list' } | { kind: 'new' } | { kind: 'group'; slug: string; tab: GroupTab };
 
-export const GROUP_TABS: GroupTab[] = ['posts', 'toolbox', 'about', 'members'];
+export const GROUP_TABS: GroupTab[] = ['posts', 'toolbox', 'about', 'members', 'settings'];
 export const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,30})[a-z0-9]$/;
 
 interface GroupsState {
@@ -579,6 +582,63 @@ export async function updateGroup(g: Group, d: Omit<GroupDraft, 'slug'>): Promis
         return true;
     } catch (e: any) {
         api.showToast?.(problem(e, 'Could not save the group.'), 'error');
+        return false;
+    }
+}
+
+// ==================== the group's picture and banner ====================
+// Files go to the public group-art bucket under <group id>/. Storage lets
+// only people whose roles can edit the group write there, and the table
+// only takes an address inside that folder (Woogidex-DB 20261123190000).
+
+const GROUP_ART_BUCKET = 'group-art';
+const GROUP_ART_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
+export const GROUP_ART_MAX_BYTES = 2 * 1024 * 1024;
+
+/** The object path inside the bucket, from one of our public addresses (or '' when it is not one). */
+function groupArtPath(url: string, groupId: string): string {
+    const marker = `/storage/v1/object/public/${GROUP_ART_BUCKET}/`;
+    const at = String(url || '').indexOf(marker);
+    if (at < 0) return '';
+    const path = decodeURIComponent(url.slice(at + marker.length).split('?')[0]);
+    return path.startsWith(`${groupId}/`) ? path : '';
+}
+
+/**
+ * Uploads a new picture or banner (already cropped) and saves its address.
+ * `file` null clears it. The old file is removed after the save.
+ */
+export async function setGroupArt(g: Group, kind: 'avatar' | 'banner', file: File | null): Promise<boolean> {
+    if (file && !GROUP_ART_TYPES.includes(file.type)) { api.showToast?.('Choose a PNG, JPG, WebP or GIF image.', 'error'); return false; }
+    if (file && file.size > GROUP_ART_MAX_BYTES) { api.showToast?.('That image is over 2 MB. Choose a smaller one.', 'error'); return false; }
+    const old = kind === 'avatar' ? g.avatar_url || '' : g.banner_url || '';
+    let uploaded = '';
+    try {
+        const client = await api.getClient();
+        let url = '';
+        if (file) {
+            const ext = file.type === 'image/jpeg' ? 'jpg' : file.type.split('/')[1];
+            uploaded = `${g.id}/${kind}-${Date.now()}.${ext}`;
+            const { error: upError } = await client.storage.from(GROUP_ART_BUCKET).upload(uploaded, file, { upsert: false, contentType: file.type, cacheControl: '86400' });
+            if (upError) throw upError;
+            url = client.storage.from(GROUP_ART_BUCKET).getPublicUrl(uploaded).data.publicUrl;
+        }
+        const { error } = await client.rpc('set_group_art', {
+            p_group: g.id,
+            p_avatar_url: kind === 'avatar' ? url : g.avatar_url || '',
+            p_banner_url: kind === 'banner' ? url : g.banner_url || ''
+        });
+        if (error) throw error;
+        uploaded = '';
+        const oldPath = groupArtPath(old, g.id);
+        if (oldPath) client.storage.from(GROUP_ART_BUCKET).remove([oldPath]).catch?.(() => {});
+        api.showToast?.(file ? (kind === 'avatar' ? 'Picture saved.' : 'Banner saved.') : (kind === 'avatar' ? 'Picture removed.' : 'Banner removed.'), 'success');
+        await loadGroup(g.slug, true);
+        return true;
+    } catch (e: any) {
+        // the upload went through but the save did not: do not leave the file behind
+        if (uploaded) { try { (await api.getClient()).storage.from(GROUP_ART_BUCKET).remove([uploaded]); } catch { /* best effort */ } }
+        api.showToast?.(problem(e, kind === 'avatar' ? 'Could not save the picture.' : 'Could not save the banner.'), 'error');
         return false;
     }
 }

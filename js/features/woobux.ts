@@ -4,19 +4,21 @@
 // sends sets a balance; the functions there check who you are, pay each
 // reward once (a ledger key), and count days in Philippine time.
 //
-// When you sign in (or open the site signed in), today's login reward is
-// claimed. After missed days, when you have enough save passes, a dialog
-// asks first: keep the streak with the passes, or start over.
+// Nothing pops up. While today's login reward waits, the Fun tab shows a red
+// ping (funPing, Settings > Notifications can turn it off), and you collect
+// it on Fun > Streak (js/app/pages/FunPage.tsx). After missed days, when you
+// have enough save passes, that tab asks first: keep the streak with the
+// passes, or start over.
 //
 // Update notes in rewarded_updates pay for "Got it" once (acknowledge_update).
+// A role can multiply both rewards (badges.woobux_multiplier, the highest wins).
 
 import { api, state } from '../core/app.ts';
 import { log } from '../core/log.ts';
 import { notify } from '../app/store.ts';
-import { openDialog } from '../app/dialogs.tsx';
 
 export interface Streak { current: number; held: number; best: number; last_day: string | null; claimed_today: boolean; missed: number; save_passes: number }
-export interface WoobuxState { balance: number; today: string; streak: Streak; acknowledged: string[] }
+export interface WoobuxState { balance: number; today: string; streak: Streak; acknowledged: string[]; multiplier: number }
 export interface ClaimResult extends WoobuxState { awarded: number; cycle_day?: number; passes_awarded?: number; passes_used?: number; already: boolean }
 
 /** Days in one streak cycle, and the reward for each day (the same sums as woobux_streak_reward() in the database). */
@@ -41,6 +43,7 @@ function take(data: any): WoobuxState | null {
     if (!data || typeof data !== 'object') return null;
     const s = data.streak || {};
     current = {
+        multiplier: current?.multiplier || 1,
         balance: Math.max(0, Number(data.balance) || 0),
         today: String(data.today || ''),
         acknowledged: Array.isArray(data.acknowledged) ? data.acknowledged.map(String) : [],
@@ -82,6 +85,7 @@ function mockState(extra: Record<string, unknown> = {}) {
 
 function mockCall(fn: string, args: Record<string, unknown>): any {
     if (fn === 'my_woobux') return mockState();
+    if (fn === 'my_woobux_multiplier') return 1;
     if (fn === 'acknowledge_update') {
         const v = String(args.p_version);
         if (mock.acks.includes(v)) return mockState({ awarded: 0, already: true });
@@ -114,8 +118,30 @@ async function call(fn: string, args: Record<string, unknown> = {}): Promise<any
 
 export async function refreshWoobux(): Promise<WoobuxState | null> {
     if (!state.user) return null;
-    try { return take(await call('my_woobux')); }
-    catch (e) { log.warn('WOOBUX', 'Could not load Woobux', e); return null; }
+    try {
+        const [data, mult] = await Promise.all([
+            call('my_woobux'),
+            // a role's multiplier (Woogidex-DB 20261123190000); 1 before that migration
+            call('my_woobux_multiplier').catch(() => 1)
+        ]);
+        const got = take(data);
+        if (got) { got.multiplier = Math.max(1, Number(mult) || 1); notify(); }
+        return got;
+    } catch (e) { log.warn('WOOBUX', 'Could not load Woobux', e); return null; }
+}
+
+/** Whether the Fun tab shows its red ping: today's reward waits, and the ping is on (Settings > Notifications). */
+export function funPing(): boolean {
+    const w = woobux();
+    return !!w && !w.streak.claimed_today && api.getFunPings?.() !== false;
+}
+
+/** The reward today's claim would pay, before a role's multiplier. */
+export function nextReward(w: WoobuxState): { day: number; woobux: number; passes: number } {
+    const s = w.streak;
+    const count = s.claimed_today ? s.current : (s.missed > 0 ? 0 : s.current) + 1;
+    const day = cycleDay(Math.max(1, count));
+    return { day, ...dayReward(day) };
 }
 
 /** Claims today's reward. `usePasses`: spend save passes on the missed days to keep the streak. */
@@ -137,9 +163,8 @@ export async function acknowledgeUpdate(version: string): Promise<number> {
     try {
         const data = await call('acknowledge_update', { p_version: version });
         take(data);
-        const paid = Number(data?.awarded) || 0;
-        if (paid) api.showToast?.(`+${paid} Woobux for reading the update!`, 'success');
-        return paid;
+        // the button plays the coin burst for a payment (whatsNew.tsx), so no toast here
+        return Number(data?.awarded) || 0;
     } catch (e) {
         log.warn('WOOBUX', 'Could not acknowledge the update', e);
         api.showToast?.('Could not give the Woobux right now. Try again later.', 'error');
@@ -164,8 +189,8 @@ export function rewardedUpdates(): Promise<Record<string, number>> {
 }
 
 /**
- * After a sign-in (and on load, signed in): reads the numbers, then claims
- * today's reward. Missed days with enough save passes ask first.
+ * After a sign-in (and on load, signed in): reads the numbers. Nothing is
+ * claimed here: the Fun tab pings, and you collect on Fun > Streak.
  */
 export async function onWoobuxAuthChange() {
     const id = state.user?.id || null;
@@ -175,14 +200,7 @@ export async function onWoobuxAuthChange() {
     notify();
     if (!id || busy) return;
     busy = true;
-    try {
-        const now = await refreshWoobux();
-        if (!now || now.streak.claimed_today || forUser !== id) return;
-        const { missed, held, save_passes } = now.streak;
-        if (missed > 0 && held > 0 && save_passes >= missed) { openDialog('woobux-streak', { mode: 'save' }); return; }
-        const result = await claimDaily(false);
-        if (result && !result.already && result.awarded > 0) openDialog('woobux-streak', { mode: 'claimed', result });
-    } finally { busy = false; }
+    try { await refreshWoobux(); } finally { busy = false; }
 }
 
 // a tab left open over midnight (Philippine time): look again when it comes back into view
@@ -194,7 +212,7 @@ document.addEventListener('visibilitychange', () => {
     onWoobuxAuthChange();
 });
 
+/** Fun > Streak: the balance, the streak and today's reward. */
 export function openWoobux() {
-    if (!state.user) { api.openAuthModal?.('signin'); return; }
-    openDialog('woobux-streak', { mode: 'view' });
+    api.openPath?.('fun/streak');
 }

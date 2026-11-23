@@ -1,0 +1,140 @@
+/* ==================== Fun ====================
+   /fun (js/app/pages/FunPage.tsx): the login streak, the shop, the tier
+   maker and battles. One surface like the rest of the site: soft fills,
+   hairlines, no outline boxes. The gold belongs to Woobux (it is content,
+   like a type colour); the interface keeps the violet accent.
+   The calendar, the stats and the coin animation: css/woobux.css. */
+
+.fun-page { max-width: 900px; margin: 0 auto; }
+.fun-head { align-items: flex-end; }
+.fun-sub { margin-top: 4px; font-size: 14px; color: var(--text-secondary); }
+.fun-balance {
+    display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto;
+    height: 40px; padding: 0 14px 0 9px; border-radius: 999px;
+    background: color-mix(in srgb, #f6a623 12%, var(--bg-card));
+    color: var(--text-primary); text-decoration: none;
+    font-size: 16px; font-variant-numeric: tabular-nums; transition: var(--t-ui);
+}
+.fun-balance:hover { background: color-mix(in srgb, #f6a623 20%, var(--bg-card)); }
+.fun-balance strong { font-weight: 800; }
+
+/* the tabs: icon and name, a small red ping on Streak while the reward waits */
+.fun-tabs .tab { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
+.fun-tab-ping { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--bg-card); }
+
+.fun-body { display: flex; flex-direction: column; gap: var(--sp-5); }
+
+/* ---- signed out, the shop, battles: one centred message ---- */
+.fun-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: var(--sp-7) var(--sp-4); text-align: center; }
+.fun-empty h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.fun-empty p { max-width: 46ch; font-size: 14px; line-height: 1.55; color: var(--text-secondary); }
+.fun-empty .btn { margin-top: 6px; }
+.fun-empty-coin { animation: fun-bob 3.2s ease-in-out infinite; }
+.fun-battle-icon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--bg-panel); color: var(--text-secondary); }
+
+/* ==================== the streak ==================== */
+.fun-streak { display: flex; flex-direction: column; gap: var(--sp-5); }
+
+.streak-hero {
+    position: relative;
+    display: flex; align-items: center; gap: var(--sp-5);
+    padding: var(--sp-5) var(--sp-6);
+    border-radius: var(--panel-r);
+    background: color-mix(in srgb, #f6a623 7%, var(--bg-card));
+    overflow: hidden;
+}
+/* a warm light that grows with the streak */
+.streak-hero::before {
+    content: ""; position: absolute; left: -60px; top: 50%; width: 280px; height: 280px; translate: 0 -50%;
+    border-radius: 50%; background: radial-gradient(circle, rgba(249, 115, 22, var(--glow, .1)) 0, transparent 65%);
+    pointer-events: none;
+}
+.streak-hero.heat-0 { --glow: 0; background: var(--bg-panel); }
+.streak-hero.heat-2 { --glow: .16; }
+.streak-hero.heat-3 { --glow: .22; }
+.streak-hero.heat-4 { --glow: .28; }
+.streak-hero.heat-5 { --glow: .36; }
+.streak-hero-text { position: relative; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.streak-count { display: flex; align-items: baseline; gap: 8px; }
+.streak-count strong { font-size: 48px; font-weight: 900; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.streak-count span { font-size: 15px; font-weight: 700; color: var(--text-secondary); }
+.streak-line { font-size: 14px; line-height: 1.55; color: var(--text-secondary); max-width: 52ch; }
+.streak-line strong { color: var(--text-primary); }
+.streak-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 4px; }
+.streak-cost { width: 100%; font-size: 12px; color: var(--text-muted); }
+
+/* the collect button: it breathes and a light runs across it while the reward waits */
+.streak-collect { position: relative; overflow: hidden; height: 44px; padding: 0 20px; font-size: 14px; gap: 8px; }
+.is-ready .streak-collect:not(:disabled) { animation: fun-breathe 2.4s ease-in-out infinite; }
+.is-ready .streak-collect:not(:disabled)::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .35) 50%, transparent 70%) 160% 0 / 250% 100% no-repeat;
+    animation: fun-sweep 2.4s ease-in-out infinite;
+}
+@keyframes fun-breathe { 0%, 100% { transform: none; } 50% { transform: translateY(-2px) scale(1.02); } }
+@keyframes fun-sweep { 0%, 40% { background-position: 160% 0; } 100% { background-position: -60% 0; } }
+@keyframes fun-bob { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-6px) rotate(4deg); } }
+
+/* the flame: colder grey at 0, taller and brighter at each step */
+.streak-flame { position: relative; flex: 0 0 auto; width: 96px; height: 112px; display: grid; place-items: end center; }
+.streak-flame svg { width: 100%; height: 100%; overflow: visible; transform-origin: 50% 90%; transition: transform .6s var(--ease-out); }
+.streak-flame .fl-outer { fill: #f97316; transform-origin: 50% 95%; animation: fl-flicker 1.6s ease-in-out infinite; }
+.streak-flame .fl-mid { fill: #fbbf24; transform-origin: 50% 95%; animation: fl-flicker 1.2s ease-in-out infinite reverse; }
+.streak-flame .fl-core { fill: #fff3c4; transform-origin: 50% 95%; animation: fl-flicker .9s ease-in-out infinite; }
+.streak-flame .fl-glow { fill: rgba(249, 115, 22, .25); }
+.streak-flame.lvl-0 svg { transform: scale(.72); filter: grayscale(1); opacity: .35; }
+.streak-flame.lvl-0 path { animation: none; }
+.streak-flame.lvl-1 svg { transform: scale(.78); }
+.streak-flame.lvl-2 svg { transform: scale(.88); }
+.streak-flame.lvl-3 svg { transform: scale(.96); }
+.streak-flame.lvl-4 svg { transform: scale(1.04); }
+.streak-flame.lvl-5 svg { transform: scale(1.12); }
+.streak-flame.lvl-4 .fl-outer, .streak-flame.lvl-5 .fl-outer { fill: #ef4444; }
+.streak-flame.lvl-5 .fl-mid { fill: #f97316; }
+.streak-flame.lvl-5 .fl-core { fill: #fde68a; }
+@keyframes fl-flicker { 0%, 100% { transform: scale(1, 1) skewX(0); } 33% { transform: scale(.97, 1.04) skewX(-2deg); } 66% { transform: scale(1.02, .97) skewX(2deg); } }
+
+/* ---- the cycle bar: 30 days, the bonus days marked ---- */
+.streak-track { display: flex; flex-direction: column; gap: 14px; }
+.streak-track-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13px; color: var(--text-secondary); }
+.streak-track-head strong { color: var(--text-primary); }
+.streak-track-count { font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.streak-bar { position: relative; height: 8px; margin: 0 11px 10px; border-radius: 999px; background: var(--bg-panel); }
+.streak-bar-fill { position: absolute; inset: 0 auto 0 0; width: var(--fill); border-radius: inherit; background: linear-gradient(90deg, #f97316, #fbbf24); transition: width .9s var(--ease-out); }
+.streak-mark {
+    position: absolute; top: 50%; translate: -50% -50%;
+    display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--bg-card); box-shadow: 0 0 0 2px var(--bg-panel);
+    filter: grayscale(.8); opacity: .7; transition: filter .3s ease, opacity .3s ease;
+}
+.streak-mark.is-reached { filter: none; opacity: 1; box-shadow: 0 0 0 2px #fbbf24; }
+
+/* ---- the shop ---- */
+.fun-shop-hero { display: flex; align-items: center; gap: var(--sp-6); padding: var(--sp-6); border-radius: var(--panel-r); background: var(--bg-panel); }
+.fun-shop-hero h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
+.fun-shop-hero p { margin: 6px 0 14px; font-size: 14px; line-height: 1.55; color: var(--text-secondary); max-width: 48ch; }
+.fun-shop-hero .btn { display: inline-flex; align-items: center; gap: 8px; }
+.fun-shop-coupon { flex: 0 0 auto; animation: fun-bob 3.6s ease-in-out infinite; }
+
+/* ---- the tier maker ---- */
+.fun-tier { display: flex; flex-direction: column; gap: var(--sp-5); }
+
+@media (max-width: 760px) {
+    .fun-head .fun-balance { height: 36px; font-size: 15px; }
+    .streak-hero { flex-direction: column; align-items: flex-start; gap: 6px; padding: var(--sp-4); }
+    .streak-flame { width: 72px; height: 84px; }
+    .streak-count strong { font-size: 40px; }
+    .streak-actions .btn { flex: 1 1 auto; justify-content: center; }
+    .streak-collect { width: 100%; }
+    .fun-shop-hero { flex-direction: column; text-align: center; padding: var(--sp-5) var(--sp-4); }
+    .fun-shop-hero .btn { width: 100%; justify-content: center; }
+    .fun-tabs .tab svg { display: none; }
+}
+
+/* reduced motion: the flame and the button hold still */
+.reduce-motion .streak-flame path, .reduce-motion .is-ready .streak-collect, .reduce-motion .is-ready .streak-collect::after,
+.reduce-motion .fun-empty-coin, .reduce-motion .fun-shop-coupon { animation: none !important; }
+@media (prefers-reduced-motion: reduce) {
+    .streak-flame path, .is-ready .streak-collect, .is-ready .streak-collect::after, .fun-empty-coin, .fun-shop-coupon { animation: none !important; }
+}
+.low-end .streak-flame path, .low-end .is-ready .streak-collect::after { animation: none; }

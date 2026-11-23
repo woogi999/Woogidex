@@ -132,7 +132,8 @@ export function bannerBackground(p: any): string {
 // ==================== hover card ====================
 // A preview of someone without leaving the page, laid out like Discord's
 // profile pop-out: the banner, the picture over its lower edge, the badges
-// in a strip at the right, the name, then About me and Member since.
+// in a strip at the right, the name, then About me and Member since. Roles
+// stay off the card: only badges show.
 // Contents only; js/features/auth.ts positions it against the name.
 
 const safeHex = (v: any) => (/^#[0-9a-f]{6}$/i.test(String(v || '')) ? String(v) : '');
@@ -159,8 +160,7 @@ export function UserHoverCard({ profile = null, loading = false }: { profile?: a
     const banner = bannerBackground(profile) || accent || '';
     const badges: string[] = Array.isArray(profile.display_badges) ? profile.display_badges : [];
     const since = profile.created_at ? new Date(profile.created_at).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '';
-    // the top role (profiles.role); its name and colour are its badge's, as a role gives its own badge
-    const role = profile.role && profile.role !== 'user' ? badgeDefinition(profile.role) : null;
+    // roles are not shown here, only the badges someone chose to show
     return (
         <div className="uhc" style={accent ? { ['--uhc-accent' as any]: accent } : undefined}>
             <div className={`uhc-banner${profile.banner_url ? ' has-image' : ''}`} style={banner ? { background: banner } : undefined}>
@@ -185,12 +185,6 @@ export function UserHoverCard({ profile = null, loading = false }: { profile?: a
                     <div className="uhc-section">
                         <h4>Member since</h4>
                         <p>{since}</p>
-                    </div>
-                )}
-                {role && (
-                    <div className="uhc-section">
-                        <h4>Role</h4>
-                        <p className="uhc-roles"><span className="uhc-role"><span className="uhc-role-dot" style={{ background: role.color }} />{role.label}</span></p>
                     </div>
                 )}
             </div>

@@ -48,7 +48,9 @@ import { MessagesPage } from './app/pages/MessagesPage.tsx';
 import { NotificationsPage } from './app/pages/NotificationsPage.tsx';
 import { ToolboxPage } from './app/pages/ToolboxPage.tsx';
 import { TierMakerPage } from './app/pages/TierMakerPage.tsx';
-import { maybeShowWhatsNew, openUpdates, openWhatsNew } from './features/whats-new.ts';
+import { FunPage } from './app/pages/FunPage.tsx';
+import { maybeShowWhatsNew, openUpdates, openWhatsNew, updatePingShown } from './features/whats-new.ts';
+import { funPing } from './features/woobux.ts';
 import { resumeAddAccount } from './features/accounts.ts';
 import { LandingPage } from './app/pages/LandingPage.tsx';
 import { registerAccountSettings } from './app/pages/SettingsAccount.tsx';
@@ -82,6 +84,7 @@ export function installHost(): void {
     registerPage({ view: 'notifications-view', Page: NotificationsPage, lazy: true });
     registerPage({ view: 'toolbox-view', Page: ToolboxPage, lazy: true });
     registerPage({ view: 'tier-maker-view', Page: TierMakerPage, lazy: true });
+    registerPage({ view: 'fun-view', Page: FunPage, lazy: true });
 
     // ---- routes ----
     // a page that shows the server's data waits (briefly) for sign-in at boot
@@ -106,6 +109,14 @@ export function installHost(): void {
             }
             api.activateTopLevelView?.('toolbox-view');
             api.setPageTitle?.('Toolbox');
+            return true;
+        }
+    });
+    // /fun[/streak|shop|tier-maker|battle]: the Fun tab (js/app/pages/FunPage.tsx); works signed out too
+    registerRoute('fun', {
+        open: async () => {
+            api.activateTopLevelView?.('fun-view');
+            api.setPageTitle?.('Fun');
             return true;
         }
     });
@@ -146,6 +157,8 @@ export function installHost(): void {
 
     // ---- the header ----
     registerNav({ page: 'community-view', label: 'Community', title: 'Community', icon: 'users', order: 20, path: 'community', alsoFor: ['community-detail-view', 'post-view'] });
+    // Fun: the login streak, the shop, the tier maker and battles; a red ping while today's reward waits
+    registerNav({ page: 'fun-view', label: 'Fun', title: 'Fun', icon: 'fun-box', order: 30, path: 'fun', alsoFor: ['battle-view', 'tier-maker-view'], ping: funPing });
     // the game picker leads, and the search sits beside the bell (js/app/shell/GameSwitcher.tsx)
     ext.headerLeft.push(GameSwitcher);
     ext.headerActions.push(GlobalSearch, ToolboxButton, MessagesButton, Notifications, SignInButton);
@@ -154,7 +167,7 @@ export function installHost(): void {
     ext.accountMenuItems.push(FeedbackMenuItem, UpdatesMenuItem);
     ext.accountMenuBottom.push(AccountMenuBottom);
     // the newest update post, in a pop-up once (js/features/whats-new.ts)
-    Object.assign(api, { openWhatsNew, openUpdates });
+    Object.assign(api, { openWhatsNew, openUpdates, updatePingShown });
     ext.ready.push(maybeShowWhatsNew);
     // "Add another account" reloads the page signed out: then open the sign-in
     ext.ready.push(resumeAddAccount);

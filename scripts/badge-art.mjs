@@ -92,8 +92,7 @@ const BADGES = [
 ];
 for (const [name, shape, color, glyph, opts] of BADGES) writeFileSync(join(out, 'badges', `${name}.svg`), emblem(name, shape, color, glyph, opts));
 
-// Woobux: the reference coin, an orange-gold octagon with a four-point star
-writeFileSync(join(out, 'woobux.svg'), emblem('woobux', 'octagon', '#f6a623', 'star', { glyphColor: '#fff3a8' }));
+// the Woobux coin and the coupon: scripts/coin-art.mjs
 // a save pass: a ticket on a blue coin
 writeFileSync(join(out, 'save-pass.svg'), emblem('savepass', 'circle', '#3b82f6', 'ticket'));
-console.log('written', BADGES.length + 2);
+console.log('written', BADGES.length + 1);

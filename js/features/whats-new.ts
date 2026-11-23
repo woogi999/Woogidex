@@ -4,6 +4,7 @@
 // whole history, and so does the pop-up's "Every update". The update's file
 // name is the version: a new file is a new version.
 
+import { api } from '../core/app.ts';
 import { log } from '../core/log.ts';
 import { notify } from '../app/store.ts';
 import { openDialog, isDialogOpen } from '../app/dialogs.tsx';
@@ -42,6 +43,11 @@ export function whatsNewView(): { item: Update; unseen: boolean } | null {
     return latest ? { item: latest, unseen: readSeen() !== latest.id } : null;
 }
 
+/** Whether the "new update" dot shows: an unread update, and its pings on (Settings > Notifications). */
+export function updatePingShown(): boolean {
+    return !!whatsNewView()?.unseen && api.getUpdatePings?.() !== false;
+}
+
 /** Opens the pop-up on the newest update (and counts it as seen). */
 export async function openWhatsNew(): Promise<void> {
     const item = await loadWhatsNew();
@@ -70,6 +76,8 @@ export async function maybeShowWhatsNew(): Promise<void> {
     const seen = readSeen();
     if (seen === item.id) return;
     if (!seen && !returningVisitor()) { saveSeen(item.id); return; }
+    // pop-ups off (Settings > Notifications): the dot still says there is something new
+    if (api.getUpdatePopups?.() === false) return;
     // a moment after the page settles, and never on top of another dialog
     setTimeout(() => {
         if (document.body.classList.contains('modal-open') || document.body.classList.contains('editor-sheet-open')) return;

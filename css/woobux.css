@@ -1,8 +1,8 @@
 /* ==================== Woobux ====================
-   The coin, the account menu row, the Woobux window with the 30-day
-   calendar (js/app/dialogs/woobux.tsx), and the "Got it" on update notes
-   (js/app/dialogs/whatsNew.tsx). One surface, no outline boxes: the days are
-   soft fills. */
+   The coin, the account menu row, the 30-day calendar (js/app/dialogs/
+   woobux.tsx, shown on Fun > Streak), the collect animation, and the "Got
+   it" on update notes (js/app/dialogs/whatsNew.tsx). One surface, no
+   outline boxes: the days are soft fills. The Fun page: css/fun.css. */
 
 .woobux-icon { display: inline-block; flex: 0 0 auto; vertical-align: middle; }
 
@@ -14,16 +14,7 @@
 .header-woobux-row strong { font-weight: 800; }
 .header-woobux-row .header-profile-popover-note { display: inline-flex; align-items: center; gap: 3px; color: #f97316; }
 
-/* ---- the window ---- */
-.wbx-dialog.wbx-dialog { width: min(760px, calc(100vw - 32px)); max-width: min(760px, calc(100vw - 32px)); }
-.wbx-head { display: flex; flex-direction: column; gap: var(--sp-4); }
-.wbx-claim { display: flex; align-items: center; gap: 14px; }
-.wbx-claim > div { display: flex; flex-direction: column; gap: 2px; }
-.wbx-claim-amount { font-size: 24px; font-weight: 800; line-height: 1.1; }
-.wbx-claim small { color: var(--text-secondary); font-size: 13px; }
-.wbx-claim-coin { animation: wbx-coin 900ms var(--ease-out, ease-out) both; }
-@keyframes wbx-coin { 0% { transform: translateY(8px) scale(.6) rotate(-25deg); opacity: 0; } 60% { transform: translateY(-4px) scale(1.08) rotate(6deg); opacity: 1; } 100% { transform: none; } }
-
+/* ---- the numbers on Fun > Streak ---- */
 .wbx-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; }
 .wbx-stats > div { padding: 10px 12px; border-radius: 8px; background: var(--bg-panel); }
 .wbx-stats dt { font-size: 11px; font-weight: 700; color: var(--text-muted); }
@@ -48,6 +39,39 @@
 .update-ack { display: inline-flex; align-items: center; gap: 8px; }
 .update-ack.is-done { font-size: 13px; font-weight: 600; color: var(--text-secondary); }
 
+/* a day you just collected: a stamp, not a fade */
+.wbx-day.is-today.is-done { opacity: 1; box-shadow: inset 0 0 0 2px #22c55e; animation: wbx-stamp .5s var(--ease-out) both; }
+@keyframes wbx-stamp { 0% { transform: scale(1.25); } 60% { transform: scale(.94); } 100% { transform: none; } }
+
+/* ---- the collect animation (js/app/components/coinBurst.ts) ---- */
+.wbx-fx { position: fixed; inset: 0; z-index: 30000; pointer-events: none; overflow: hidden; }
+.wbx-fly, .wbx-trail { position: absolute; left: 0; top: 0; will-change: transform; }
+.wbx-fly { width: 30px; height: 30px; filter: drop-shadow(0 3px 4px rgba(120, 60, 0, .3)); }
+.wbx-fly img { display: block; width: 100%; height: 100%; }
+/* the glint: a light band across the coin, cut to the coin's own shape */
+.wbx-fly::after {
+    content: ""; position: absolute; inset: 0;
+    -webkit-mask: url('/assets/woobux.svg') center / contain no-repeat; mask: url('/assets/woobux.svg') center / contain no-repeat;
+    background: linear-gradient(115deg, transparent 35%, rgba(255, 255, 255, .95) 50%, transparent 65%) 150% 0 / 250% 100% no-repeat;
+}
+.wbx-fly.is-glint::after { animation: wbx-glint .55s ease-out both; }
+@keyframes wbx-glint { to { background-position: -60% 0; } }
+.wbx-trail { width: 16px; height: 16px; border-radius: 50%; background: radial-gradient(circle, rgba(255, 236, 140, .95) 0, rgba(255, 190, 40, .6) 45%, rgba(255, 170, 20, 0) 72%); }
+/* your balance, lower left, while coins land */
+.wbx-bank {
+    position: fixed; left: 20px; bottom: 20px; z-index: 30001;
+    display: none; align-items: center; gap: 10px;
+    padding: 8px 16px 8px 8px; border-radius: 999px;
+    background: var(--bg-card); color: var(--text-primary);
+    box-shadow: 0 0 0 1px var(--border), 0 12px 30px rgba(17, 17, 20, .18);
+    pointer-events: none;
+}
+.wbx-bank-coin { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: color-mix(in srgb, #f6a623 16%, var(--bg-card)); }
+.wbx-bank-text { display: flex; flex-direction: column; line-height: 1.05; }
+.wbx-bank-num { font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.wbx-bank-text small { font-size: 11px; font-weight: 700; color: var(--text-muted); }
+.wbx-bank.is-full .wbx-bank-num { color: #d97706; }
+
 @media (max-width: 560px) {
     .wbx-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .wbx-calendar { grid-template-columns: repeat(5, minmax(0, 1fr)); }
@@ -55,4 +79,5 @@
 @media (min-width: 561px) and (max-width: 820px) {
     .wbx-calendar { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
-@media (prefers-reduced-motion: reduce) { .wbx-claim-coin { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .wbx-day.is-today.is-done { animation: none; } }
+.reduce-motion .wbx-day.is-today.is-done { animation: none; }

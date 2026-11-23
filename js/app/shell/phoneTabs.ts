@@ -1,65 +1,85 @@
-// Which tabs the phone's bottom bar shows (Settings > Appearance > Phone tab
-// bar). A choice for this device only, kept in localStorage. "You" (the
-// account menu) is always the last tab, so it is not on the list. A tab you
-// put in the bar leaves the top bar (messages, notifications).
+// Which tabs the bars show. Two lists, each a choice for this device only,
+// kept in localStorage:
+//   'phone'   the floating tab bar along the bottom of a phone
+//             (Settings > Appearance > Phone tab bar). "You" (the account
+//             menu) is always the last tab, so it is not on the list.
+//   'header'  the tabs in the middle of the header on a computer
+//             (Settings > Appearance > Header bar).
+// A tab you put in a bar leaves the header's icon row on the right
+// (Toolbox, messages, notifications), so nothing shows twice.
 
 import { notify } from '../store.ts';
 
-export type PhoneTab = 'collection' | 'community' | 'create' | 'search' | 'messages' | 'notifications' | 'battle';
+export type PhoneTab = 'collection' | 'community' | 'create' | 'fun' | 'toolbox' | 'messages' | 'notifications';
+export type BarKind = 'phone' | 'header';
 
-/** Every tab you can pick: [key, name, icon], in the order the bar shows them. */
+/** Every tab you can pick: [key, name, icon], in the order the bars show them. */
 export const PHONE_TAB_CHOICES: Array<[PhoneTab, string, string]> = [
     ['collection', 'My Collection', 'library'],
     ['community', 'Community', 'users'],
     ['create', 'Create', 'plus-circle'],
-    ['search', 'Search', 'search'],
+    ['fun', 'Fun', 'fun-box'],
+    ['toolbox', 'Toolbox', 'toolbox'],
     ['messages', 'Messages', 'chat-bubble-oval-left-ellipsis'],
-    ['notifications', 'Notifications', 'bell'],
-    ['battle', 'Battle (paused)', 'swords']
+    ['notifications', 'Notifications', 'bell']
 ];
-export const PHONE_TABS_DEFAULT: PhoneTab[] = ['collection', 'community', 'create', 'search'];
-export const PHONE_TABS_MIN = 2;
-export const PHONE_TABS_MAX = 5;
 
-const KEY = 'woogidex-phone-tabs';
+const BARS: Record<BarKind, { key: string; dataset: 'phoneTabs' | 'headerTabs'; def: PhoneTab[]; min: number; max: number }> = {
+    phone: { key: 'woogidex-phone-tabs', dataset: 'phoneTabs', def: ['collection', 'community', 'create', 'fun'], min: 2, max: 5 },
+    header: { key: 'woogidex-header-tabs', dataset: 'headerTabs', def: ['collection', 'community', 'fun'], min: 1, max: 6 }
+};
+export const barLimits = (kind: BarKind) => ({ min: BARS[kind].min, max: BARS[kind].max, def: BARS[kind].def });
+
 const ORDER = PHONE_TAB_CHOICES.map(([k]) => k);
+// the old names: Battle lives in Fun now, and search is in the top bar again
+const RENAMED: Record<string, PhoneTab> = { battle: 'fun' };
 
-let cached: PhoneTab[] | null = null;
+const cached: Partial<Record<BarKind, PhoneTab[]>> = {};
 
-/** The tabs to show, in bar order. */
-export function phoneTabs(): PhoneTab[] {
-    if (cached) return cached;
-    let list: PhoneTab[] = PHONE_TABS_DEFAULT;
+function publish(kind: BarKind, list: PhoneTab[]) {
+    cached[kind] = list;
+    document.documentElement.dataset[BARS[kind].dataset] = list.join(' ');
+}
+
+/** The tabs a bar shows, in bar order. */
+export function barTabs(kind: BarKind): PhoneTab[] {
+    const hit = cached[kind];
+    if (hit) return hit;
+    const { key, def, min, max } = BARS[kind];
+    let list = def;
     try {
-        const saved = JSON.parse(localStorage.getItem(KEY) || 'null');
+        const saved = JSON.parse(localStorage.getItem(key) || 'null');
         if (Array.isArray(saved)) {
-            const ok = ORDER.filter(k => saved.includes(k));
-            if (ok.length >= PHONE_TABS_MIN && ok.length <= PHONE_TABS_MAX) list = ok;
+            const names = saved.map(k => RENAMED[k] || k);
+            const ok = ORDER.filter(k => names.includes(k));
+            if (ok.length >= min && ok.length <= max) list = ok;
         }
     } catch { /* storage blocked: the default bar */ }
-    cached = list;
-    document.documentElement.dataset.phoneTabs = list.join(' ');
+    publish(kind, list);
     return list;
 }
 
 /** Turns one tab on or off (within the limits). */
-export function togglePhoneTab(tab: PhoneTab, on: boolean) {
-    const now = phoneTabs();
+export function toggleBarTab(kind: BarKind, tab: PhoneTab, on: boolean) {
+    const now = barTabs(kind);
     const next = ORDER.filter(k => (k === tab ? on : now.includes(k)));
-    if (next.length < PHONE_TABS_MIN || next.length > PHONE_TABS_MAX) return;
-    cached = next;
-    document.documentElement.dataset.phoneTabs = next.join(' ');
+    const { key, def, min, max } = BARS[kind];
+    if (next.length < min || next.length > max) return;
+    publish(kind, next);
     try {
-        if (next.join() === PHONE_TABS_DEFAULT.join()) localStorage.removeItem(KEY);
-        else localStorage.setItem(KEY, JSON.stringify(next));
+        if (next.join() === def.join()) localStorage.removeItem(key);
+        else localStorage.setItem(key, JSON.stringify(next));
     } catch { /* kept until the page reloads */ }
     notify();
 }
 
-/** Back to the four the bar starts with. */
-export function resetPhoneTabs() {
-    cached = null;
-    try { localStorage.removeItem(KEY); } catch { /* nothing saved */ }
-    phoneTabs();
+/** Back to the tabs the bar starts with. */
+export function resetBarTabs(kind: BarKind) {
+    delete cached[kind];
+    try { localStorage.removeItem(BARS[kind].key); } catch { /* nothing saved */ }
+    barTabs(kind);
     notify();
 }
+
+/** Both bars' choices on <html>, for the CSS that hides a header icon that moved into a bar. */
+export function publishBarTabs() { barTabs('phone'); barTabs('header'); }

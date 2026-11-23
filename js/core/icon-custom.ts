@@ -17,6 +17,11 @@ export const CUSTOM_ICONS: Record<string, string> = {
     // a toolbox: a handle, the lid, a gap with the latch across it, the body
     toolbox: '<path fill-rule="evenodd" d="M9.75 2.25A1.5 1.5 0 0 0 8.25 3.75v3h1.5v-3h4.5v3h1.5v-3a1.5 1.5 0 0 0-1.5-1.5h-4.5Z" clip-rule="evenodd"/><path d="M4.5 6.75A2.25 2.25 0 0 0 2.25 9v2.25h7.5v-.75a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75v.75h7.5V9a2.25 2.25 0 0 0-2.25-2.25h-15Z"/><path d="M2.25 12.75v5.25a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18v-5.25h-7.5v.75a.75.75 0 0 1-.75.75h-3a.75.75 0 0 1-.75-.75v-.75h-7.5Z"/><rect x="10.5" y="11.25" width="3" height="1.5" rx=".5"/>',
 
+    // the Fun tab: an open isometric box (two front faces, a gap at the seam)
+    // with a teddy bear peeking out, its paws on the rim. The face (eyes,
+    // muzzle, inner ears) is cut out of the head, the nose filled back in.
+    'fun-box': '<path d="M2.25 12.1v5.2c0 .42.24.8.61.99l7.84 4.03a.4.4 0 0 0 .55-.36v-5.4a.75.75 0 0 0-.41-.67L3.3 11.5a.72.72 0 0 0-1.05.6Z"/><path d="M21.75 12.1v5.2c0 .42-.24.8-.61.99l-7.84 4.03a.4.4 0 0 1-.55-.36v-5.4c0-.28.16-.54.41-.67l7.54-3.39a.72.72 0 0 1 1.05.6Z"/><path fill-rule="evenodd" d="M7.05 3.1a2.05 2.05 0 0 1 3.2-.14A4.3 4.3 0 0 1 12 2.6c.62 0 1.21.13 1.75.36a2.05 2.05 0 1 1 2.9 2.86A4.3 4.3 0 1 1 7.35 5.82a2.05 2.05 0 0 1-.3-2.72Zm3.2 2.65a.85.85 0 1 0 0 1.7.85.85 0 0 0 0-1.7Zm3.5 0a.85.85 0 1 0 0 1.7.85.85 0 0 0 0-1.7ZM12 7.7c-.83 0-1.5.45-1.5 1s.67 1 1.5 1 1.5-.45 1.5-1-.67-1-1.5-1Z" clip-rule="evenodd"/><ellipse cx="12" cy="8.4" rx=".68" ry=".48"/><ellipse cx="6.6" cy="12.55" rx="1.45" ry="1.15" transform="rotate(25 6.6 12.55)"/><ellipse cx="17.4" cy="12.55" rx="1.45" ry="1.15" transform="rotate(-25 17.4 12.55)"/>',
+
     // a die, five pips
     dices: '<path fill-rule="evenodd" d="M6 2.25A3.75 3.75 0 0 0 2.25 6v12A3.75 3.75 0 0 0 6 21.75h12A3.75 3.75 0 0 0 21.75 18V6A3.75 3.75 0 0 0 18 2.25H6ZM8.25 6.75a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm7.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3ZM12 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm-3.75 3.75a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm7.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z" clip-rule="evenodd"/>',
 
