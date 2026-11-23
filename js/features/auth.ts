@@ -351,19 +351,21 @@ async function applySession(event, session, wasLoggedIn) {
 // account and ask for the username the form just collected.
 let signupInProgress = false;
 
-async function signUp(username, password, email, tosAccepted) {
+// `captchaToken` is Cloudflare Turnstile's token (js/app/components/Turnstile.tsx).
+// Supabase Auth checks it when its captcha setting is on, and ignores it when off.
+async function signUp(username, password, email, tosAccepted, captchaToken = '') {
     if (!USERNAME_PATTERN.test(username)) {
         throw new Error('Username must be 3-20 characters: letters, numbers, and underscores only.');
     }
     signupInProgress = true;
     try {
-        return await createAccount(username, password, email, tosAccepted);
+        return await createAccount(username, password, email, tosAccepted, captchaToken);
     } finally {
         signupInProgress = false;
     }
 }
 
-async function createAccount(username, password, email, tosAccepted) {
+async function createAccount(username, password, email, tosAccepted, captchaToken = '') {
     const client = await getClient();
     const finalEmail = email && email.trim()
         ? email.trim()
@@ -373,7 +375,7 @@ async function createAccount(username, password, email, tosAccepted) {
     const { data, error } = await client.auth.signUp({
         email: finalEmail,
         password,
-        options: { data: { tos_accepted_at: new Date().toISOString() } }
+        options: { data: { tos_accepted_at: new Date().toISOString() }, ...(captchaToken ? { captchaToken } : {}) }
     });
     if (error) { log.error('AUTH', 'Sign up failed', error); throw error; }
     log.info('AUTH', 'Sign up succeeded', { username });
@@ -400,19 +402,19 @@ async function createAccount(username, password, email, tosAccepted) {
 // than a client-side email lookup: the old approach returned the real email
 // to whoever asked, letting anyone harvest addresses by username. The edge
 // function does the lookup and sign-in server-side and never returns the email.
-async function signIn(identifier, password) {
+async function signIn(identifier, password, captchaToken = '') {
     const client = await getClient();
     const trimmed = identifier.trim();
 
     if (trimmed.includes('@')) {
-        const { data, error } = await client.auth.signInWithPassword({ email: trimmed, password });
+        const { data, error } = await client.auth.signInWithPassword({ email: trimmed, password, ...(captchaToken ? { options: { captchaToken } } : {}) });
         if (error) { log.error('AUTH', 'Sign in failed', error); throw new Error('Invalid username or password.'); }
         recordAuthEvent('login');
         return data;
     }
 
     const { data: result, error: fnError } = await client.functions.invoke('login-with-identifier', {
-        body: { identifier: trimmed, password }
+        body: { identifier: trimmed, password, captchaToken }
     });
     if (fnError || !result?.ok || !result?.session) {
         log.error('AUTH', 'Sign in failed', fnError || result);
@@ -433,11 +435,12 @@ async function signOut() {
     if (error) { log.error('AUTH', 'Sign out failed', error); throw error; }
 }
 
-async function resetPassword(email) {
+async function resetPassword(email, captchaToken = '') {
     const client = await getClient();
     const { error } = await client.auth.resetPasswordForEmail(email, {
         // not window.location.origin - on GitHub Pages the app lives under /<repo>/, so the bare origin 404s.
-        redirectTo: routeUrl('')
+        redirectTo: routeUrl(''),
+        ...(captchaToken ? { captchaToken } : {})
     });
     if (error) throw error;
 }
@@ -445,12 +448,12 @@ async function resetPassword(email) {
 // accepts a username or email, like signIn(). Usernames resolve to an email
 // server-side so the client never learns the address. Never throws for "no
 // such account" - same generic confirmation prevents enumeration.
-async function requestPasswordReset(identifier) {
+async function requestPasswordReset(identifier, captchaToken = '') {
     const trimmed = (identifier || '').trim();
     if (!trimmed) throw new Error('Enter your username or email.');
 
     if (trimmed.includes('@')) {
-        await resetPassword(trimmed);
+        await resetPassword(trimmed, captchaToken);
         return;
     }
 
@@ -458,7 +461,7 @@ async function requestPasswordReset(identifier) {
     const { error } = await client.functions.invoke('request-password-reset', {
         // same redirect the email path uses - otherwise the link falls back
         // to the project's Site URL, which may not match where the request came from.
-        body: { identifier: trimmed, redirectTo: routeUrl('') }
+        body: { identifier: trimmed, redirectTo: routeUrl(''), captchaToken }
     });
     if (error) { log.error('AUTH', 'Password reset request failed', error); throw new Error('Something went wrong. Please try again.'); }
 }
@@ -744,7 +747,7 @@ function closeAuthModal() {
  * The sign-in / sign-up form's submit.
  * @returns error: what's wrong; notice: an email to confirm; neither: signed in (the dialog is closed)
  */
-async function submitAuthForm({ mode = 'signin', identifier = '', email = '', password = '', tosAccepted = false }: { mode?: any; identifier?: any; email?: any; password?: any; tosAccepted?: any }): Promise<{ error?: string, notice?: string }> {
+async function submitAuthForm({ mode = 'signin', identifier = '', email = '', password = '', tosAccepted = false, captchaToken = '' }: { mode?: any; identifier?: any; email?: any; password?: any; tosAccepted?: any; captchaToken?: string }): Promise<{ error?: string, notice?: string }> {
     identifier = String(identifier).trim();
     email = String(email).trim();
     if (!identifier || !password) return { error: 'Username and password are required.' };
@@ -753,11 +756,11 @@ async function submitAuthForm({ mode = 'signin', identifier = '', email = '', pa
     if (mode === 'signup' && !tosAccepted) return { error: 'Please agree to the Terms of Service.' };
     try {
         if (mode === 'signup') {
-            const result = await signUp(identifier, password, email, tosAccepted);
+            const result = await signUp(identifier, password, email, tosAccepted, captchaToken);
             // email confirmation required by the Supabase project's settings
             if (!result.session) return { notice: "Check your email to confirm your account. Don't see it? Check your spam/junk folder." };
         } else {
-            await signIn(identifier, password);
+            await signIn(identifier, password, captchaToken);
         }
         closeAuthModal();
         await resumeAfterSignIn();
@@ -782,11 +785,11 @@ function closeForgotPasswordModal() {
  * matches, so this can't be used to find out who has one.
  * @returns a problem to show, or '' once sent
  */
-async function submitForgotPasswordForm(identifier): Promise<string> {
+async function submitForgotPasswordForm(identifier, captchaToken = ''): Promise<string> {
     identifier = String(identifier || '').trim();
     if (!identifier) return 'Enter your username or email.';
     try {
-        await requestPasswordReset(identifier);
+        await requestPasswordReset(identifier, captchaToken);
         return '';
     } catch (e: any) {
         // only throws for things worth surfacing (empty field, real failure)
@@ -832,7 +835,7 @@ function closeChangePasswordModal() {
  * password to confirm, so current is only asked of the others.
  * @returns a problem to show, or '' once updated
  */
-async function submitChangePasswordForm({ current = '', password = '', confirm = '' }: { current?: any; password?: any; confirm?: any }): Promise<string> {
+async function submitChangePasswordForm({ current = '', password = '', confirm = '', captchaToken = '' }: { current?: any; password?: any; confirm?: any; captchaToken?: string }): Promise<string> {
     const needsCurrent = state.user?.hasPassword !== false;
     if (!state.user) return 'Sign in first.';
     if (needsCurrent && !current) return 'Enter your current password.';
@@ -844,7 +847,7 @@ async function submitChangePasswordForm({ current = '', password = '', confirm =
         if (needsCurrent) {
             // Supabase's updateUser() doesn't ask for the old password, so an
             // unattended signed-in tab could otherwise lock its owner out.
-            const { error } = await client.auth.signInWithPassword({ email: state.user.email, password: current });
+            const { error } = await client.auth.signInWithPassword({ email: state.user.email, password: current, ...(captchaToken ? { options: { captchaToken } } : {}) });
             if (error) throw new Error('Your current password is incorrect.');
         }
         await completePasswordReset(password);

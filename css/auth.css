@@ -160,3 +160,6 @@
     margin-left: 2px;
 }
 .oauth-btn-icon { display: inline-flex; }
+
+/* Cloudflare Turnstile in the sign-in forms (js/app/components/Turnstile.tsx): its box keeps its height while it loads */
+.auth-turnstile { margin: var(--sp-2) 0 var(--sp-3); min-height: 65px; }

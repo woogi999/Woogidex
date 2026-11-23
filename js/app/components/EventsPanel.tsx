@@ -7,6 +7,7 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { api, state } from '../../core/app.ts';
 import { routeUrl } from '../../core/router.ts';
+import { TURNSTILE_SITE_KEY, Turnstile } from './Turnstile.tsx';
 import { confirmDialog } from '../../core/confirm-dialog.ts';
 import { SELECTABLE_TYPES, NAME_MAX } from '../../core/data.ts';
 import {
@@ -1228,44 +1229,7 @@ function BallotView({ ev }: { ev: EventRow }) {
 
 const MAX_IMAGE_CHARS = 1_400_000;
 
-// Cloudflare Turnstile widget "Woogidex guest event entries" (dex.woogi.xyz,
-// localhost). The site key is public by design; its secret lives in the
-// submit-event-guest function's TURNSTILE_SECRET_KEY.
-const TURNSTILE_SITE_KEY: string = import.meta.env.VITE_TURNSTILE_SITE_KEY || '0x4AAAAAAFOdMFmuLvO018AE';
-let turnstileScript: Promise<any> | null = null;
-function loadTurnstile(): Promise<any> {
-    return turnstileScript ||= new Promise((resolve, reject) => {
-        const tag = document.createElement('script');
-        tag.src = 'https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit';
-        tag.async = true;
-        tag.onload = () => resolve((window as any).turnstile);
-        tag.onerror = () => { turnstileScript = null; reject(new Error('The anti-spam check could not load.')); };
-        document.head.appendChild(tag);
-    });
-}
-
-/** Cloudflare's anti-spam check, for guests. Each token is good for one entry; bump resetKey after a submit. */
-function Turnstile({ onToken, resetKey }: { onToken: (t: string) => void; resetKey: number }) {
-    const box = useRef<HTMLDivElement>(null);
-    const [failed, setFailed] = useState(false);
-    useEffect(() => {
-        let id: string | null = null;
-        let live = true;
-        onToken('');
-        loadTurnstile().then(t => {
-            if (!live || !box.current) return;
-            id = t.render(box.current, {
-                sitekey: TURNSTILE_SITE_KEY,
-                theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light',
-                callback: (token: string) => onToken(token),
-                'expired-callback': () => onToken(''),
-                'error-callback': () => onToken('')
-            });
-        }).catch(() => setFailed(true));
-        return () => { live = false; if (id) (window as any).turnstile?.remove(id); };
-    }, [resetKey]);
-    return failed ? <p className="ev-error">The anti-spam check could not load. Check your connection and reload the page.</p> : <div className="ev-turnstile" ref={box} />;
-}
+// Cloudflare Turnstile for guests: js/app/components/Turnstile.tsx (shared with sign in).
 
 /**
  * The entry form, Google Forms style: one card per question, page by page.

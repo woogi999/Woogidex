@@ -17,6 +17,24 @@ import { api, state } from '../../core/app.ts';
 import { registerDialog, type DialogProps } from '../dialogs.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { Icon } from '../components/Icon.tsx';
+import { TURNSTILE_SITE_KEY, Turnstile } from '../components/Turnstile.tsx';
+
+/**
+ * Cloudflare's anti-bot check for a form: the token to send, a way to get a
+ * new one after a try (each token works once), and the widget to draw.
+ */
+function useCaptcha(action: string) {
+    const [token, setToken] = useState('');
+    const [tries, setTries] = useState(0);
+    const enabled = !!TURNSTILE_SITE_KEY;
+    return {
+        token,
+        // without a site key (a fork, a local build) the forms work as before
+        missing: enabled && !token,
+        renew: () => setTries(n => n + 1),
+        widget: enabled ? <Turnstile onToken={setToken} resetKey={tries} action={action} className="auth-turnstile" /> : null
+    };
+}
 
 function Head({ title, close }: { title: string; close?: () => void }) {
     return (
@@ -81,12 +99,15 @@ function AuthDialog({ mode: startMode = 'signin', close }: DialogProps<{ mode?: 
     const [message, setMessage] = useState<{ text: string; ok?: boolean }>({ text: '' });
     const [busy, setBusy] = useState(false);
     const signup = mode === 'signup';
+    const captcha = useCaptcha(signup ? 'signup' : 'signin');
     const submit = async (e: FormEvent) => {
         e.preventDefault();
         setMessage({ text: '' });
+        if (captcha.missing) { setMessage({ text: 'Finish the anti-bot check first.' }); return; }
         setBusy(true);
-        const result = await api.submitAuthForm({ mode, identifier, email, password, tosAccepted: tos });
+        const result = await api.submitAuthForm({ mode, identifier, email, password, tosAccepted: tos, captchaToken: captcha.token });
         setBusy(false);
+        captcha.renew();
         if (result.error) setMessage({ text: result.error });
         else if (result.notice) setMessage({ text: result.notice, ok: true });
     };
@@ -126,7 +147,8 @@ function AuthDialog({ mode: startMode = 'signin', close }: DialogProps<{ mode?: 
                             </label>
                         </div>
                     )}
-                    <button type="submit" className="btn btn-primary auth-submit-btn" disabled={busy}>
+                    {captcha.widget}
+                    <button type="submit" className="btn btn-primary auth-submit-btn" disabled={busy || captcha.missing}>
                         {busy ? (signup ? 'Signing up…' : 'Signing in…') : (signup ? 'Sign Up' : 'Sign In')}
                     </button>
                 </form>
@@ -143,11 +165,14 @@ function ForgotPasswordDialog({ close }: DialogProps) {
     const [error, setError] = useState('');
     const [sent, setSent] = useState(false);
     const [busy, setBusy] = useState(false);
+    const captcha = useCaptcha('reset');
     const submit = async (e: FormEvent) => {
         e.preventDefault();
+        if (captcha.missing) { setError('Finish the anti-bot check first.'); return; }
         setBusy(true);
-        const problem = await api.submitForgotPasswordForm(identifier);
+        const problem = await api.submitForgotPasswordForm(identifier, captcha.token);
         setBusy(false);
+        captcha.renew();
         if (problem) setError(problem);
         else { setError(''); setSent(true); }
     };
@@ -166,7 +191,8 @@ function ForgotPasswordDialog({ close }: DialogProps) {
                                 <label htmlFor="forgot-password-identifier">Username or Email</label>
                                 <input type="text" id="forgot-password-identifier" name="username" autoComplete="username" placeholder="your username or email" autoFocus value={identifier} onChange={e => setIdentifier(e.target.value)} />
                             </div>
-                            <button type="submit" className="btn btn-primary auth-submit-btn" disabled={busy}>{busy ? 'Sending…' : 'Send Reset Link'}</button>
+                            {captcha.widget}
+                            <button type="submit" className="btn btn-primary auth-submit-btn" disabled={busy || captcha.missing}>{busy ? 'Sending…' : 'Send Reset Link'}</button>
                         </form>
                     </>}
                 <button type="button" className="auth-switch-link" onClick={() => { close(); api.openAuthModal('signin'); }}>Back to sign in</button>
@@ -218,11 +244,16 @@ function ChangePasswordDialog({ close }: DialogProps) {
     const [confirm, setConfirm] = useState('');
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
+    // the current password is checked with a sign-in, which the anti-bot check guards too
+    const captcha = useCaptcha('change-password');
+    const needCheck = needsCurrent && captcha.missing;
     const submit = async (e: FormEvent) => {
         e.preventDefault();
+        if (needCheck) { setError('Finish the anti-bot check first.'); return; }
         setBusy(true);
-        setError(await api.submitChangePasswordForm({ current, password, confirm }));
+        setError(await api.submitChangePasswordForm({ current, password, confirm, captchaToken: captcha.token }));
         setBusy(false);
+        captcha.renew();
     };
     return (
         <Modal onClose={close} className="auth-modal">
@@ -246,7 +277,8 @@ function ChangePasswordDialog({ close }: DialogProps) {
                         <label htmlFor="change-password-confirm">Confirm New Password</label>
                         <input type="password" id="change-password-confirm" name="confirm-password" autoComplete="new-password" placeholder="••••••••" value={confirm} onChange={e => setConfirm(e.target.value)} />
                     </div>
-                    <button type="submit" className="btn btn-primary auth-submit-btn" disabled={busy}>{busy ? 'Saving…' : 'Update Password'}</button>
+                    {needsCurrent && captcha.widget}
+                    <button type="submit" className="btn btn-primary auth-submit-btn" disabled={busy || needCheck}>{busy ? 'Saving…' : 'Update Password'}</button>
                 </form>
             </div>
         </Modal>
