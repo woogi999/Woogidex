@@ -1,8 +1,8 @@
 // The game picker at the top left of the header. Woogidex is for Pokémon
-// today. Temtem and Roco Kingdom are listed for later: picking one shows a
-// "coming soon" window and nothing else changes. The icons are in
-// public/assets/games/. The Temtem and Roco Kingdom ones are stand-ins: put
-// the official logos there (same names, or change `icon` below).
+// today. Temtem, Roco Kingdom and Palworld are listed for later: picking one
+// shows a "coming soon" window (drawn like the Battle one, battlePaused.tsx)
+// and nothing else changes. The icons in public/assets/games/ are each
+// game's own app icon from Steam.
 
 import { useEffect, useRef, useState } from 'react';
 import { Icon } from '../components/Icon.tsx';
@@ -10,20 +10,22 @@ import { Modal } from '../components/Modal.tsx';
 import { openDialog, registerDialog, type DialogProps } from '../dialogs.tsx';
 
 const GAMES = [
-    { key: 'pokemon', name: 'Pokémon', icon: 'assets/games/pokemon.svg', ready: true },
-    { key: 'temtem', name: 'Temtem', icon: 'assets/games/temtem.svg', ready: false },
-    { key: 'roco', name: 'Roco Kingdom', icon: 'assets/games/roco-kingdom.svg', ready: false }
+    { key: 'pokemon', name: 'Pokémon', icon: 'assets/games/pokemon.svg', ready: true, what: '' },
+    { key: 'temtem', name: 'Temtem', icon: 'assets/games/temtem.png', ready: false, what: 'Temtem' },
+    { key: 'roco', name: 'Roco Kingdom', icon: 'assets/games/roco-kingdom.png', ready: false, what: 'creatures' },
+    { key: 'palworld', name: 'Palworld', icon: 'assets/games/palworld.png', ready: false, what: 'Pals' }
 ];
 
 function ComingSoon({ close, game }: DialogProps<{ game: string }>) {
     const g = GAMES.find(x => x.key === game) || GAMES[1];
     return (
-        <Modal onClose={close} title={`${g.name} is coming soon`} className="game-soon">
-            <div className="game-soon-body">
-                <img src={g.icon} alt="" width={56} height={56} />
-                <p>We want Woogidex to work for {g.name} too: your own creatures, regions and tier lists, the same as for Pokémon. It isn’t ready yet. Stay tuned!</p>
+        <Modal onClose={close} className="confirm-dialog game-soon" overlayClassName="confirm-dialog-overlay" labelledBy="game-soon-title">
+            <div className="confirm-dialog-icon game-soon-icon" aria-hidden="true"><img src={g.icon} alt="" width={44} height={44} /></div>
+            <h3 id="game-soon-title">{g.name} is coming soon</h3>
+            <p>I want Woogidex to work for {g.name} too: your own {g.what}, regions and tier lists, the same as for Pokémon. It isn’t ready yet, so stay tuned!</p>
+            <div className="confirm-dialog-actions">
+                <button type="button" className="btn btn-primary" onClick={close}>Got it</button>
             </div>
-            <div className="modal-actions"><button type="button" className="btn btn-primary" onClick={close}>OK</button></div>
         </Modal>
     );
 }
@@ -43,19 +45,19 @@ export function GameSwitcher() {
     const current = GAMES[0];
     return (
         <div className="game-switcher" ref={box}>
-            <button type="button" className="game-switcher-btn" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(v => !v)} title="Game">
-                <img src={current.icon} alt="" width={20} height={20} />
+            <button type="button" className="game-switcher-btn" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen(v => !v)} title="Game" aria-label={`Game: ${current.name}`}>
+                <img src={current.icon} alt="" width={16} height={16} />
                 <span className="game-switcher-name">{current.name}</span>
-                <Icon name="chevron-down" size={14} />
+                <Icon name="chevron-down" size={12} />
             </button>
             {open && (
                 <div className="game-switcher-menu" role="menu">
                     {GAMES.map(g => (
                         <button key={g.key} type="button" role="menuitem" className={g.key === current.key ? 'is-current' : ''}
                             onClick={() => { setOpen(false); if (!g.ready) openDialog('game-coming-soon', { game: g.key }); }}>
-                            <img src={g.icon} alt="" width={20} height={20} />
+                            <img src={g.icon} alt="" width={18} height={18} loading="lazy" />
                             <span>{g.name}</span>
-                            {g.key === current.key ? <Icon name="check" size={14} /> : <small>Soon</small>}
+                            {g.key === current.key ? <Icon name="check" size={12} /> : <small>Soon</small>}
                         </button>
                     ))}
                 </div>
