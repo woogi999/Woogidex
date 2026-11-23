@@ -177,3 +177,30 @@
 .groups-chat-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .groups-chat-row > span { display: inline-flex; gap: 6px; align-items: center; font-weight: 700; flex: 1; }
 .groups-chat-row select { flex: 1; min-width: 180px; }
+
+/* ---- the group's Toolbox (GroupToolbox in groups.tsx) ---- */
+.group-toolbox { display: flex; flex-direction: column; gap: var(--sp-3); }
+.group-apps { display: flex; flex-direction: column; gap: 8px; }
+.group-app { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 12px 14px; border-radius: var(--card-r); background: var(--bg-panel); }
+.group-app-icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; background: color-mix(in srgb, var(--group, var(--accent)) 16%, transparent); color: var(--group, var(--accent)); }
+.group-app-text { flex: 1 1 220px; display: flex; flex-direction: column; gap: 2px; }
+.group-app-text small { color: var(--text-secondary); }
+.group-app-new { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.group-mode { display: inline-block; margin-left: 6px; padding: 1px 7px; border-radius: 999px; font-size: 11px; font-weight: 700; vertical-align: middle; background: var(--bg-card); color: var(--text-secondary); }
+.group-mode.is-everyone { background: color-mix(in srgb, var(--group, var(--accent)) 16%, transparent); color: var(--group, var(--accent)); }
+
+/* ---- Manage > Roles (RolesEditor in groups.tsx) ---- */
+.groups-roles { margin-top: var(--sp-4); display: flex; flex-direction: column; gap: 8px; }
+.groups-roles h3 { font-size: 15px; }
+.groups-role-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.groups-role-row small { color: var(--text-muted); }
+.groups-role-perms { flex: 1 1 200px; font-size: 12px; color: var(--text-secondary); }
+.groups-role-edit { display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 8px; background: var(--bg-panel); }
+.groups-role-line { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.groups-role-line input[type=text] { flex: 1 1 160px; }
+.groups-role-line input[type=color] { width: 36px; height: 32px; padding: 0; border: 0; background: transparent; }
+.groups-perm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px; }
+.groups-check { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; cursor: pointer; }
+.groups-check span { display: flex; flex-direction: column; }
+.groups-check small { color: var(--text-muted); }
+.groups-check input:disabled + span { opacity: .5; }

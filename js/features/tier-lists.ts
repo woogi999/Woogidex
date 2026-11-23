@@ -20,7 +20,12 @@ import { api, state } from '../core/app.ts';
 import { notify } from '../app/store.ts';
 
 export interface Tier { id: string; name: string; sd: string; color: string }
-export interface TierMon { id: string; name: string; types?: string[]; from: 'fakemon' | 'pokemon' | 'custom'; note?: string }
+/**
+ * One thing on the board. Most are Fakémon or Pokémon, but a list can also
+ * rank pictures or plain words, for fun (from 'image' or 'custom'). `img` is a
+ * small picture (a data URI, 96px) for picture items.
+ */
+export interface TierMon { id: string; name: string; types?: string[]; from: 'fakemon' | 'pokemon' | 'custom' | 'image'; note?: string; img?: string }
 export interface TierList {
     id: string;
     title: string;
@@ -36,6 +41,10 @@ export interface TierList {
 export const TIER_TYPE = 'tier-list' as const;
 export const UNRANKED = 'unranked';
 const MAX_MONS = 800, MAX_TIERS = 30, MAX_NOTE = 400, MAX_NAME = 40;
+/** At most this many picture items, each at most IMG_CHARS: a list must still fit a chat message or a post. */
+export const MAX_IMAGES = 40;
+const IMG_CHARS = 12000;
+const IMG_RE = /^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/;
 const HEX = /^#[0-9a-f]{6}$/i;
 
 /** Showdown's tier names, best first. A tier you add maps to one of these on export. */
@@ -64,13 +73,18 @@ export function cleanTierList(raw: any): TierList | null {
         id: t.id, name: clip(t.name, 24) || 'Tier', sd: SD_TIERS.includes(t.sd) ? t.sd : 'OU', color: HEX.test(t.color) ? t.color : '#8a8a8a'
     }));
     const mons: Record<string, TierMon> = {};
+    let images = 0;
     for (const [id, m] of Object.entries<any>(raw.mons && typeof raw.mons === 'object' ? raw.mons : {}).slice(0, MAX_MONS)) {
         if (!/^[a-z0-9]{1,40}$/.test(id) || !m || typeof m !== 'object') continue;
+        // a picture from someone else: a small data URI of a known image type, or nothing
+        const img = typeof m.img === 'string' && m.img.length <= IMG_CHARS && IMG_RE.test(m.img) && images < MAX_IMAGES ? m.img : '';
+        if (img) images++;
         mons[id] = {
             id, name: clip(m.name, MAX_NAME) || id,
             types: Array.isArray(m.types) ? m.types.slice(0, 2).map((t: any) => clip(t, 16)).filter(Boolean) : [],
-            from: ['fakemon', 'pokemon', 'custom'].includes(m.from) ? m.from : 'custom',
-            ...(m.note ? { note: clip(m.note, MAX_NOTE) } : {})
+            from: ['fakemon', 'pokemon', 'custom', 'image'].includes(m.from) ? m.from : 'custom',
+            ...(m.note ? { note: clip(m.note, MAX_NOTE) } : {}),
+            ...(img ? { img } : {})
         };
     }
     const seen = new Set<string>();
@@ -108,6 +122,49 @@ export function snapshot(list: TierList): Record<string, string> {
     return out;
 }
 
+/** Where every mon is now, by tier id (stable when a tier is renamed): what a member saves as an own ranking. */
+export function placementOf(list: TierList): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const t of list.tiers) for (const id of list.placed[t.id] || []) out[id] = t.id;
+    return out;
+}
+
+/** Puts mons where a saved own ranking had them (the rest stay unranked). */
+export function applyPlacement(list: TierList, placed: Record<string, string>): TierList {
+    const tiers = new Set(list.tiers.map(t => t.id));
+    const next: Record<string, string[]> = Object.fromEntries([[UNRANKED, []], ...list.tiers.map(t => [t.id, []])]);
+    for (const id of Object.keys(list.mons)) (next[tiers.has(placed?.[id]) ? placed[id] : UNRANKED] ||= []).push(id);
+    return { ...list, placed: next };
+}
+
+/**
+ * The group's average of everyone's own rankings: each mon goes to the tier
+ * nearest the mean of its places, in order of that mean. A mon nobody ranked
+ * stays unranked. The title says how many rankings it is made of.
+ */
+export function averageList(list: TierList, rankings: Array<{ placed: Record<string, string> }>): TierList {
+    const index = new Map(list.tiers.map((t, i) => [t.id, i]));
+    const scores: Array<[string, number]> = [];
+    for (const id of Object.keys(list.mons)) {
+        const at = rankings.map(r => index.get(r.placed?.[id])).filter((i): i is number => i !== undefined);
+        if (at.length) scores.push([id, at.reduce((a, b) => a + b, 0) / at.length]);
+    }
+    scores.sort((a, b) => a[1] - b[1]);
+    const placed: Record<string, string[]> = Object.fromEntries([[UNRANKED, []], ...list.tiers.map(t => [t.id, []])]);
+    const ranked = new Set<string>();
+    for (const [id, mean] of scores) { placed[list.tiers[Math.round(mean)].id].push(id); ranked.add(id); }
+    placed[UNRANKED] = Object.keys(list.mons).filter(id => !ranked.has(id));
+    return { ...list, placed, title: `${list.title} (group average of ${rankings.length})`, baseline: undefined };
+}
+
+/** Reads every Fakémon in a Woogidex save file (a collection export, or one Fakémon), to rank them. */
+export function monsFromSaveFile(text: string): TierMon[] {
+    const data = JSON.parse(text);
+    const list: any[] = Array.isArray(data?.fakemonDB) ? data.fakemonDB : Array.isArray(data) ? data : data?.fakemon ? [data.fakemon] : data?.name ? [data] : [];
+    return list.filter(f => f && typeof f.name === 'string' && f.name.trim()).slice(0, MAX_MONS)
+        .map(f => ({ id: toID(f.name), name: String(f.name), types: [f.type1, f.type2].filter(t => typeof t === 'string' && t), from: 'fakemon' as const }));
+}
+
 /** Moves a mon to a tier (or Unranked), before `beforeId` or at the end. Returns a new list. */
 export function moveMon(list: TierList, monId: string, tierId: string, beforeId: string | null = null): TierList {
     const placed: Record<string, string[]> = {};
@@ -121,10 +178,13 @@ export function moveMon(list: TierList, monId: string, tierId: string, beforeId:
 /** Adds mons to Unranked (those already in the list stay where they are). */
 export function addMons(list: TierList, mons: TierMon[]): TierList {
     const next = { ...list, mons: { ...list.mons }, placed: { ...list.placed, [UNRANKED]: [...(list.placed[UNRANKED] || [])] } };
+    let images = Object.values(list.mons).filter(m => m.img).length;
     for (const m of mons) {
-        const id = toID(m.name);
+        // a picture gets its own id: two pictures may share a name
+        const id = m.from === 'image' ? `img${Math.random().toString(36).slice(2, 12)}` : toID(m.name);
         if (!id || next.mons[id] || Object.keys(next.mons).length >= MAX_MONS) continue;
-        next.mons[id] = { ...m, id, name: clip(m.name, MAX_NAME) };
+        if (m.img && ++images > MAX_IMAGES) continue;
+        next.mons[id] = { ...m, id, name: clip(m.name, MAX_NAME) || 'Picture' };
         next.placed[UNRANKED].push(id);
     }
     return { ...next, updatedAt: Date.now() };

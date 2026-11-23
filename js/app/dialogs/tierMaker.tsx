@@ -1,23 +1,44 @@
-// The tier maker: rank Fakémon and Pokémon into tiers, write why, see what
-// moved since the version you opened, and export Showdown's formats-data.ts.
-// Open it from a chat or group (the composer's tier button, or a tier list
-// someone sent), or from Settings. The model is js/features/tier-lists.ts.
+// The tier maker, the first app of the Toolbox: rank Fakémon, Pokémon,
+// pictures or plain words into tiers, write why, see what moved since the
+// version you opened, save the board as a picture, post it, and export
+// Showdown's formats-data.ts. Open it from the Toolbox page (/toolbox), a
+// group's Toolbox tab, a chat (the trophy button, or a list someone sent),
+// or a post. The model is js/features/tier-lists.ts.
 //
 // Moving a mon: drag it (mouse or finger) onto a tier, or tap it and pick a
 // tier in its panel (keyboard and screen readers use the panel too).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { api } from '../../core/app.ts';
+import { api, state } from '../../core/app.ts';
 import { registerDialog, openDialog, type DialogProps } from '../dialogs.tsx';
 import { Modal } from '../components/Modal.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { useStore } from '../store.ts';
 import { effectiveZoom } from '../../core/ui-scale.ts';
+import { loadHtml2canvas } from '../../core/vendor.ts';
+import { ShieldedArt } from '../components/ShieldedArt.tsx';
 import {
-    SD_TIERS, UNRANKED, addMons, addTier, changelog, cleanTierList, collectionMons, deleteTierList, exportFormatsData, exportText,
-    importText, monChoices, moveMon, moveTier, newTierList, removeMon, removeTier, saveTierList, savedTierLists, sendTierList, snapshot,
-    tierOf, type TierList, type TierMon
+    MAX_IMAGES, SD_TIERS, UNRANKED, addMons, addTier, applyPlacement, averageList, changelog, cleanTierList, collectionMons, deleteTierList,
+    exportFormatsData, exportText, importText, monChoices, monsFromSaveFile, moveMon, moveTier, newTierList, placementOf, removeMon, removeTier,
+    saveTierList, savedTierLists, sendTierList, snapshot, tierOf, type TierList, type TierMon
 } from '../../features/tier-lists.ts';
+
+/** A picture for a picture item: 96px at most, small enough that a list still fits a post. */
+async function smallPicture(file: File): Promise<string> {
+    const bitmap = await createImageBitmap(file);
+    const scale = Math.min(1, 96 / Math.max(bitmap.width, bitmap.height));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+    canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+    bitmap.close();
+    for (const q of [0.8, 0.6, 0.45]) {
+        const uri = canvas.toDataURL('image/webp', q);
+        const out = uri.startsWith('data:image/webp') ? uri : canvas.toDataURL('image/jpeg', q);
+        if (out.length <= 11500) return out;
+    }
+    throw new Error('That picture is too detailed to keep small.');
+}
 
 function download(name: string, text: string) {
     const a = document.createElement('a');
@@ -37,8 +58,10 @@ function Chip({ list, id, onPick, onDragStart }: { list: TierList; id: string; o
     const moved = before !== undefined && before !== now;
     const up = moved && rank(now) < rank(before);
     return (
-        <button type="button" className={`tm-chip${m.from === 'fakemon' ? ' is-fakemon' : ''}${moved ? (up ? ' is-up' : ' is-down') : ''}`} data-mon={id}
-            onClick={onPick} onPointerDown={onDragStart} title={[m.note, moved ? `Was ${before || 'Unranked'}` : ''].filter(Boolean).join(' · ') || m.name}>
+        <button type="button" className={`tm-chip${m.from === 'fakemon' ? ' is-fakemon' : ''}${m.img ? ' has-img' : ''}${moved ? (up ? ' is-up' : ' is-down') : ''}`} data-mon={id}
+            onClick={onPick} onPointerDown={onDragStart} title={[m.name, m.note, moved ? `Was ${before || 'Unranked'}` : ''].filter(Boolean).join(' · ')}>
+            {/* people's pictures go through the art shield, as every shared picture does */}
+            {m.img && <ShieldedArt src={m.img} alt={m.name} className="tm-chip-img" />}
             <span className="tm-chip-name">{m.name}</span>
             {moved && <Icon name={up ? 'arrow-up' : 'arrow-down'} size={12} className="tm-chip-move" aria-label={up ? 'Rose' : 'Dropped'} />}
             {m.note && <Icon name="chat-bubble-left" size={12} className="tm-chip-note" aria-label="Has a note" />}
@@ -46,8 +69,12 @@ function Chip({ list, id, onPick, onDragStart }: { list: TierList; id: string; o
     );
 }
 
-/** A tier list opened from a group's Tier lists tab (js/features/groups.ts). */
-export interface GroupContext { id: string; name: string; rowId: string | null; canEdit: boolean }
+/**
+ * A tier list opened from a group's Toolbox (js/features/groups.ts). In
+ * "everyone" mode each member also saves an own ranking, and anyone can see
+ * the group's average.
+ */
+export interface GroupContext { id: string; name: string; rowId: string | null; canEdit: boolean; mode?: 'curated' | 'everyone' }
 
 function TierMakerDialog({ close, list: start, conversationId = null, group = null }: DialogProps<{ list?: TierList; conversationId?: string | null; group?: GroupContext | null }>) {
     useStore();
@@ -125,8 +152,57 @@ function TierMakerDialog({ close, list: start, conversationId = null, group = nu
     const [rowId, setRowId] = useState(group?.rowId || null);
     const saveToGroup = async () => {
         if (!group) return;
-        const id = await api.saveGroupTierList(group.id, list, rowId);
+        const id = await api.saveToolboxItem(group.id, list, rowId, group.mode || 'curated');
         if (id) { setRowId(id); setList({ ...list, baseline: snapshot(list) }); setDirty(false); }
+    };
+    // "everyone" mode: your own ranking, and the group's average
+    const everyone = group?.mode === 'everyone' && !!rowId;
+    const [viewing, setViewing] = useState<'mine' | 'average'>('mine');
+    const [base] = useState(list);
+    useEffect(() => {
+        if (!everyone || !state.user) return;
+        api.loadRankings(rowId).then((rows: any[]) => {
+            const mine = rows.find(r => r.user_id === state.user?.id);
+            if (mine) setList(l => applyPlacement(l, mine.placed));
+        });
+    }, [everyone, rowId]);
+    const showAverage = async () => {
+        const rows = await api.loadRankings(rowId);
+        if (!rows.length) { api.showToast?.('Nobody has ranked it yet.', 'info'); return; }
+        setViewing('average');
+        setList(averageList(base, rows));
+    };
+    /** The board as a PNG, as TierMaker's "save image". */
+    const saveImage = async () => {
+        const el = board.current;
+        if (!el) return;
+        try {
+            const html2canvas = await loadHtml2canvas();
+            const canvas = await html2canvas(el, { backgroundColor: getComputedStyle(document.body).backgroundColor, scale: 2 });
+            const a = document.createElement('a');
+            a.href = canvas.toDataURL('image/png');
+            a.download = `${(list.title || 'tier-list').replace(/[^a-z0-9-]+/gi, '-').toLowerCase()}.png`;
+            a.click();
+        } catch { api.showToast?.('Couldn’t make the picture.', 'error'); }
+    };
+    const pictures = useRef<HTMLInputElement>(null);
+    const saveFile = useRef<HTMLInputElement>(null);
+    const addPictures = async (files: FileList | null) => {
+        const added: TierMon[] = [];
+        for (const f of Array.from(files || []).filter(f => f.type.startsWith('image/')).slice(0, MAX_IMAGES)) {
+            try { added.push({ id: '', name: f.name.replace(/\.[a-z0-9]+$/i, '').slice(0, 40), from: 'image', img: await smallPicture(f) }); }
+            catch (e: any) { api.showToast?.(`${f.name}: ${e?.message || 'could not read it'}`, 'warning'); }
+        }
+        if (added.length) change(addMons(list, added));
+    };
+    const addFromSave = async (file: File | undefined) => {
+        if (!file) return;
+        try {
+            const mons = monsFromSaveFile(await file.text());
+            if (!mons.length) { api.showToast?.('No Fakémon in that file.', 'warning'); return; }
+            change(addMons(list, mons));
+            api.showToast?.(`Added ${mons.length} Fakémon from ${file.name}.`, 'success');
+        } catch { api.showToast?.('That file is not a Woogidex save.', 'error'); }
     };
     const send = async () => {
         if (!sendTo) { api.showToast?.('Pick a chat first.', 'warning'); return; }
@@ -176,6 +252,14 @@ function TierMakerDialog({ close, list: start, conversationId = null, group = nu
                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => change(addMons(list, collectionMons(api.getActiveRegion?.()?.id || null)))}>
                     <Icon name="sparkles" size={14} /><span>Add my Fakémon</span>
                 </button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => saveFile.current?.click()} title="Every Fakémon in a Woogidex save file (.json)">
+                    <Icon name="arrow-up-tray" size={14} /><span>Add from a save</span>
+                </button>
+                <input ref={saveFile} type="file" accept=".json,application/json" hidden onChange={e => { addFromSave(e.target.files?.[0]); e.target.value = ''; }} />
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => pictures.current?.click()} title={`Rank pictures too, up to ${MAX_IMAGES}`}>
+                    <Icon name="photo" size={14} /><span>Pictures</span>
+                </button>
+                <input ref={pictures} type="file" accept="image/*" multiple hidden onChange={e => { addPictures(e.target.files); e.target.value = ''; }} />
                 <button type="button" className="btn btn-secondary btn-sm" onClick={() => change(addTier(list))}><Icon name="plus" size={14} /><span>Tier</span></button>
                 <button type="button" className={`btn btn-secondary btn-sm${showChanges ? ' active' : ''}`} onClick={() => setShowChanges(v => !v)} aria-pressed={showChanges}>
                     <Icon name="arrows-up-down" size={14} /><span>Changes ({changes.length})</span>
@@ -183,7 +267,7 @@ function TierMakerDialog({ close, list: start, conversationId = null, group = nu
             </div>
 
             <div className="tm-body">
-                <div className="tm-board" ref={board}>
+                <div className="tm-board" ref={board} data-mode={viewing}>
                     {rows.map((t, i) => (
                         <div key={t.id} className={`tm-row${t.unranked ? ' is-unranked' : ''}`} data-tier={t.id}>
                             <div className="tm-label" style={t.unranked ? undefined : { background: t.color }}>
@@ -260,10 +344,26 @@ function TierMakerDialog({ close, list: start, conversationId = null, group = nu
                     <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy(exportFormatsData(list), 'Showdown code')}><Icon name="clipboard-document" size={14} /><span>Copy code</span></button>
                     <button type="button" className="btn btn-secondary btn-sm" onClick={() => copy(exportText(list), 'Tier text')}><Icon name="document-text" size={14} /><span>Copy text</span></button>
                     <button type="button" className="btn btn-secondary btn-sm" onClick={() => setImporting(v => !v)}><Icon name="arrow-up-tray" size={14} /><span>Import text</span></button>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={saveImage}><Icon name="photo" size={14} /><span>Save as image</span></button>
+                    {!group && !conversationId && (
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={async () => { if (await api.postTierList?.(list)) close(); }} title="Post it on the Community Hub, where others can rank their own copy">
+                            <Icon name="megaphone" size={14} /><span>Post</span>
+                        </button>
+                    )}
                 </div>
                 <span className="tm-spacer" />
                 <div className="tm-actions">
                     <button type="button" className="btn btn-secondary btn-sm" onClick={save}><span>{dirty && !group ? 'Save on this device' : group ? 'Save a copy on this device' : 'Saved'}</span></button>
+                    {everyone && (
+                        <>
+                            <button type="button" className={`btn btn-secondary btn-sm${viewing === 'average' ? ' active' : ''}`} onClick={() => viewing === 'average' ? (setViewing('mine'), setList(base)) : showAverage()}>
+                                <Icon name="chart-bar" size={14} /><span>{viewing === 'average' ? 'Back to mine' : 'Group average'}</span>
+                            </button>
+                            <button type="button" className="btn btn-primary btn-sm" disabled={viewing === 'average'} onClick={() => api.saveMyRanking(rowId, placementOf(list))}>
+                                <Icon name="check" size={14} /><span>Save my ranking</span>
+                            </button>
+                        </>
+                    )}
                     {group && (
                         <button type="button" className="btn btn-primary btn-sm" disabled={!group.canEdit} onClick={saveToGroup}
                             title={group.canEdit ? `Save to ${group.name}` : 'Only the owner, the moderators and the tier leaders can save to the group'}>

@@ -96,3 +96,9 @@
 .tm-label-tools { grid-column: 2; grid-row: 2; }
 .tm-row.is-unranked .tm-label { display: flex; flex-direction: row; justify-content: space-between; align-items: center; }
 @media (max-width: 760px) { .tm-label { flex-basis: 120px; } .tm-label-tools button[aria-label^="Move"] { display: none; } }
+
+/* picture items (TierMon.img): a small shielded picture with the name under it */
+.tm-chip.has-img { flex-direction: column; gap: 2px; padding: 4px; border-radius: 10px; max-width: 104px; }
+.tm-chip-img { display: block; width: 64px; height: 64px; object-fit: contain; }
+.tm-chip.has-img .tm-chip-name { font-size: 11px; max-width: 96px; }
+.tm-board[data-mode="average"] .tm-chip { cursor: default; }

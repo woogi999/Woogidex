@@ -13,8 +13,9 @@ import { FeedCard, FeedSkeleton, PostComposer, timeAgo } from './feed.tsx';
 import { registerDialog, openDialog, type DialogProps } from '../dialogs.tsx';
 import { SkeletonRows } from './Skeleton.tsx';
 import { staggerIn } from '../../core/motion.ts';
-import type { Group, GroupDraft, GroupTab, GroupSort, GroupTierRow, Member, MemberAction } from '../../features/groups.ts';
-import { openTierMaker } from '../dialogs/tierMaker.tsx';
+import type { Group, GroupDraft, GroupTab, GroupSort, GroupRoleRow, Member, MemberAction, ToolboxItem, ToolboxMode } from '../../features/groups.ts';
+import { GROUP_PERMS } from '../../features/groups.ts';
+import { openTierMaker, type GroupContext } from '../dialogs/tierMaker.tsx';
 import { changelog, cleanTierList, newTierList } from '../../features/tier-lists.ts';
 
 const COLORS = ['', '#e0245e', '#f08030', '#d4a017', '#2d8a3e', '#1f9eb3', '#2c5aa0', '#55607a'];
@@ -231,7 +232,8 @@ function GroupPage({ slug, tab }: { slug: string; tab: GroupTab }) {
     const status = api.myGroupStatus(group.id);
     const member = status === 'active';
     const canSee = group.visibility === 'public' || member || !!api.isStaff?.();
-    const mod = api.canModerateGroup(group.id);
+    // Manage shows when your roles let you edit the group, its roles or its chat
+    const mod = api.canInGroup(group.id, 'edit_group') || api.canInGroup(group.id, 'manage_roles') || api.canInGroup(group.id, 'manage_chat');
     const go = (t: GroupTab) => api.showGroupView({ kind: 'group', slug, tab: t });
     return (
         <div className="groups group-page" style={tint(group)}>
@@ -257,16 +259,16 @@ function GroupPage({ slug, tab }: { slug: string; tab: GroupTab }) {
                 </div>
             </header>
             <nav className="tabs group-tabs" role="tablist" aria-label="Group">
-                {(['posts', 'tiers', 'about', 'members'] as GroupTab[]).map(t => (
+                {(['posts', 'toolbox', 'about', 'members'] as GroupTab[]).map(t => (
                     <button key={t} type="button" role="tab" aria-selected={tab === t} className={`tab${tab === t ? ' active' : ''}`} onClick={() => go(t)}>
-                        {t === 'posts' ? 'Posts' : t === 'tiers' ? 'Tier lists' : t === 'about' ? 'About' : 'Members'}
+                        {t === 'posts' ? 'Posts' : t === 'toolbox' ? 'Toolbox' : t === 'about' ? 'About' : 'Members'}
                     </button>
                 ))}
             </nav>
             <div className="group-body">
                 <div className="group-main">
                     {tab === 'posts' && (canSee ? <GroupPosts group={group} member={member} /> : <PrivateNotice group={group} status={status} />)}
-                    {tab === 'tiers' && (canSee ? <GroupTierLists group={group} /> : <PrivateNotice group={group} status={status} />)}
+                    {tab === 'toolbox' && (canSee ? <GroupToolbox group={group} /> : <PrivateNotice group={group} status={status} />)}
                     {tab === 'about' && <GroupAbout group={group} />}
                     {tab === 'members' && (canSee ? <GroupMembers group={group} /> : <PrivateNotice group={group} status={status} />)}
                 </div>
@@ -324,43 +326,115 @@ function ChatLink({ group }: { group: Group }) {
     );
 }
 
-// ==================== tier lists ====================
+// ==================== Toolbox ====================
+// A group's apps (like Facebook's games and widgets). Every group has it, on
+// the Toolbox tab: nothing to switch on. The first app is the tier maker.
 
-function GroupTierLists({ group }: { group: Group }) {
-    const t = api.groupsState().tiers[group.id];
-    if (!t || (t.loading && !t.items.length)) return <SkeletonRows count={3} label="Loading tier lists" />;
-    const ctx = (row: GroupTierRow | null) => ({ id: group.id, name: group.name, rowId: row?.id || null, canEdit: t.canEdit });
+const TOOLBOX_APPS = [
+    { key: 'tier_list', name: 'Tier maker', icon: 'trophy', blurb: 'Rank Fakémon, Pokémon, pictures or anything into tiers. For a format’s official tiers, or just for fun.' }
+] as const;
+
+function GroupToolbox({ group }: { group: Group }) {
+    const t = api.groupsState().toolbox[group.id];
+    const canMake = api.canInGroup(group.id, 'toolbox_create');
+    const [mode, setMode] = useState<ToolboxMode>('curated');
+    if (!t || (t.loading && !t.items.length)) return <SkeletonRows count={3} label="Loading the Toolbox" />;
+    const ctx = (item: ToolboxItem | null): GroupContext => ({
+        id: group.id, name: group.name, rowId: item?.id || null, mode: item?.mode || mode,
+        canEdit: item ? api.canEditToolboxItem(item) : canMake
+    });
     return (
-        <div className="group-tiers">
-            <div className="group-tiers-head">
-                <p>{t.canEdit
-                    ? 'Rank Fakémon into tiers for the group. Everyone in the group can see the lists.'
-                    : 'The group’s tier lists. The owner, the moderators and the tier leaders make them. Open one to look, or save a copy for yourself.'}</p>
-                {t.canEdit && <button type="button" className="btn btn-primary btn-sm" onClick={() => openTierMaker({ ...newTierList(`${group.name} tiers`) }, null, false, ctx(null))}><Icon name="plus" size={14} /> New tier list</button>}
-            </div>
+        <div className="group-toolbox">
+            <section className="group-apps" aria-label="Apps">
+                {TOOLBOX_APPS.map(app => (
+                    <div key={app.key} className="group-app">
+                        <span className="group-app-icon"><Icon name={app.icon} size={22} /></span>
+                        <span className="group-app-text"><strong>{app.name}</strong><small>{app.blurb}</small></span>
+                        {canMake && (
+                            <span className="group-app-new">
+                                <select value={mode} onChange={e => setMode(e.target.value as ToolboxMode)} aria-label="Who ranks it">
+                                    <option value="curated">One list, made by its makers</option>
+                                    <option value="everyone">Everyone ranks, see the average</option>
+                                </select>
+                                <button type="button" className="btn btn-primary btn-sm" onClick={() => openTierMaker(newTierList(`${group.name} tiers`), null, false, ctx(null))}>
+                                    <Icon name="plus" size={14} /> New
+                                </button>
+                            </span>
+                        )}
+                    </div>
+                ))}
+            </section>
             {t.error && <div className="feed-empty"><p>{t.error}</p></div>}
-            {!t.error && !t.items.length && <div className="feed-empty"><Icon name="trophy" size={26} /><p>No tier lists yet.</p></div>}
-            {t.items.map((row: GroupTierRow) => {
-                const list = cleanTierList(row.data);
+            {!t.error && !t.items.length && <div className="feed-empty"><Icon name="trophy" size={26} /><p>Nothing in the Toolbox yet.{canMake ? ' Make the first tier list.' : ''}</p></div>}
+            {t.items.map((item: ToolboxItem) => {
+                const list = cleanTierList(item.data);
                 if (!list) return null;
                 const top = list.tiers.filter(x => (list.placed[x.id] || []).length).slice(0, 3);
                 const moves = changelog(list).length;
                 return (
-                    <article key={row.id} className="group-tier-card">
-                        <button type="button" className="group-tier-open" onClick={() => openTierMaker(list, null, false, ctx(row))}>
-                            <strong>{row.title}</strong>
-                            <small>{Object.keys(list.mons).length} ranked{list.format ? ` · ${list.format}` : ''} · version {row.version} · {timeAgo(row.updated_at)} ago{moves ? ` · ${moves} change${moves === 1 ? '' : 's'}` : ''}</small>
+                    <article key={item.id} className="group-tier-card">
+                        <button type="button" className="group-tier-open" onClick={() => openTierMaker(list, null, false, ctx(item))}>
+                            <strong>{item.title} <span className={`group-mode is-${item.mode}`}>{item.mode === 'everyone' ? 'Everyone ranks' : 'Tier list'}</span></strong>
+                            <small>{Object.keys(list.mons).length} in it{list.format ? ` · ${list.format}` : ''} · version {item.version} · {timeAgo(item.updated_at)} ago{moves ? ` · ${moves} change${moves === 1 ? '' : 's'}` : ''}</small>
                             {top.length > 0 && (
                                 <span className="chat-tierlist-tiers">
                                     {top.map(x => <span key={x.id} className="chat-tierlist-tier"><b style={{ background: x.color }}>{x.name}</b> {(list.placed[x.id] || []).slice(0, 5).map(id => list.mons[id]?.name).join(', ')}</span>)}
                                 </span>
                             )}
                         </button>
-                        {t.canEdit && <button type="button" className="btn btn-secondary btn-sm" aria-label={`Delete ${row.title}`} onClick={() => api.deleteGroupTierList(group.id, row)}><Icon name="trash-2" size={14} /></button>}
+                        {api.canEditToolboxItem(item) && <button type="button" className="btn btn-secondary btn-sm" aria-label={`Delete ${item.title}`} onClick={() => api.deleteToolboxItem(group.id, item)}><Icon name="trash-2" size={14} /></button>}
                     </article>
                 );
             })}
         </div>
+    );
+}
+
+// ==================== roles ====================
+
+/** Manage > Roles: the group's own roles and what each may do. */
+function RolesEditor({ group }: { group: Group }) {
+    const r = api.groupsState().roles[group.id];
+    const [editing, setEditing] = useState<any | null>(null);
+    const blank = { id: null, name: '', color: '#2c5aa0', perms: { post: true, toolbox_create: true }, is_default: false };
+    if (!r) return null;
+    return (
+        <section className="groups-roles">
+            <h3>Roles</h3>
+            <p className="groups-help">The owner can do everything, and moderators everything but roles. Make your own roles for the rest, like Tier leader or Event host. The “everyone” role sets what every member may do.</p>
+            {r.items.map((role: GroupRoleRow) => (
+                <div key={role.id} className="groups-role-row">
+                    <span className="group-role" style={role.color ? { background: `color-mix(in srgb, ${role.color} 16%, transparent)`, color: role.color } : undefined}>{role.name}</span>
+                    {role.is_default && <small>everyone</small>}
+                    <span className="groups-role-perms">{GROUP_PERMS.filter(([p]) => role.perms[p]).map(([, label]) => label).join(', ') || 'No permissions'}</span>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditing({ ...role, perms: { ...role.perms } })}>Edit</button>
+                    <button type="button" className="btn btn-secondary btn-sm" aria-label={`Delete ${role.name}`} onClick={() => api.deleteGroupRole(group, role)}><Icon name="trash-2" size={14} /></button>
+                </div>
+            ))}
+            {!editing && <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditing(blank)}><Icon name="plus" size={14} /> New role</button>}
+            {editing && (
+                <div className="groups-role-edit">
+                    <div className="groups-role-line">
+                        <input type="text" value={editing.name} maxLength={24} placeholder="Tier leader" aria-label="Role name" onChange={e => setEditing({ ...editing, name: e.target.value })} />
+                        <input type="color" value={editing.color || '#2c5aa0'} aria-label="Role colour" onChange={e => setEditing({ ...editing, color: e.target.value })} />
+                        <label className="groups-check"><input type="checkbox" checked={editing.is_default} onChange={e => setEditing({ ...editing, is_default: e.target.checked })} /> Everyone has it</label>
+                    </div>
+                    <div className="groups-perm-grid">
+                        {GROUP_PERMS.map(([p, label, desc]) => (
+                            <label key={p} className="groups-check" title={desc}>
+                                <input type="checkbox" checked={!!editing.perms[p]} disabled={!api.canInGroup(group.id, p)}
+                                    onChange={e => setEditing({ ...editing, perms: { ...editing.perms, [p]: e.target.checked } })} />
+                                <span><strong>{label}</strong><small>{desc}</small></span>
+                            </label>
+                        ))}
+                    </div>
+                    <div className="modal-actions">
+                        <button type="button" className="btn btn-secondary btn-sm" onClick={() => setEditing(null)}>Cancel</button>
+                        <button type="button" className="btn btn-primary btn-sm" disabled={!editing.name.trim()} onClick={async () => { if (await api.saveGroupRole(group, editing)) setEditing(null); }}>Save role</button>
+                    </div>
+                </div>
+            )}
+        </section>
     );
 }
 
@@ -444,7 +518,7 @@ function GroupAbout({ group, compact }: { group: Group; compact?: boolean }) {
 
 function GroupMembers({ group }: { group: Group }) {
     const m = api.groupsState().members[group.id];
-    const mod = api.canModerateGroup(group.id);
+    const mod = ['approve_members', 'remove_members', 'ban_members'].some(p => api.canInGroup(group.id, p));
     const iAmOwner = api.myGroupRole(group.id) === 'owner' || !!api.isStaff?.();
     if (!m || (m.loading && !m.items.length)) return <SkeletonRows count={6} avatar label="Loading members" />;
     if (m.error) return <div className="feed-empty"><p>{m.error}</p></div>;
@@ -469,8 +543,10 @@ function GroupMembers({ group }: { group: Group }) {
                 {active.map((x: Member) => (
                     <MemberRow key={x.user_id} m={x}>
                         {x.role !== 'member' && <span className={`group-role is-${x.role}`}>{x.role === 'owner' ? 'Owner' : 'Moderator'}</span>}
-                        {api.isTierLeader(group.id, x.user_id) && <span className="group-role is-tier">Tier leader</span>}
-                        {mod && x.user_id !== state.user?.id && x.role !== 'owner' && (x.role === 'member' || iAmOwner) && (
+                        {api.memberRoles(group.id, x.user_id).map((r: GroupRoleRow) => (
+                            <span key={r.id} className="group-role" style={r.color ? { background: `color-mix(in srgb, ${r.color} 16%, transparent)`, color: r.color } : undefined}>{r.name}</span>
+                        ))}
+                        {(mod || api.canInGroup(group.id, 'manage_roles')) && x.user_id !== state.user?.id && x.role !== 'owner' && (x.role === 'member' || iAmOwner) && (
                             <MemberMenu group={group} m={x} owner={iAmOwner} />
                         )}
                     </MemberRow>
@@ -517,11 +593,16 @@ function MemberMenu({ group, m, owner }: { group: Group; m: Member; owner: boole
                     {owner && m.role === 'member' && <button type="button" role="menuitem" onClick={() => act('make_moderator')}><Icon name="shield-check" size={14} /> Make moderator</button>}
                     {owner && m.role === 'moderator' && <button type="button" role="menuitem" onClick={() => act('make_member')}><Icon name="user" size={14} /> Make member</button>}
                     {owner && <button type="button" role="menuitem" onClick={() => act('make_owner')}><Icon name="star" size={14} /> Make owner</button>}
-                    <button type="button" role="menuitem" onClick={() => { setOpen(false); api.setTierLeader(group, m.user_id, !api.isTierLeader(group.id, m.user_id), nameOf(m)); }}>
-                        <Icon name="trophy" size={14} /> {api.isTierLeader(group.id, m.user_id) ? 'Not a tier leader' : 'Make tier leader'}
-                    </button>
-                    <button type="button" role="menuitem" onClick={() => act('remove')}><Icon name="user-minus" size={14} /> Remove</button>
-                    <button type="button" role="menuitem" className="is-danger" onClick={() => act('ban')}><Icon name="no-symbol" size={14} /> Ban</button>
+                    {api.canInGroup(group.id, 'manage_roles') && (api.groupsState().roles[group.id]?.items || []).filter((r: GroupRoleRow) => !r.is_default).map((r: GroupRoleRow) => {
+                        const has = api.memberRoles(group.id, m.user_id).some((x: GroupRoleRow) => x.id === r.id);
+                        return (
+                            <button key={r.id} type="button" role="menuitem" onClick={() => { setOpen(false); api.setMemberRole(group, m.user_id, r, !has, nameOf(m)); }}>
+                                <Icon name={has ? 'check' : 'tag'} size={14} /> {has ? `Remove “${r.name}”` : `Give “${r.name}”`}
+                            </button>
+                        );
+                    })}
+                    {api.canInGroup(group.id, 'remove_members') && <button type="button" role="menuitem" onClick={() => act('remove')}><Icon name="user-minus" size={14} /> Remove</button>}
+                    {api.canInGroup(group.id, 'ban_members') && <button type="button" role="menuitem" className="is-danger" onClick={() => act('ban')}><Icon name="no-symbol" size={14} /> Ban</button>}
                 </div>
             )}
         </div>
@@ -538,8 +619,9 @@ function GroupSettings({ close, group }: DialogProps<{ group: Group }>) {
     return (
         <Modal onClose={close} title="Manage group" className="groups-settings">
             <form className="groups-form" onSubmit={async e => { e.preventDefault(); setBusy(true); if (await api.updateGroup(group, d)) close(); setBusy(false); }}>
-                <GroupFields d={d} set={set} lockVisibility={!owner} />
-                <ChatLink group={group} />
+                {api.canInGroup(group.id, 'edit_group') && <GroupFields d={d} set={set} lockVisibility={!owner} />}
+                {api.canInGroup(group.id, 'manage_roles') && <RolesEditor group={group} />}
+                {api.canInGroup(group.id, 'manage_chat') && <ChatLink group={group} />}
                 <div className="modal-actions">
                     {owner && <button type="button" className="btn btn-danger groups-archive" onClick={() => { close(); api.archiveGroup(group); }}>Archive group</button>}
                     <button type="button" className="btn btn-secondary" onClick={close}>Cancel</button>

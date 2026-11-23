@@ -19,6 +19,7 @@ import { chronological, dailySeed, rankFeed, typeAffinityFrom, type FeedItem } f
 import { createPoll, pollProblem, type PollDraft } from './polls.ts';
 import { applyMyReaction } from './comments.ts';
 import { effectivePhase } from './events.ts';
+import { cleanTierList } from './tier-lists.ts';
 
 // one feed, ranked "For you"; the key stays so the feed state keeps its shape
 export type FeedTab = 'foryou';
@@ -238,8 +239,36 @@ function withEmbeds(rows: any[]): any[] {
 /** Raw feed rows (community_feed, group_feed) as cards: shaped, with author info and the events they show. */
 export async function prepareFeedRows(data: any[]): Promise<FeedItem[]> {
     const rows = (data || []).map(shapeItem);
-    await Promise.all([api.attachLiveAuthorInfo?.(withEmbeds(rows)), attachPostEvents(rows)]);
+    await Promise.all([api.attachLiveAuthorInfo?.(withEmbeds(rows)), attachPostEvents(rows), attachPostTierLists(rows)]);
     return rows;
+}
+
+/** The tier list a post carries (community_posts.tier_list), checked by cleanTierList: someone else's data. */
+async function attachPostTierLists(rows: any[]) {
+    const posts = withEmbeds(rows).filter(r => r?.kind === 'post' && r.id);
+    if (!posts.length) return;
+    try {
+        const client = await api.getClient();
+        const { data, error } = await client.from('community_posts').select('id, tier_list').in('id', [...new Set(posts.map(p => p.id))]).not('tier_list', 'is', null);
+        if (error || !data?.length) return;
+        const byId = new Map(data.map((d: any) => [d.id, cleanTierList(d.tier_list)]));
+        for (const p of posts) if (byId.get(p.id)) p.tierList = byId.get(p.id);
+    } catch (e: any) {
+        // before the column is live: posts just show without a tier list
+        log.debug('SOCIAL', 'Tier lists on posts not loaded', { error: String(e?.message || e) });
+    }
+}
+
+/** Posts a tier list on the Community Hub (with a line of text), where others can open it and rank their own copy. */
+export async function postTierList(list: any, text = ''): Promise<boolean> {
+    if (!state.user) { api.requireAccount?.('Sign in to post.', () => postTierList(list, text)); return false; }
+    const clean = cleanTierList(list);
+    if (!clean) return false;
+    const body = (text || `My tier list: ${clean.title}`).slice(0, 4000);
+    const words = [clean.title, ...clean.tiers.map(t => t.name), ...Object.values(clean.mons).map(m => `${m.name} ${m.note || ''}`)].join(' ');
+    if (!(await api.guardContent?.(words, 'tier list') ?? true)) return false;
+    const id = await createPost({ body, tierList: clean });
+    return !!id;
 }
 
 async function attachPostEvents(rows: any[]) {
@@ -404,7 +433,7 @@ function emptyPostMessage(error: any): string {
         : '';
 }
 
-export async function createPost({ body = '', monIds = [] as string[], eventIds = [] as string[], poll = null as PollDraft | null, groupId = null as string | null }): Promise<string | null> {
+export async function createPost({ body = '', monIds = [] as string[], eventIds = [] as string[], poll = null as PollDraft | null, groupId = null as string | null, tierList = null as any }): Promise<string | null> {
     if (!api.requireAccount?.('Sign in to post.')) return null;
     const text = String(body || '').trim();
     if (!text && !monIds.length && !eventIds.length && !poll) { api.showToast?.('Write something or add a Fakemon first.', 'warning'); return null; }
@@ -417,7 +446,7 @@ export async function createPost({ body = '', monIds = [] as string[], eventIds 
     // tells the database's "a post needs something in it" rule one is coming
     const pollOnly = !!poll && !text && !monIds.length && !eventIds.length;
     const { data, error } = await client.from('community_posts')
-        .insert({ user_id: state.user!.id, body: text, mon_ids: monIds.slice(0, 12), tags: tagsIn(text), ...(eventIds.length ? { event_ids: eventIds.slice(0, 4) } : {}), ...(pollOnly ? { has_poll: true } : {}), ...(groupId ? { group_id: groupId } : {}) })
+        .insert({ user_id: state.user!.id, body: text, mon_ids: monIds.slice(0, 12), tags: tagsIn(text), ...(eventIds.length ? { event_ids: eventIds.slice(0, 4) } : {}), ...(pollOnly ? { has_poll: true } : {}), ...(groupId ? { group_id: groupId } : {}), ...(tierList ? { tier_list: tierList } : {}) })
         .select('id').single();
     if (error) {
         log.error('SOCIAL', 'Post failed', error);
@@ -720,7 +749,7 @@ export async function fetchTimeline(userId: string, before: string | null = null
     const { data, error } = await client.rpc('profile_timeline', { p_user: userId, p_before: before, p_limit: 30 });
     if (error) throw error;
     const rows = (data || []).map(shapeItem);
-    await Promise.all([api.attachLiveAuthorInfo?.(withEmbeds(rows)), attachPostEvents(rows)]);
+    await Promise.all([api.attachLiveAuthorInfo?.(withEmbeds(rows)), attachPostEvents(rows), attachPostTierLists(rows)]);
     return rows;
 }
 

@@ -29,14 +29,11 @@ export type GroupRole = 'owner' | 'moderator' | 'member';
 export type MemberStatus = 'active' | 'pending' | 'left' | 'removed' | 'banned';
 export interface Membership { group_id: string; user_id: string; role: GroupRole; status: MemberStatus; joined_at: string; }
 export interface Member extends Membership { profile: { id: string; username?: string; display_name?: string; avatar_url?: string } | null; }
-export type GroupTab = 'posts' | 'tiers' | 'about' | 'members';
+export type GroupTab = 'posts' | 'toolbox' | 'about' | 'members';
 export type GroupSort = 'new' | 'top';
 export type GroupView = { kind: 'list' } | { kind: 'new' } | { kind: 'group'; slug: string; tab: GroupTab };
 
-export const GROUP_TABS: GroupTab[] = ['posts', 'tiers', 'about', 'members'];
-
-/** A tier list kept in a group (Woogidex-DB 20261123140000). `data` is a TierList (js/features/tier-lists.ts). */
-export interface GroupTierRow { id: string; group_id: string; title: string; data: any; updated_at: string; updated_by: string | null; version: number; }
+export const GROUP_TABS: GroupTab[] = ['posts', 'toolbox', 'about', 'members'];
 export const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,30})[a-z0-9]$/;
 
 interface GroupsState {
@@ -48,10 +45,12 @@ interface GroupsState {
     bySlug: Record<string, { group: Group | null; loading: boolean; error: string }>;
     feeds: Record<string, { items: FeedItem[]; loading: boolean; hasMore: boolean; sort: GroupSort; error: string }>;
     members: Record<string, { items: Member[]; loading: boolean; error: string }>;
-    /** the group's tier lists, and whether you may change them */
-    tiers: Record<string, { items: GroupTierRow[]; loading: boolean; error: string; canEdit: boolean }>;
-    /** the user ids of each group's tier leaders */
-    leaders: Record<string, Set<string>>;
+    /** the group's Toolbox items (tier lists, for now) */
+    toolbox: Record<string, { items: ToolboxItem[]; loading: boolean; error: string }>;
+    /** your permissions in each group (my_group_perms), for which buttons show */
+    perms: Record<string, Record<string, boolean>>;
+    /** each group's roles, and which members hold which */
+    roles: Record<string, { items: GroupRoleRow[]; byUser: Map<string, Set<string>> }>;
     /** the chat connected to each group (undefined: not asked yet; null: none) */
     chats: Record<string, string | null | undefined>;
 }
@@ -61,7 +60,7 @@ function gs(): GroupsState {
         state.groups = {
             view: { kind: 'list' },
             list: { items: [], loading: false, loaded: false, error: '' },
-            mine: new Map(), mineFor: null, bySlug: {}, feeds: {}, members: {}, tiers: {}, leaders: {}, chats: {}
+            mine: new Map(), mineFor: null, bySlug: {}, feeds: {}, members: {}, toolbox: {}, perms: {}, roles: {}, chats: {}
         } as GroupsState;
     }
     return state.groups;
@@ -112,8 +111,11 @@ function loadForView(v: GroupView) {
         loadGroup(v.slug).then(g => {
             if (!g) return;
             if (v.tab === 'posts' && !gs().feeds[g.id]) loadGroupFeed(g.id);
-            if (v.tab === 'members') { loadGroupMembers(g.id); loadTierLeaders(g.id); }
-            if (v.tab === 'tiers') loadGroupTierLists(g.id);
+            if (v.tab === 'members') loadGroupMembers(g.id);
+            if (v.tab === 'toolbox') loadToolbox(g.id);
+            // roles show on members, and your permissions decide the buttons everywhere
+            loadGroupRoles(g.id);
+            loadMyGroupPerms(g.id);
             loadGroupChat(g.id);
             // the address and the tab title wait for the group's name
             if (gs().view === v) api.setPageTitle?.(routeFor(v)[1]);
@@ -258,90 +260,206 @@ export async function loadGroupMembers(groupId: string) {
     }
 }
 
-// ==================== tier lists ====================
-// Anyone who can see the group reads them. The owner, the moderators and the
-// tier leaders make and change them (the database checks it: group_can_edit_tiers).
+// ==================== permissions and roles ====================
+// group_can() in the database decides. The owner has every permission, a
+// moderator all but manage_roles, and everyone else what their roles give
+// (Woogidex-DB 20261123140000). These copies only decide which buttons show.
 
-export async function loadGroupTierLists(groupId: string) {
+export type GroupPerm = 'post' | 'remove_posts' | 'approve_members' | 'remove_members' | 'ban_members' | 'edit_group' | 'manage_roles' | 'manage_chat' | 'toolbox_create' | 'toolbox_manage';
+export const GROUP_PERMS: Array<[GroupPerm, string, string]> = [
+    ['post', 'Post', 'Write posts in the group.'],
+    ['toolbox_create', 'Use the Toolbox', 'Make tier lists and other Toolbox items.'],
+    ['toolbox_manage', 'Manage the Toolbox', 'Change and delete anyone’s Toolbox items.'],
+    ['remove_posts', 'Remove posts', 'Delete other people’s posts in the group.'],
+    ['approve_members', 'Approve members', 'Let people into a private group, or decline them.'],
+    ['remove_members', 'Remove members', 'Take people out of the group.'],
+    ['ban_members', 'Ban members', 'Ban and unban people.'],
+    ['edit_group', 'Edit the group', 'Change the name, description, rules and colour.'],
+    ['manage_chat', 'Manage the chat', 'Connect or disconnect the group chat.'],
+    ['manage_roles', 'Manage roles', 'Make roles and give them to members.']
+];
+export interface GroupRoleRow { id: string; group_id: string; name: string; color: string; position: number; perms: Record<string, boolean>; is_default: boolean; }
+
+export async function loadMyGroupPerms(groupId: string) {
+    if (!state.user) { gs().perms[groupId] = {}; return; }
+    try {
+        const client = await api.getClient();
+        const { data, error } = await client.rpc('my_group_perms', { p_group: groupId });
+        if (error) throw error;
+        gs().perms[groupId] = data || {};
+    } catch (e) {
+        // before the migration is live: the old rule (owner and moderators)
+        const mod = canModerateGroup(groupId);
+        gs().perms[groupId] = Object.fromEntries(GROUP_PERMS.map(([p]) => [p, mod || p === 'post' || p === 'toolbox_create']));
+        log.debug('GROUPS', 'Group permissions not loaded', { error: String((e as any)?.message || e) });
+    }
+    notify();
+}
+
+/** Whether you may do something in a group (the database checks again). */
+export const canInGroup = (groupId: string, perm: GroupPerm) => !!gs().perms[groupId]?.[perm];
+
+export async function loadGroupRoles(groupId: string) {
+    try {
+        const client = await api.getClient();
+        const [roles, assigned] = await Promise.all([
+            client.from('group_roles').select('id, group_id, name, color, position, perms, is_default').eq('group_id', groupId).order('position').order('created_at'),
+            client.from('group_member_roles').select('user_id, role_id').eq('group_id', groupId).limit(5000)
+        ]);
+        if (roles.error) throw roles.error;
+        gs().roles[groupId] = { items: (roles.data || []) as GroupRoleRow[], byUser: groupBy(assigned.data || []) };
+    } catch (e) {
+        gs().roles[groupId] = { items: [], byUser: new Map() };
+        log.debug('GROUPS', 'Group roles not loaded', { error: String((e as any)?.message || e) });
+    }
+    notify();
+}
+
+function groupBy(rows: Array<{ user_id: string; role_id: string }>) {
+    const out = new Map<string, Set<string>>();
+    for (const r of rows) (out.get(r.user_id) || out.set(r.user_id, new Set()).get(r.user_id)!).add(r.role_id);
+    return out;
+}
+
+/** The custom roles a member has. */
+export function memberRoles(groupId: string, userId: string): GroupRoleRow[] {
+    const r = gs().roles[groupId];
+    if (!r) return [];
+    const mine = r.byUser.get(userId);
+    return r.items.filter(x => !x.is_default && mine?.has(x.id));
+}
+
+export async function saveGroupRole(g: Group, role: { id?: string | null; name: string; color: string; perms: Record<string, boolean>; is_default: boolean }): Promise<boolean> {
+    try {
+        const client = await api.getClient();
+        const { error } = await client.rpc('save_group_role', {
+            p_group: g.id, p_role: role.id || null, p_name: role.name, p_color: role.color || '', p_perms: role.perms, p_default: role.is_default
+        });
+        if (error) throw error;
+        api.showToast?.(`Saved the role “${role.name}”.`, 'success');
+        await Promise.all([loadGroupRoles(g.id), loadMyGroupPerms(g.id)]);
+        return true;
+    } catch (e: any) {
+        api.showToast?.(problem(e, 'Couldn’t save the role.'), 'error');
+        return false;
+    }
+}
+
+export async function deleteGroupRole(g: Group, role: GroupRoleRow) {
+    if (!await confirmDialog({ title: `Delete the role “${role.name}”?`, message: 'Members with it lose what it gave them.', confirmLabel: 'Delete', danger: true })) return;
+    try {
+        const client = await api.getClient();
+        const { error } = await client.rpc('delete_group_role', { p_role: role.id });
+        if (error) throw error;
+        await Promise.all([loadGroupRoles(g.id), loadMyGroupPerms(g.id)]);
+    } catch (e: any) {
+        api.showToast?.(problem(e, 'Couldn’t delete the role.'), 'error');
+    }
+}
+
+export async function setMemberRole(g: Group, userId: string, role: GroupRoleRow, on: boolean, name = 'them') {
+    try {
+        const client = await api.getClient();
+        const { error } = await client.rpc('set_group_member_role', { p_group: g.id, p_user: userId, p_role: role.id, p_on: on });
+        if (error) throw error;
+        api.showToast?.(on ? `${name} has the role “${role.name}” now.` : `${name} no longer has the role “${role.name}”.`, 'success');
+        loadGroupRoles(g.id);
+    } catch (e: any) {
+        api.showToast?.(problem(e, 'Couldn’t change that.'), 'error');
+    }
+}
+
+// ==================== Toolbox ====================
+// A group's apps, made by its members. The first app is the tier maker
+// (js/app/dialogs/tierMaker.tsx). Each item is "curated" (its maker and the
+// toolbox_manage roles change it) or "everyone" (each member saves an own
+// ranking, and the group sees the average).
+
+export type ToolboxMode = 'curated' | 'everyone';
+export interface ToolboxItem { id: string; group_id: string; kind: 'tier_list'; mode: ToolboxMode; title: string; data: any; created_by: string | null; updated_at: string; updated_by: string | null; version: number; }
+
+export async function loadToolbox(groupId: string) {
     const s = gs();
-    const t = s.tiers[groupId] ||= { items: [], loading: false, error: '', canEdit: false };
+    const t = s.toolbox[groupId] ||= { items: [], loading: false, error: '' };
     if (t.loading) return;
     t.loading = true;
     t.error = '';
     notify();
     try {
         const client = await api.getClient();
-        const [rows, can] = await Promise.all([
-            client.from('group_tier_lists').select('id, group_id, title, data, updated_at, updated_by, version').eq('group_id', groupId)
-                .order('updated_at', { ascending: false }).limit(50),
-            state.user ? client.rpc('group_can_edit_tiers', { p_group: groupId }) : Promise.resolve({ data: false, error: null })
-        ]);
-        if (rows.error) throw rows.error;
-        t.items = (rows.data || []) as GroupTierRow[];
-        t.canEdit = can.data === true;
+        const { data, error } = await client.from('group_toolbox_items')
+            .select('id, group_id, kind, mode, title, data, created_by, updated_at, updated_by, version').eq('group_id', groupId)
+            .order('updated_at', { ascending: false }).limit(100);
+        if (error) throw error;
+        t.items = (data || []) as ToolboxItem[];
     } catch (e: any) {
-        log.error('GROUPS', 'Could not load tier lists', e);
-        t.error = /group_tier_lists/.test(String(e?.message)) ? 'Tier lists aren’t switched on yet.' : 'Couldn’t load the tier lists.';
+        log.error('GROUPS', 'Could not load the Toolbox', e);
+        t.error = /group_toolbox_items/.test(String(e?.message)) ? 'The Toolbox isn’t switched on yet.' : 'Couldn’t load the Toolbox.';
     } finally {
         t.loading = false;
         notify();
     }
 }
 
-/** Saves a tier list in the group: a new one (no row id) or a new version. Returns the row id, or null. */
-export async function saveGroupTierList(groupId: string, list: any, rowId: string | null): Promise<string | null> {
+/** Saves a tier list in the group's Toolbox: a new item (no id) or a new version. Returns the item's id, or null. */
+export async function saveToolboxItem(groupId: string, list: any, itemId: string | null, mode: ToolboxMode = 'curated'): Promise<string | null> {
     try {
         const client = await api.getClient();
         const title = String(list?.title || 'Tier list').trim().slice(0, 80) || 'Tier list';
-        const q = rowId
-            ? client.from('group_tier_lists').update({ title, data: list }).eq('id', rowId).select('id').single()
-            : client.from('group_tier_lists').insert({ group_id: groupId, title, data: list }).select('id').single();
+        const q = itemId
+            ? client.from('group_toolbox_items').update({ title, data: list, mode }).eq('id', itemId).select('id').single()
+            : client.from('group_toolbox_items').insert({ group_id: groupId, kind: 'tier_list', mode, title, data: list }).select('id').single();
         const { data, error } = await q;
         if (error) throw error;
-        api.showToast?.('Saved to the group.', 'success');
-        loadGroupTierLists(groupId);
+        api.showToast?.('Saved to the group’s Toolbox.', 'success');
+        loadToolbox(groupId);
         return data?.id || null;
     } catch (e: any) {
-        api.showToast?.(problem(e, 'Couldn’t save the tier list. Only the owner, moderators and tier leaders can.'), 'error');
+        api.showToast?.(problem(e, 'Couldn’t save it. Your roles may not allow it.'), 'error');
         return null;
     }
 }
 
-export async function deleteGroupTierList(groupId: string, row: GroupTierRow) {
-    if (!await confirmDialog({ title: `Delete “${row.title}”?`, message: 'It’s gone for everyone in the group.', confirmLabel: 'Delete', danger: true })) return;
+export async function deleteToolboxItem(groupId: string, item: ToolboxItem) {
+    if (!await confirmDialog({ title: `Delete “${item.title}”?`, message: 'It’s gone for everyone in the group.', confirmLabel: 'Delete', danger: true })) return;
     try {
         const client = await api.getClient();
-        const { error } = await client.from('group_tier_lists').delete().eq('id', row.id);
+        const { error } = await client.from('group_toolbox_items').delete().eq('id', item.id);
         if (error) throw error;
-        loadGroupTierLists(groupId);
+        loadToolbox(groupId);
     } catch (e: any) {
         api.showToast?.(problem(e, 'Couldn’t delete it.'), 'error');
     }
 }
 
-export async function loadTierLeaders(groupId: string) {
+/** Whether you may change an item: you made it, or your roles manage the Toolbox. */
+export const canEditToolboxItem = (item: ToolboxItem) => item.created_by === state.user?.id || canInGroup(item.group_id, 'toolbox_manage');
+
+/** Every member's own ranking of an "everyone" item: mon id -> tier name, by user. */
+export async function loadRankings(itemId: string): Promise<Array<{ user_id: string; placed: Record<string, string> }>> {
     try {
         const client = await api.getClient();
-        const { data, error } = await client.from('group_tier_leaders').select('user_id').eq('group_id', groupId).limit(500);
+        const { data, error } = await client.from('group_toolbox_rankings').select('user_id, placed').eq('item_id', itemId).limit(1000);
         if (error) throw error;
-        gs().leaders[groupId] = new Set((data || []).map((r: any) => r.user_id));
-        notify();
+        return (data || []) as any[];
     } catch (e) {
-        log.debug('GROUPS', 'Tier leaders not loaded', { error: String((e as any)?.message || e) });
+        log.warn('GROUPS', 'Could not load the rankings', e);
+        return [];
     }
 }
 
-export const isTierLeader = (groupId: string, userId: string) => !!gs().leaders[groupId]?.has(userId);
-
-export async function setTierLeader(g: Group, userId: string, on: boolean, name = 'them') {
+/** Saves your own ranking of an "everyone" item. */
+export async function saveMyRanking(itemId: string, placed: Record<string, string>): Promise<boolean> {
     try {
         const client = await api.getClient();
-        const { error } = await client.rpc('set_group_tier_leader', { p_group: g.id, p_user: userId, p_on: on });
+        const { error } = await client.from('group_toolbox_rankings')
+            .upsert({ item_id: itemId, user_id: state.user!.id, placed, updated_at: new Date().toISOString() }, { onConflict: 'item_id,user_id' });
         if (error) throw error;
-        api.showToast?.(on ? `${name} is a tier leader now.` : `${name} is not a tier leader any more.`, 'success');
-        loadTierLeaders(g.id);
+        api.showToast?.('Your ranking is in. The group average updates now.', 'success');
+        return true;
     } catch (e: any) {
-        api.showToast?.(problem(e, 'Couldn’t change that.'), 'error');
+        api.showToast?.(problem(e, 'Couldn’t save your ranking.'), 'error');
+        return false;
     }
 }
 

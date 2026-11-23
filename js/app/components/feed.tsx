@@ -25,6 +25,8 @@ import type { FeedItem } from '../../features/feed-algorithm.ts';
 import { STAGE_LABEL, effectivePhase, fetchEvents } from '../../features/events.ts';
 import { SkeletonRows } from './Skeleton.tsx';
 import { openCommentControls, openReportDialog } from '../../features/safety.ts';
+import { TierListCard } from './TierListCard.tsx';
+import { openTierMaker } from '../dialogs/tierMaker.tsx';
 
 // timeAgo lives with the comments now; it's re-exported for the pages that
 // already import it from here
@@ -366,6 +368,7 @@ export function PostFeedCard({ item, full = false }: { item: FeedItem; full?: bo
             ) : null}
             <PostMons mons={item.mons || []} />
             <PostEvents events={item.events} />
+            {item.tierList && <TierListCard list={item.tierList} action="Rank it yourself" onOpen={() => openTierMaker(item.tierList, null, true)} />}
             <PollView kind="post" parentId={item.id} />
             {item.repost && <div className="repost-embed-wrap"><RepostEmbed item={item.repost} /></div>}
             {(item.tags || []).length > 0 && (
