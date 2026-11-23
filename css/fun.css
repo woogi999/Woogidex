@@ -1,12 +1,14 @@
 /* ==================== Fun ====================
-   /fun (js/app/pages/FunPage.tsx): a bento grid of tools and widgets. A
-   click on a block turns the grid into a sidebar beside the open tool (GSAP
-   Flip moves each block into its row). One surface like the rest of the
-   site: soft fills, no outline boxes, no blur. The gold belongs to Woobux
-   (it is content, like a type colour); the interface keeps the violet accent.
-   The calendar, the stats and the coin animation: css/woobux.css. */
+   /fun (js/app/pages/FunPage.tsx): a sidebar that is always there, and the
+   main area beside it. Home is the main menu, a bento grid of tools and
+   widgets. One surface like the rest of the site: soft fills, no outline
+   boxes, no blur, no plates behind icons, no capital-letter labels. The
+   gold belongs to Woobux (it is content, like a type colour); the
+   interface keeps the violet accent.
+   The calendar, the stats and the coin animation: css/woobux.css.
+   The streak fire: .fire-* below (js/app/components/fire/StreakFire.tsx). */
 
-.fun-page { max-width: 1100px; margin: 0 auto; }
+.fun-page { max-width: 1180px; margin: 0 auto; }
 .fun-head { align-items: flex-end; }
 .fun-sub { margin-top: 4px; font-size: 14px; color: var(--text-secondary); }
 .fun-balance {
@@ -20,15 +22,34 @@
 .fun-balance strong { font-weight: 800; }
 
 /* the red ping: today's reward waits */
-.fun-ping { display: inline-block; flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--bg-card); vertical-align: middle; }
+.fun-ping { display: inline-block; flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); vertical-align: middle; }
 
-/* a block's icon: a soft round plate, tinted per tool */
-.fun-block-icon { display: inline-grid; place-items: center; flex: 0 0 auto; width: 44px; height: 44px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
-.fun-block-icon.is-streak { background: color-mix(in srgb, #f97316 14%, var(--bg-card)); color: #ea580c; }
-.fun-block-icon.is-shop { background: color-mix(in srgb, #3b82f6 13%, var(--bg-card)); color: #2563eb; }
-.fun-block-icon.is-battle { background: var(--bg-card); color: var(--text-secondary); }
+/* icons stand on their own: a colour per tool, nothing behind them */
+.fun-side-icon, .fun-tile-icon { flex: 0 0 auto; color: var(--accent); }
+.fun-side-icon { display: inline-grid; place-items: center; width: 24px; }
+.fun-side-icon.is-streak, .fun-tile-icon.is-streak { color: #ea580c; }
+.fun-side-icon.is-shop { color: #d97706; }
+.fun-side-icon.is-battle, .fun-tile-icon.is-battle { color: var(--text-secondary); }
 
-/* ==================== the grid ==================== */
+/* ==================== the frame: sidebar and main ==================== */
+.fun-split { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--sp-6); align-items: start; }
+.fun-side { position: sticky; top: calc(var(--header-h) + var(--sp-5)); display: flex; flex-direction: column; gap: 2px; }
+.fun-side-item {
+    position: relative; width: 100%;
+    display: flex; align-items: center; gap: 12px; padding: 9px 10px;
+    border: 0; border-radius: var(--ctl-r); background: transparent;
+    color: var(--text-primary); font: inherit; text-align: left; text-decoration: none; cursor: pointer; transition: var(--t-ui);
+}
+.fun-side-item:hover { background: var(--bg-panel); }
+.fun-side-item.is-active { background: var(--accent-soft); }
+.fun-side-item.is-active strong { color: var(--accent); }
+.fun-side-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.fun-side-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.fun-side-text strong { font-size: 14px; font-weight: 700; }
+.fun-side-text small { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fun-main { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-5); }
+
+/* ==================== Home: the bento grid ==================== */
 .fun-bento {
     display: grid; gap: var(--sp-3);
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -47,66 +68,42 @@
     transition: var(--t-ui);
 }
 .fun-tile.is-streak { grid-area: streak; background: color-mix(in srgb, #f6a623 8%, var(--bg-panel)); }
-.fun-tile.is-shop { grid-area: shop; align-items: center; background: color-mix(in srgb, #3b82f6 7%, var(--bg-panel)); }
+.fun-tile.is-shop { grid-area: shop; align-items: center; background: color-mix(in srgb, #f6a623 5%, var(--bg-panel)); }
 .fun-tile.is-tier { grid-area: tier; flex-direction: column; justify-content: space-between; }
 .fun-tile.is-battle { grid-area: battle; flex-direction: column; justify-content: space-between; }
 .fun-tile.is-week { grid-area: week; }
 .fun-tile.is-soon { grid-area: soon; flex-direction: column; justify-content: space-between; background: transparent; box-shadow: inset 0 0 0 1px var(--border-light); }
 /* the whole block opens its tool; its own buttons sit above that link */
-.fun-tile-link { position: absolute; inset: 0; z-index: 0; border-radius: inherit; }
+.fun-tile-link { position: absolute; inset: 0; z-index: 0; padding: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
 .fun-tile-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .fun-tile > :not(.fun-tile-link) { position: relative; z-index: 1; pointer-events: none; }
-.fun-tile button, .fun-tile a:not(.fun-tile-link) { pointer-events: auto; }
+.fun-tile button:not(.fun-tile-link), .fun-tile a:not(.fun-tile-link) { pointer-events: auto; }
 .fun-tile:has(.fun-tile-link):hover { transform: translateY(-2px); background: color-mix(in srgb, var(--text-primary) 4%, var(--bg-panel)); }
 .fun-tile.is-streak:hover { background: color-mix(in srgb, #f6a623 13%, var(--bg-panel)); }
-.fun-tile.is-shop:hover { background: color-mix(in srgb, #3b82f6 11%, var(--bg-panel)); }
 .fun-tile-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .fun-tile-text strong { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
 .fun-tile-text small { font-size: 13px; line-height: 1.45; color: var(--text-secondary); }
 .fun-tile-text b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
-.fun-tile-kicker { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
 .fun-tile-btn { align-self: flex-start; margin-top: var(--sp-3); }
 .fun-tile-art { flex: 0 0 auto; animation: fun-bob 3.6s ease-in-out infinite; }
-.fun-tile-inline { color: var(--accent); }
+.fun-tile-inline { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
 
-/* the Streak block: the flame big on the left, the count and Collect beside it */
+/* the Streak block: the fire big on the left, the count and Collect beside it */
 .fun-streak-mini { display: flex; align-items: center; gap: var(--sp-5); width: 100%; height: 100%; }
-.fun-streak-mini .streak-flame { width: 120px; height: 140px; }
-.fun-streak-mini-count { font-size: 36px !important; font-weight: 900 !important; letter-spacing: -0.03em !important; font-variant-numeric: tabular-nums; line-height: 1.05; }
+.fun-streak-mini-count { display: inline-flex; align-items: center; gap: 8px; font-size: 36px !important; font-weight: 900 !important; letter-spacing: -0.03em !important; font-variant-numeric: tabular-nums; line-height: 1.05; }
 
 /* the week strip */
 .fun-week { display: flex; flex-direction: column; gap: var(--sp-3); width: 100%; }
+.fun-week-title { font-size: 15px; font-weight: 800; }
 .fun-week-days { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
 .fun-week-days li { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 2px; border-radius: 8px; background: var(--bg-card); }
-.fun-week-days small { font-size: 10.5px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+.fun-week-days small { font-size: 11px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
 .fun-week-days b { font-size: 13px; font-variant-numeric: tabular-nums; }
 .fun-week-days li.is-bonus { background: color-mix(in srgb, #f6a623 16%, var(--bg-card)); }
 .fun-week-days li.is-today { box-shadow: inset 0 0 0 2px #f6a623; }
 
-/* ==================== a tool open: the sidebar ==================== */
-.fun-split { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: var(--sp-6); align-items: start; }
-.fun-side { position: sticky; top: calc(var(--header-h) + var(--sp-5)); display: flex; flex-direction: column; gap: 4px; }
-.fun-side-home {
-    display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; margin-bottom: 6px;
-    border-radius: var(--ctl-r); color: var(--text-secondary); font-size: 13px; font-weight: 700; text-decoration: none; transition: var(--t-ui);
-}
-.fun-side-home:hover { background: var(--bg-panel); color: var(--text-primary); }
-.fun-side-item {
-    position: relative; overflow: hidden;
-    display: flex; align-items: center; gap: 10px; padding: 8px;
-    border-radius: var(--panel-r); color: var(--text-primary); text-decoration: none; transition: var(--t-ui);
-}
-.fun-side-item .fun-block-icon { width: 36px; height: 36px; border-radius: 10px; }
-.fun-side-item:hover { background: var(--bg-panel); }
-.fun-side-item.is-active { background: var(--accent-soft); }
-.fun-side-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.fun-side-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.fun-side-text strong { font-size: 14px; font-weight: 700; }
-.fun-side-text small { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.fun-tool { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-5); animation: fun-tool-in .45s var(--ease-out) .12s both; }
-@keyframes fun-tool-in { from { opacity: 0; transform: translateY(10px); } }
-
-/* the tier maker tool */
+/* ---- the tier maker ---- */
+.fun-tier { display: flex; flex-direction: column; gap: var(--sp-5); }
 .fun-tier-new {
     display: flex; align-items: center; gap: var(--sp-4); width: 100%; padding: var(--sp-4) var(--sp-5);
     border: 0; border-radius: var(--panel-r); background: var(--bg-panel); color: var(--text-primary);
@@ -119,13 +116,12 @@
 .fun-tier-saved h2 { font-size: 17px; font-weight: 800; margin-bottom: 4px; }
 .fun-tier-empty { margin: 0; color: var(--text-secondary); font-size: 14px; }
 
-/* ---- signed out, the shop, battles: one centred message ---- */
+/* ---- signed out: one centred message ---- */
 .fun-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: var(--sp-7) var(--sp-4); text-align: center; }
 .fun-empty h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
 .fun-empty p { max-width: 46ch; font-size: 14px; line-height: 1.55; color: var(--text-secondary); }
 .fun-empty .btn { margin-top: 6px; }
 .fun-empty-coin { animation: fun-bob 3.2s ease-in-out infinite; }
-.fun-battle-icon { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 50%; background: var(--bg-panel); color: var(--text-secondary); }
 
 /* ==================== the streak ==================== */
 .fun-streak { display: flex; flex-direction: column; gap: var(--sp-5); }
@@ -138,17 +134,7 @@
     background: color-mix(in srgb, #f6a623 7%, var(--bg-card));
     overflow: hidden;
 }
-/* a warm light that grows with the streak */
-.streak-hero::before {
-    content: ""; position: absolute; left: -60px; top: 50%; width: 280px; height: 280px; translate: 0 -50%;
-    border-radius: 50%; background: radial-gradient(circle, rgba(249, 115, 22, var(--glow, .1)) 0, transparent 65%);
-    pointer-events: none;
-}
-.streak-hero.heat-0 { --glow: 0; background: var(--bg-panel); }
-.streak-hero.heat-2 { --glow: .16; }
-.streak-hero.heat-3 { --glow: .22; }
-.streak-hero.heat-4 { --glow: .28; }
-.streak-hero.heat-5 { --glow: .36; }
+.streak-hero.heat-0 { background: var(--bg-panel); }
 .streak-hero-text { position: relative; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
 .streak-count { display: flex; align-items: baseline; gap: 8px; }
 .streak-count strong { font-size: 48px; font-weight: 900; line-height: 1; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
@@ -160,6 +146,7 @@
 
 /* the collect button: it breathes and a light runs across it while the reward waits */
 .streak-collect { position: relative; overflow: hidden; height: 44px; padding: 0 20px; font-size: 14px; gap: 8px; }
+.fun-tile-btn.streak-collect { height: 40px; }
 .is-ready .streak-collect:not(:disabled) { animation: fun-breathe 2.4s ease-in-out infinite; }
 .is-ready .streak-collect:not(:disabled)::after {
     content: ""; position: absolute; inset: 0;
@@ -170,24 +157,32 @@
 @keyframes fun-sweep { 0%, 40% { background-position: 160% 0; } 100% { background-position: -60% 0; } }
 @keyframes fun-bob { 0%, 100% { transform: translateY(0) rotate(-4deg); } 50% { transform: translateY(-6px) rotate(4deg); } }
 
-/* the flame: colder grey at 0, taller and brighter at each step */
-.streak-flame { position: relative; flex: 0 0 auto; width: 96px; height: 112px; display: grid; place-items: end center; }
-.streak-flame svg { width: 100%; height: 100%; overflow: visible; transform-origin: 50% 90%; transition: transform .6s var(--ease-out); }
-.streak-flame .fl-outer { fill: #f97316; transform-origin: 50% 95%; animation: fl-flicker 1.6s ease-in-out infinite; }
-.streak-flame .fl-mid { fill: #fbbf24; transform-origin: 50% 95%; animation: fl-flicker 1.2s ease-in-out infinite reverse; }
-.streak-flame .fl-core { fill: #fff3c4; transform-origin: 50% 95%; animation: fl-flicker .9s ease-in-out infinite; }
-.streak-flame .fl-glow { fill: rgba(249, 115, 22, .25); }
-.streak-flame.lvl-0 svg { transform: scale(.72); filter: grayscale(1); opacity: .35; }
-.streak-flame.lvl-0 path { animation: none; }
-.streak-flame.lvl-1 svg { transform: scale(.78); }
-.streak-flame.lvl-2 svg { transform: scale(.88); }
-.streak-flame.lvl-3 svg { transform: scale(.96); }
-.streak-flame.lvl-4 svg { transform: scale(1.04); }
-.streak-flame.lvl-5 svg { transform: scale(1.12); }
-.streak-flame.lvl-4 .fl-outer, .streak-flame.lvl-5 .fl-outer { fill: #ef4444; }
-.streak-flame.lvl-5 .fl-mid { fill: #f97316; }
-.streak-flame.lvl-5 .fl-core { fill: #fde68a; }
-@keyframes fl-flicker { 0%, 100% { transform: scale(1, 1) skewX(0); } 33% { transform: scale(.97, 1.04) skewX(-2deg); } 66% { transform: scale(1.02, .97) skewX(2deg); } }
+/* ---- the fire (StreakFire.tsx): the owner's animation, bigger and hotter with the streak ---- */
+.fire { position: relative; flex: 0 0 auto; width: var(--fire-size); height: calc(var(--fire-size) * 1.2); }
+.fire-main, .fire-side { position: absolute; bottom: 0; left: 50%; pointer-events: none; }
+.fire-main { width: 100%; height: 100%; translate: -50% 0; transform-origin: 50% 100%; transition: transform .6s var(--ease-out), filter .6s ease; }
+.fire-main svg, .fire-side svg { display: block; }
+.fire-lvl-0 .fire-main { transform: scale(.7); filter: grayscale(1); opacity: .35; }
+.fire-lvl-1 .fire-main { transform: scale(.72); }
+.fire-lvl-2 .fire-main { transform: scale(.84); }
+.fire-lvl-3 .fire-main { transform: scale(.94); filter: hue-rotate(-14deg) saturate(1.25); }
+.fire-lvl-4 .fire-main { transform: scale(1); filter: hue-rotate(-70deg) saturate(1.3); }
+.fire-lvl-5 .fire-main { transform: scale(1.06); filter: hue-rotate(-160deg) saturate(1.4) brightness(1.08); }
+/* two smaller flames lean out from behind at 21 days and up */
+.fire-side { width: 62%; height: 62%; opacity: .9; }
+.fire-side.is-left { translate: -100% 0; rotate: -14deg; transform-origin: 100% 100%; }
+.fire-side.is-right { rotate: 14deg; transform-origin: 0 100%; }
+.fire-lvl-4 .fire-side { filter: hue-rotate(-70deg) saturate(1.3); }
+.fire-lvl-5 .fire-side { filter: hue-rotate(-160deg) saturate(1.4); }
+/* a glow under it from 14 days, wider and blue at 30 */
+.fire-glow { position: absolute; left: 50%; bottom: 4%; width: 110%; height: 34%; translate: -50% 0; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 120, 30, .45), transparent); animation: fire-pulse 1.8s ease-in-out infinite; }
+.fire-lvl-4 .fire-glow { background: radial-gradient(closest-side, rgba(168, 85, 247, .45), transparent); }
+.fire-lvl-5 .fire-glow { width: 140%; height: 60%; background: radial-gradient(closest-side, rgba(59, 130, 246, .5), transparent); }
+@keyframes fire-pulse { 50% { opacity: .65; scale: 1.08; } }
+/* embers rising at 30 days */
+.fire-embers { position: absolute; inset: 0; pointer-events: none; }
+.fire-embers i { position: absolute; bottom: 20%; left: calc(22% + var(--i) * 9%); width: 4px; height: 4px; border-radius: 50%; background: #9cc8ff; box-shadow: 0 0 6px #60a5fa; opacity: 0; animation: fire-ember 2.2s ease-out infinite; animation-delay: calc(var(--i) * .31s); }
+@keyframes fire-ember { 0% { opacity: 0; transform: translateY(0); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(calc(var(--fire-size) * -1)) translateX(6px); } }
 
 /* ---- the cycle bar: 30 days, the bonus days marked ---- */
 .streak-track { display: flex; flex-direction: column; gap: 14px; }
@@ -196,64 +191,52 @@
 .streak-track-count { font-weight: 800; color: var(--text-primary); font-variant-numeric: tabular-nums; }
 .streak-bar { position: relative; height: 8px; margin: 0 11px 10px; border-radius: 999px; background: var(--bg-panel); }
 .streak-bar-fill { position: absolute; inset: 0 auto 0 0; width: var(--fill); border-radius: inherit; background: linear-gradient(90deg, #f97316, #fbbf24); transition: width .9s var(--ease-out); }
-.streak-mark {
-    position: absolute; top: 50%; translate: -50% -50%;
-    display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%;
-    background: var(--bg-card); box-shadow: 0 0 0 2px var(--bg-panel);
-    filter: grayscale(.8); opacity: .7; transition: filter .3s ease, opacity .3s ease;
-}
-.streak-mark.is-reached { filter: none; opacity: 1; box-shadow: 0 0 0 2px #fbbf24; }
+.streak-mark { position: absolute; top: 50%; translate: -50% -50%; display: grid; place-items: center; filter: grayscale(.8); opacity: .6; transition: filter .3s ease, opacity .3s ease; }
+.streak-mark.is-reached { filter: none; opacity: 1; }
 
 /* ---- the shop ---- */
 .fun-shop-hero { display: flex; align-items: center; gap: var(--sp-6); padding: var(--sp-6); border-radius: var(--panel-r); background: var(--bg-panel); }
 .fun-shop-hero h2 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; }
 .fun-shop-hero p { margin: 6px 0 14px; font-size: 14px; line-height: 1.55; color: var(--text-secondary); max-width: 48ch; }
 .fun-shop-hero .btn { display: inline-flex; align-items: center; gap: 8px; }
-.fun-shop-coupon { flex: 0 0 auto; animation: fun-bob 3.6s ease-in-out infinite; }
+.fun-shop-art { flex: 0 0 auto; animation: fun-bob 3.6s ease-in-out infinite; }
 
-/* ---- the tier maker ---- */
-.fun-tier { display: flex; flex-direction: column; gap: var(--sp-5); }
-
-@media (max-width: 760px) {
-    .fun-head .fun-balance { height: 36px; font-size: 15px; }
-    .streak-hero { flex-direction: column; align-items: flex-start; gap: 6px; padding: var(--sp-4); }
-    .streak-flame { width: 72px; height: 84px; }
-    .streak-count strong { font-size: 40px; }
-    .streak-actions .btn { flex: 1 1 auto; justify-content: center; }
-    .streak-collect { width: 100%; }
-    .fun-shop-hero { flex-direction: column; text-align: center; padding: var(--sp-5) var(--sp-4); }
-    .fun-shop-hero .btn { width: 100%; justify-content: center; }
-    /* the sidebar becomes a row of chips above the tool, that scrolls sideways */
-    .fun-split { grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); }
-    .fun-side { position: static; flex-direction: row; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 calc(var(--sp-4) * -1); padding: 0 var(--sp-4) 2px; }
-    .fun-side-home { flex: 0 0 auto; margin: 0; padding: 0 12px; height: 44px; background: var(--bg-panel); border-radius: 999px; }
-    .fun-side-home span { display: none; }
-    .fun-side-item { flex: 0 0 auto; padding: 4px 14px 4px 4px; border-radius: 999px; background: var(--bg-panel); }
-    .fun-side-item .fun-block-icon { width: 36px; height: 36px; border-radius: 50%; }
-    .fun-side-text small { display: none; }
-    .fun-streak-mini .streak-flame { width: 84px; height: 100px; }
-    .fun-streak-mini-count { font-size: 30px !important; }
-    .fun-tile { padding: var(--sp-4); }
-    .fun-tile-art { width: 64px; height: 64px; }
-}
 /* a narrower window: the grid in two columns */
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
     .fun-bento {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         grid-auto-rows: minmax(132px, auto);
         grid-template-areas: "streak streak" "shop shop" "tier battle" "week week" "soon soon";
     }
     .fun-week-days { gap: 4px; }
-    .fun-week-days small { font-size: 9.5px; }
+}
+@media (max-width: 760px) {
+    .fun-head .fun-balance { height: 36px; font-size: 15px; }
+    /* the sidebar becomes a row of chips above the main area, that scrolls sideways */
+    .fun-split { grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); }
+    .fun-side { position: static; flex-direction: row; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 calc(var(--sp-4) * -1); padding: 0 var(--sp-4) 2px; }
+    .fun-side-item { flex: 1 0 auto; width: auto; justify-content: center; gap: 8px; padding: 0 14px; height: 38px; border-radius: 999px; background: var(--bg-panel); }
+    .fun-side-text { flex: 0 0 auto; }
+    .fun-side-text small { display: none; }
+    .fun-side-item .fun-ping { position: absolute; top: 6px; right: 8px; }
+    .streak-hero { flex-direction: column; align-items: flex-start; gap: 6px; padding: var(--sp-4); }
+    .streak-count strong { font-size: 40px; }
+    .streak-actions .btn { flex: 1 1 auto; justify-content: center; }
+    .streak-collect { width: 100%; }
+    .fun-tile { padding: var(--sp-4); }
+    .fun-tile-art { width: 64px; height: 64px; }
+    .fun-streak-mini-count { font-size: 30px !important; }
+    .fun-week-days small { font-size: 10px; }
+    .fun-shop-hero { flex-direction: column; text-align: center; padding: var(--sp-5) var(--sp-4); }
+    .fun-shop-hero .btn { width: 100%; justify-content: center; }
 }
 
-/* reduced motion: the flame and the button hold still */
-.reduce-motion .streak-flame path, .reduce-motion .is-ready .streak-collect, .reduce-motion .is-ready .streak-collect::after,
-.reduce-motion .fun-empty-coin, .reduce-motion .fun-shop-coupon { animation: none !important; }
+/* reduced motion: the fire holds one frame (StreakFire.tsx), the rest hold still */
+.reduce-motion :is(.is-ready .streak-collect, .is-ready .streak-collect::after, .fun-empty-coin, .fun-shop-art, .fun-tile-art, .fire-glow, .fire-embers i) { animation: none !important; }
 @media (prefers-reduced-motion: reduce) {
-    .streak-flame path, .is-ready .streak-collect, .is-ready .streak-collect::after, .fun-empty-coin, .fun-shop-coupon { animation: none !important; }
+    :is(.is-ready .streak-collect, .is-ready .streak-collect::after, .fun-empty-coin, .fun-shop-art, .fun-tile-art, .fire-glow, .fire-embers i) { animation: none !important; }
 }
-.low-end .streak-flame path, .low-end .is-ready .streak-collect::after { animation: none; }
+.low-end :is(.is-ready .streak-collect::after, .fire-embers i) { animation: none; }
 
 /* ---- the preview panel (dev server only, js/app/shell/MockPanel.tsx) ---- */
 .mock-panel, .mock-chip { position: fixed; right: 16px; top: calc(var(--header-h) + 12px); z-index: 20500; font-family: var(--font-sans); }
@@ -262,12 +245,12 @@
 .mock-panel header { display: flex; align-items: center; justify-content: space-between; }
 .mock-panel header strong { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
 .mock-panel p { margin: 6px 0 4px; font-size: 12px; line-height: 1.45; color: var(--text-secondary); }
-.mock-panel h4 { margin: 12px 0 6px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.mock-panel h4 { margin: 12px 0 6px; font-size: 12px; font-weight: 800; color: var(--text-secondary); }
 .mock-grid, .mock-links { display: grid; grid-template-columns: 1fr; gap: 4px; }
 .mock-row { display: flex; flex-wrap: wrap; gap: 4px; }
 .mock-panel button:not(.mock-x) { min-height: 30px; padding: 4px 10px; border: 0; border-radius: var(--ctl-r); background: var(--bg-panel); color: var(--text-primary); font: 600 12px var(--font-sans); text-align: left; cursor: pointer; }
 .mock-panel button:not(.mock-x):hover { background: var(--accent-soft); }
 .mock-panel button.is-on { background: var(--accent); color: #fff; }
-.mock-x { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--bg-panel); color: var(--text-secondary); cursor: pointer; }
+.mock-x { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 50%; background: transparent; color: var(--text-secondary); cursor: pointer; }
 .mock-leave { display: block; margin-top: 12px; font-size: 12px; color: var(--danger); }
 @media (max-width: 760px) { .mock-panel { right: 8px; left: 8px; width: auto; max-height: 50dvh; } .mock-chip { right: 8px; } }

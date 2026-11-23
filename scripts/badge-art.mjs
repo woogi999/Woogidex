@@ -92,7 +92,5 @@ const BADGES = [
 ];
 for (const [name, shape, color, glyph, opts] of BADGES) writeFileSync(join(out, 'badges', `${name}.svg`), emblem(name, shape, color, glyph, opts));
 
-// the Woobux coin and the coupon: scripts/coin-art.mjs
-// a save pass: a ticket on a blue coin
-writeFileSync(join(out, 'save-pass.svg'), emblem('savepass', 'circle', '#3b82f6', 'ticket'));
-console.log('written', BADGES.length + 1);
+// the Woobux coin, the save pass and the shop cart: scripts/coin-art.mjs
+console.log('written', BADGES.length);

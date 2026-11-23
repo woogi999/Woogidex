@@ -1,80 +1,55 @@
 // /fun: the Fun tab, where the playful parts of the site live together.
-//   /fun                 a bento grid of tools and widgets
+// A sidebar is always there; the main area shows:
+//   /fun                 the main menu: a bento grid of tools and widgets
 //   /fun/streak          the daily login streak and today's Woobux
 //   /fun/shop            the Woobux shop (not open yet)
 //   /fun/tier-maker      the tier maker's saved lists (the editor: /fun/tier-maker/edit)
-//   /fun/battle          the battle simulator (paused)
-// A click on a block turns the grid into a sidebar: the blocks move into the
-// sidebar's rows (GSAP Flip, matched by data-flip-id) and the tool opens
-// beside it. "All of Fun" turns it back. The Fun tab in the header pings
-// while today's reward waits (funPing in js/features/woobux.ts), and so do
-// the Streak block and row. Collecting plays the coin burst
+// Battle is paused: its row and block open the "taking a break" window
+// (api.openBattle) instead of a page. The Fun tab in the header pings while
+// today's reward waits (funPing in js/features/woobux.ts), and so do the
+// Streak block and row. Collecting plays the coin burst
 // (js/app/components/coinBurst.ts). CSS: css/fun.css.
 
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { gsap } from 'gsap';
-import { Flip } from 'gsap/Flip';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../../core/app.ts';
 import { Icon } from '../components/Icon.tsx';
 import { Link } from '../components/Link.tsx';
 import { useStore } from '../store.ts';
 import { useRoute } from '../hooks.ts';
-import { countUp, reducedMotion } from '../../core/motion.ts';
+import { countUp } from '../../core/motion.ts';
 import { coinBurst } from '../components/coinBurst.ts';
-import { Calendar, CouponIcon, SavePassIcon, WoobuxIcon } from '../dialogs/woobux.tsx';
+import { StreakFire, fireLevel } from '../components/fire/StreakFire.tsx';
+import { Calendar, SavePassIcon, ShopIcon, WoobuxIcon } from '../dialogs/woobux.tsx';
 import { openTierMaker } from '../dialogs/tierMaker.tsx';
 import { deleteTierList, newTierList, savedTierLists } from '../../features/tier-lists.ts';
 import { CYCLE, claimDaily, cycleDay, dayReward, funPing, refreshWoobux, woobux, woobuxOn, type WoobuxState } from '../../features/woobux.ts';
 
-gsap.registerPlugin(Flip);
-
-export type FunTool = 'streak' | 'shop' | 'tier-maker' | 'battle';
+export type FunTool = 'streak' | 'shop' | 'tier-maker';
 const TOOLS: Array<[FunTool, string, string]> = [
     ['streak', 'Streak', 'fire'],
-    ['shop', 'Shop', 'shopping-bag'],
-    ['tier-maker', 'Tier maker', 'trophy'],
-    ['battle', 'Battle', 'swords']
+    ['shop', 'Shop', 'shopping-cart'],
+    ['tier-maker', 'Tier maker', 'trophy']
 ];
 const KEYS = TOOLS.map(([k]) => k);
 
-/** The open tool the address names (/fun/<tool>), or null for the grid. */
+/** The open tool the address names (/fun/<tool>), or null for the main menu. */
 export function funToolFrom(param: string): FunTool | null {
     const t = String(param || '').split('/')[0] as FunTool;
     return KEYS.includes(t) ? t : null;
 }
 
+const openBattle = () => api.openBattle?.();
+
 export function FunPage() {
     useStore();
     const route = useRoute();
     const tool = route.name === 'fun' ? funToolFrom(route.param) : null;
-    const open = tool !== null;
-    const root = useRef<HTMLDivElement>(null);
-    const before = useRef<Flip.FlipState | null>(null);
-    const wasOpen = useRef(open);
-
-    // the blocks' places just before a click changes the layout
-    const capture = () => {
-        if (root.current) before.current = Flip.getState(root.current.querySelectorAll('[data-flip-id]'));
-    };
-    // ...and the move from there to their new places (grid <-> sidebar)
-    useLayoutEffect(() => {
-        const state = before.current;
-        before.current = null;
-        const changed = wasOpen.current !== open;
-        wasOpen.current = open;
-        if (!changed || !state || !root.current || reducedMotion()) return;
-        const tl = Flip.from(state, {
-            targets: root.current.querySelectorAll('[data-flip-id]'),
-            duration: 0.55, ease: 'power3.inOut', absolute: true, nested: true,
-            onEnter: els => gsap.fromTo(els, { opacity: 0, scale: 0.94 }, { opacity: 1, scale: 1, duration: 0.35, delay: 0.2 })
-        });
-        return () => { tl.progress(1).kill(); };
-    }, [open]);
-
     useEffect(() => { if (woobuxOn() && !woobux()) refreshWoobux(); }, []);
+    // an old /fun/battle address: the window, over the main menu
+    useEffect(() => { if (route.name === 'fun' && String(route.param || '').startsWith('battle')) openBattle(); }, [route.param]);
 
     return (
-        <div className={`fun-page${open ? ' is-open' : ' is-home'}`} ref={root} onClickCapture={capture}>
+        <div className="fun-page">
             <header className="page-header fun-head">
                 <div className="page-heading">
                     <h1 className="page-title">Fun</h1>
@@ -82,27 +57,32 @@ export function FunPage() {
                 </div>
                 <BalanceChip />
             </header>
-            {open ? (
-                <div className="fun-split">
-                    <nav className="fun-side" aria-label="Fun">
-                        <Link to="fun" className="fun-side-home"><Icon name="squares-2x2" size={16} /><span>All of Fun</span></Link>
-                        {TOOLS.map(([key, label, icon]) => (
-                            <Link key={key} to={`fun/${key}`} data-flip-id={key} className={`fun-block fun-side-item${tool === key ? ' is-active' : ''}`}
-                                aria-current={tool === key ? 'page' : undefined}>
-                                <span className={`fun-block-icon is-${key}`}><Icon name={icon} size={18} /></span>
-                                <span className="fun-side-text"><strong>{label}</strong><small>{sideNote(key)}</small></span>
-                                {key === 'streak' && funPing() && <span className="fun-ping" aria-label="Today’s reward is waiting" />}
-                            </Link>
-                        ))}
-                    </nav>
-                    <section className="fun-tool" key={tool} aria-label={TOOLS.find(t => t[0] === tool)?.[1]}>
-                        {tool === 'streak' && <StreakPanel />}
-                        {tool === 'shop' && <ShopPanel />}
-                        {tool === 'tier-maker' && <TierPanel />}
-                        {tool === 'battle' && <BattlePanel />}
-                    </section>
-                </div>
-            ) : <Bento />}
+            <div className="fun-split">
+                <nav className="fun-side" aria-label="Fun">
+                    <Link to="fun" className={`fun-side-item${tool === null ? ' is-active' : ''}`} aria-current={tool === null ? 'page' : undefined}>
+                        <span className="fun-side-icon"><Icon name="squares-2x2" size={20} /></span>
+                        <span className="fun-side-text"><strong>Home</strong><small>Everything in Fun</small></span>
+                    </Link>
+                    {TOOLS.map(([key, label, icon]) => (
+                        <Link key={key} to={`fun/${key}`} className={`fun-side-item${tool === key ? ' is-active' : ''}`}
+                            aria-current={tool === key ? 'page' : undefined}>
+                            <span className={`fun-side-icon is-${key}`}><Icon name={icon} size={20} /></span>
+                            <span className="fun-side-text"><strong>{label}</strong><small>{sideNote(key)}</small></span>
+                            {key === 'streak' && funPing() && <span className="fun-ping" aria-label="Today’s reward is waiting" />}
+                        </Link>
+                    ))}
+                    <button type="button" className="fun-side-item" onClick={openBattle} aria-haspopup="dialog">
+                        <span className="fun-side-icon is-battle"><Icon name="swords" size={20} /></span>
+                        <span className="fun-side-text"><strong>Battle</strong><small>Taking a break</small></span>
+                    </button>
+                </nav>
+                <section className="fun-main" key={tool || 'home'} aria-label={tool ? TOOLS.find(t => t[0] === tool)?.[1] : 'Fun'}>
+                    {tool === null && <Bento />}
+                    {tool === 'streak' && <StreakPanel />}
+                    {tool === 'shop' && <ShopPanel />}
+                    {tool === 'tier-maker' && <TierPanel />}
+                </section>
+            </div>
         </div>
     );
 }
@@ -112,8 +92,8 @@ function sideNote(key: FunTool): string {
     const w = woobux();
     if (key === 'streak') return w ? (w.streak.claimed_today ? `${w.streak.current} days · collected` : 'Reward ready') : 'Daily Woobux';
     if (key === 'shop') return w ? `${w.balance.toLocaleString()} Woobux` : 'Opens soon';
-    if (key === 'tier-maker') { const n = savedTierLists().length; return n ? `${n} saved list${n === 1 ? '' : 's'}` : 'Rank anything'; }
-    return 'Paused';
+    const n = savedTierLists().length;
+    return n ? `${n} saved list${n === 1 ? '' : 's'}` : 'Rank anything';
 }
 
 /** Your balance, top right. Signed out: nothing. */
@@ -128,7 +108,7 @@ function BalanceChip() {
     );
 }
 
-// ==================== the grid ====================
+// ==================== the main menu ====================
 // Each block is a "stretched link" (the whole block opens its tool) with
 // its own buttons above it, so a widget's button (Collect) works in place.
 
@@ -137,33 +117,32 @@ function Bento() {
     const lists = savedTierLists().length;
     return (
         <div className="fun-bento">
-            <div className="fun-block fun-tile is-streak" data-flip-id="streak">
+            <div className="fun-tile is-streak">
                 <Link to="fun/streak" className="fun-tile-link" aria-label="Open the streak" />
                 <StreakWidget w={w} />
             </div>
 
-            <div className="fun-block fun-tile is-shop" data-flip-id="shop">
+            <div className="fun-tile is-shop">
                 <Link to="fun/shop" className="fun-tile-link" aria-label="Open the shop" />
-                <CouponIcon size={84} className="fun-tile-art" />
+                <ShopIcon size={84} className="fun-tile-art" />
                 <div className="fun-tile-text">
-                    <span className="fun-tile-kicker">Shop</span>
-                    <strong>Spend your Woobux</strong>
-                    <small>{w ? <>You have <b>{w.balance.toLocaleString()}</b>. The shop opens soon.</> : 'The shop opens soon.'}</small>
+                    <strong>Shop</strong>
+                    <small>{w ? <>You have <b>{w.balance.toLocaleString()}</b> Woobux. The shop opens soon.</> : 'The shop opens soon.'}</small>
                 </div>
             </div>
 
-            <div className="fun-block fun-tile is-tier" data-flip-id="tier-maker">
+            <div className="fun-tile is-tier">
                 <Link to="fun/tier-maker" className="fun-tile-link" aria-label="Open the tier maker" />
-                <span className="fun-block-icon is-tier-maker"><Icon name="trophy" size={22} /></span>
+                <Icon name="trophy" size={28} className="fun-tile-icon is-tier-maker" />
                 <div className="fun-tile-text">
                     <strong>Tier maker</strong>
                     <small>{lists ? `${lists} saved list${lists === 1 ? '' : 's'}` : 'Rank anything'}</small>
                 </div>
             </div>
 
-            <div className="fun-block fun-tile is-battle" data-flip-id="battle">
-                <Link to="fun/battle" className="fun-tile-link" aria-label="Open battles" />
-                <span className="fun-block-icon is-battle"><Icon name="swords" size={22} /></span>
+            <div className="fun-tile is-battle">
+                <button type="button" className="fun-tile-link" aria-label="Battle: taking a break" aria-haspopup="dialog" onClick={openBattle} />
+                <Icon name="swords" size={28} className="fun-tile-icon is-battle" />
                 <div className="fun-tile-text">
                     <strong>Battle</strong>
                     <small>Taking a break</small>
@@ -176,10 +155,10 @@ function Bento() {
             </div>
 
             <div className="fun-tile is-soon">
-                <span className="fun-block-icon"><Icon name="sparkles" size={20} /></span>
+                <Icon name="sparkles" size={26} className="fun-tile-icon" />
                 <div className="fun-tile-text">
                     <strong>More soon</strong>
-                    <small>Tell me what you want next in <Link to="settings/about" className="fun-tile-inline">feedback</Link>.</small>
+                    <small>Tell me what you want next in <button type="button" className="fun-tile-inline" onClick={() => api.openFeedbackModal?.()}>feedback</button>.</small>
                 </div>
             </div>
         </div>
@@ -191,9 +170,8 @@ function StreakWidget({ w }: { w: WoobuxState | null }) {
     if (!woobuxOn()) {
         return (
             <div className="fun-streak-mini">
-                <Flame level={0} />
+                <StreakFire days={0} size={110} />
                 <div className="fun-tile-text">
-                    <span className="fun-tile-kicker">Login streak</span>
                     <strong>Woobux every day</strong>
                     <small>Sign in and come back daily. The reward grows each day you keep it going.</small>
                     <button type="button" className="btn btn-primary fun-tile-btn" onClick={() => api.openAuthModal?.('signin')}>Sign in</button>
@@ -209,11 +187,10 @@ function StreakMini({ w }: { w: WoobuxState }) {
     const m = useStreak(w);
     const btn = useRef<HTMLButtonElement>(null);
     return (
-        <div className={`fun-streak-mini heat-${heat(m.days)}${m.claimed ? ' is-claimed' : ' is-ready'}`}>
-            <Flame level={heat(m.days)} />
+        <div className={`fun-streak-mini heat-${fireLevel(m.days)}${m.claimed ? ' is-claimed' : ' is-ready'}`}>
+            <StreakFire days={m.days} size={120} />
             <div className="fun-tile-text">
-                <span className="fun-tile-kicker">Login streak {funPing() && <span className="fun-ping" aria-label="Today’s reward is waiting" />}</span>
-                <strong className="fun-streak-mini-count">{m.days} day{m.days === 1 ? '' : 's'}</strong>
+                <strong className="fun-streak-mini-count">{m.days} day{m.days === 1 ? '' : 's'} {funPing() && <span className="fun-ping" aria-label="Today’s reward is waiting" />}</strong>
                 <small>{m.claimed ? <>Collected. Next reward in <b>{untilNextDay()}</b>.</> : m.breaking ? `You missed ${m.s.missed} day${m.s.missed > 1 ? 's' : ''}. Open it to choose.` : `Day ${m.freshDay} of ${CYCLE} is ready.`}</small>
                 {!m.claimed && !m.breaking && (
                     <button ref={btn} type="button" className="btn btn-primary fun-tile-btn streak-collect" disabled={m.busy} onClick={() => m.collect(false, btn.current)}>
@@ -233,7 +210,7 @@ function WeekWidget({ w }: { w: WoobuxState | null }) {
     const start = !s ? 1 : s.claimed_today ? cycleDay(s.current + 1) : s.missed > 0 ? 1 : cycleDay(s.current + 1);
     return (
         <div className="fun-week">
-            <span className="fun-tile-kicker">{s?.claimed_today ? 'Coming up' : 'This week'}</span>
+            <strong className="fun-week-title">{s?.claimed_today ? 'Coming up' : 'This week'}</strong>
             <ol className="fun-week-days">
                 {Array.from({ length: 7 }, (_, i) => {
                     const d = ((start - 1 + i) % CYCLE) + 1;
@@ -265,9 +242,6 @@ function SignedOut({ what }: { what: string }) {
 // ==================== the streak ====================
 
 const MILESTONES = [7, 14, 21, 30];
-
-/** How hot the flame burns: a step for each part of the cycle. */
-const heat = (days: number) => (days <= 0 ? 0 : days < 7 ? 1 : days < 14 ? 2 : days < 21 ? 3 : days < 30 ? 4 : 5);
 
 /** Time left until the next day starts (12:00 am Philippine time, UTC+8). */
 function untilNextDay(): string {
@@ -333,8 +307,8 @@ function Streak({ w }: { w: WoobuxState }) {
 
     return (
         <div className="fun-streak">
-            <section className={`streak-hero heat-${heat(days)}${claimed ? ' is-claimed' : ' is-ready'}`} ref={hero}>
-                <Flame level={heat(days)} />
+            <section className={`streak-hero heat-${fireLevel(days)}${claimed ? ' is-claimed' : ' is-ready'}`} ref={hero}>
+                <StreakFire days={days} size={150} />
                 <div className="streak-hero-text">
                     <p className="streak-count"><strong data-count={days}>{days}</strong><span>day{days === 1 ? '' : 's'} in a row</span></p>
                     <p className="streak-line">
@@ -389,25 +363,10 @@ function Streak({ w }: { w: WoobuxState }) {
             </dl>
 
             <Calendar key={`${calCount}-${claimed}-${mult}`} count={calCount} claimedToday={claimed} multiplier={mult} />
-            <p className="wbx-note">A new day starts at 12:00 am Philippine time. Days 7, 14, 21 and 30 pay a bonus and give save passes (you hold up to 5). A save pass covers one missed day.{mult > 1 ? ` Your role multiplies every reward by ${mult}.` : ''}</p>
+            {mult > 1 && <p className="wbx-note">Your role multiplies every reward by {mult}.</p>}
         </div>
     );
 }
-
-/** The streak's flame: four layers, taller and brighter as the streak grows. */
-function Flame({ level }: { level: number }) {
-    return (
-        <div className={`streak-flame lvl-${level}`} aria-hidden="true">
-            <svg viewBox="0 0 64 80" width="64" height="80">
-                <path className="fl-outer" d="M32 2c4 12 18 20 22 36 4 17-6 36-22 38C14 78 4 62 8 45c2-9 8-13 9-22 7 6 7 13 7 13S27 20 32 2Z" />
-                <path className="fl-mid" d="M33 22c3 9 13 15 15 27 2 13-5 23-16 24-11 0-18-10-15-21 1-6 5-9 6-15 4 4 5 9 5 9s1-14 5-24Z" />
-                <path className="fl-core" d="M32 42c2 6 8 9 9 16 1 8-4 13-9 13s-10-5-9-12c1-6 5-8 6-13 1 2 2 4 2 4s0-4 1-8Z" />
-                <ellipse className="fl-glow" cx="32" cy="66" rx="14" ry="5" />
-            </svg>
-        </div>
-    );
-}
-
 // ==================== shop ====================
 
 function ShopPanel() {
@@ -417,7 +376,7 @@ function ShopPanel() {
     return (
         <div className="fun-shop">
             <div className="fun-shop-hero">
-                <CouponIcon size={120} className="fun-shop-coupon" />
+                <ShopIcon size={120} className="fun-shop-art" />
                 <div>
                     <h2>The shop is not open yet</h2>
                     <p>Keep collecting. Your Woobux stay safe until it opens{w ? <>, and you have <strong>{w.balance.toLocaleString()}</strong> so far</> : null}.</p>
@@ -436,7 +395,7 @@ function TierPanel() {
     return (
         <div className="fun-tier">
             <button type="button" className="fun-tier-new" onClick={() => openTierMaker(newTierList())}>
-                <span className="fun-block-icon is-tier-maker"><Icon name="plus" size={22} /></span>
+                <Icon name="plus" size={24} className="fun-tile-icon is-tier-maker" />
                 <span className="fun-tile-text"><strong>New tier list</strong><small>Rank anything: Fakémon, Pokémon, pictures, words. Pyramids, alignment charts, brackets and more.</small></span>
                 <Icon name="arrow-right" size={16} />
             </button>
@@ -456,14 +415,3 @@ function TierPanel() {
     );
 }
 
-// ==================== battle ====================
-
-function BattlePanel() {
-    return (
-        <div className="fun-empty fun-battle">
-            <span className="fun-battle-icon"><Icon name="swords" size={30} /></span>
-            <h2>Battles are taking a break</h2>
-            <p>The current battle simulator is too buggy to be fun, so it is switched off. A better one is being built from the ground up, and battles come back here when it is ready.</p>
-        </div>
-    );
-}

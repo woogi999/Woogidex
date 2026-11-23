@@ -13,7 +13,7 @@
 .groups-head p { margin-top: 2px; color: var(--text-secondary); font-size: 14px; }
 .groups-search { width: 100%; max-width: 420px; }
 .groups-section { display: flex; flex-direction: column; gap: var(--sp-2); }
-.groups-section h3 { font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.groups-section h3 { font-size: 13px; font-weight: 700; color: var(--text-muted); }
 .groups-rows { display: flex; flex-direction: column; }
 .groups-rows > * + * { border-top: 1px solid var(--border-light); }
 
@@ -68,7 +68,7 @@
 .groups-color:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 .groups-preview { position: sticky; top: calc(var(--header-h) + var(--sp-6)); display: flex; flex-direction: column; gap: var(--sp-2); }
-.groups-preview-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
+.groups-preview-label { font-size: 11px; font-weight: 700; color: var(--text-muted); }
 .group-cover.is-preview { height: 72px; }
 .group-preview-body { display: flex; flex-direction: column; gap: 4px; padding: 0 var(--sp-3); margin-top: -36px; }
 .group-preview-body .group-tile-lg { width: 64px; height: 64px; font-size: 28px; }
@@ -210,7 +210,7 @@
 .group-toolbox { display: flex; flex-direction: column; gap: var(--sp-3); }
 .group-apps { display: flex; flex-direction: column; gap: 8px; }
 .group-app { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; padding: 12px 14px; border-radius: var(--card-r); background: var(--bg-panel); }
-.group-app-icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: 10px; background: color-mix(in srgb, var(--group, var(--accent)) 16%, transparent); color: var(--group, var(--accent)); }
+.group-app-icon { display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: var(--group, var(--accent)); }
 .group-app-text { flex: 1 1 220px; display: flex; flex-direction: column; gap: 2px; }
 .group-app-text small { color: var(--text-secondary); }
 .group-app-new { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }

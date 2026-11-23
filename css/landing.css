@@ -241,8 +241,6 @@ body:not([data-page="landing-view"]) .lp-scroll { display: none; }
     place-items: center;
     width: 38px; height: 38px;
     color: var(--accent);
-    background: var(--accent-soft);
-    border-radius: var(--ctl-r);
 }
 .lp-step-text { display: flex; flex-direction: column; gap: 2px; }
 .lp-step-text strong { font-size: 15px; font-weight: 700; }

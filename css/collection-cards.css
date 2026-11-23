@@ -127,7 +127,7 @@
 @media (max-width: 640px) { .collection-grid:not(.collection-list) .library-emblem .item-icon-sheet { --item-icon-scale: 1.6; } }
 .collection-card .card-art .library-tile-corner {
     font-family: var(--font-sans); font-style: normal;
-    font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase;
+    font-size: 10.5px;
 }
 .library-tile .card-meta-row { gap: var(--sp-3); }
 .library-tile-desc {
@@ -357,7 +357,7 @@ body.card-dragging .region-row { transition: background-color var(--dur-fast) ea
 .dex-table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
 .dex-table thead th {
     position: sticky; top: 0; z-index: 1; padding: 7px 6px; text-align: left; white-space: nowrap;
-    background: var(--bg-panel); color: var(--text-muted); font: 700 10.5px var(--font-sans); letter-spacing: .05em; text-transform: uppercase;
+    background: var(--bg-panel); color: var(--text-muted); font: 700 10.5px var(--font-sans);
     border-bottom: 1px solid var(--border);
 }
 .dex-table thead th.col-stat { text-align: center; }

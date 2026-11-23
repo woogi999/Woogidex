@@ -37,7 +37,7 @@
 .profile-badge-option:hover { background:var(--bg-panel); border-color:var(--text-secondary); }
 .profile-badge-option:has(input:checked) { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-glow); }
 .profile-badge-option input { width:16px; height:16px; flex:0 0 auto; accent-color:var(--accent); }
-.profile-badge-option-icon { width:28px; height:28px; display:flex; align-items:center; justify-content:center; border-radius:5px; background:var(--bg-panel); flex:0 0 28px; }
+.profile-badge-option-icon { width:28px; height:28px; display:flex; align-items:center; justify-content:center; flex:0 0 28px; }
 .profile-badge-option-icon svg { width:17px; height:17px; }
 .profile-badge-option-copy { min-width:0; display:flex; flex-direction:column; gap:2px; }
 .profile-badge-option-copy strong { font-size:12px; }
@@ -280,7 +280,7 @@
 .biz-pinned { display: flex; flex-direction: column; border-bottom: 1px solid var(--border-light); }
 .biz-pin { display: flex; flex-direction: column; gap: 4px; padding: var(--sp-3) 0; }
 .biz-pin + .biz-pin { border-top: 1px solid var(--border-light); }
-.biz-pin-kicker { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.biz-pin-kicker { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; color: var(--text-muted); }
 .biz-pin-body { border: 0; background: none; padding: 0; color: var(--text-primary); font: inherit; font-size: 15px; line-height: 1.5; text-align: left; cursor: pointer; overflow-wrap: anywhere; white-space: pre-wrap; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; }
 .biz-pin-body:hover { color: var(--accent); }
 .biz-pin-meta { display: flex; align-items: center; gap: var(--sp-3); font-size: 12px; color: var(--text-muted); }
@@ -293,7 +293,7 @@
 .biz-loading { display: flex; justify-content: center; padding: 40px; color: var(--text-muted); }
 .biz-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-2); }
 .biz-tile { display: flex; flex-direction: column; gap: 2px; padding: var(--sp-3) var(--sp-4); border-radius: var(--card-r); background: var(--bg-panel); }
-.biz-tile span { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.biz-tile span { font-size: 11px; font-weight: 700; color: var(--text-muted); }
 .biz-tile strong { font-size: 24px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--text-primary); }
 .biz-section { margin-top: var(--sp-5); }
 .biz-section h3 { font-size: 15px; font-weight: 800; margin-bottom: var(--sp-2); }

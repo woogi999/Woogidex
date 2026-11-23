@@ -1,7 +1,9 @@
-// The Woobux "collect" moment, the way games do it: a handful of coins burst
-// out of the button you pressed, spin and glint for a beat, then fly with a
-// trail to your balance in the lower left corner, which appears for the
-// moment, bumps as each coin lands and counts up to the new total.
+// The Woobux "collect" moment, the way games do it: a thin ring of light
+// and a few star glints at the button you pressed, coins that pop out one
+// by one (each on its own timing), spin and glint, then fly to your balance
+// in the lower left corner. Each coin draws a white-gold trail that tapers
+// to a point behind it (one canvas for all trails). Where a coin lands, star
+// glints pop and the balance bumps and counts up to the new total.
 //
 // One layer over the page, nothing to click (pointer-events: none), removed
 // when it ends. Reduced motion and low-end devices skip the flight: the
@@ -12,8 +14,11 @@ import { reducedMotion } from '../../core/motion.ts';
 
 const COIN = 'assets/woobux.svg';
 let running: gsap.core.Timeline | null = null;
+/** Removes the last run's layer and ticker, if it is still going when a new one starts. */
+let cleanup: (() => void) | null = null;
+const R = gsap.utils.random;
 
-/** The balance chip in the lower left corner: made once, reused. */
+/** Your balance in the lower left corner: a coin and the number, no box. Made once, reused. */
 function bank(): { root: HTMLElement; coin: HTMLElement; num: HTMLElement } {
     let root = document.querySelector<HTMLElement>('.wbx-bank');
     if (!root) {
@@ -21,24 +26,70 @@ function bank(): { root: HTMLElement; coin: HTMLElement; num: HTMLElement } {
         root.className = 'wbx-bank';
         root.setAttribute('role', 'status');
         root.setAttribute('aria-live', 'polite');
-        root.innerHTML = `<span class="wbx-bank-coin"><img src="${COIN}" width="26" height="26" alt=""></span><span class="wbx-bank-text"><strong class="wbx-bank-num">0</strong><small>Woobux</small></span>`;
+        root.innerHTML = `<span class="wbx-bank-coin"><img src="${COIN}" width="34" height="34" alt=""></span><strong class="wbx-bank-num">0</strong><span class="wbx-sr">Woobux</span>`;
         document.body.appendChild(root);
     }
     return { root, coin: root.querySelector<HTMLElement>('.wbx-bank-coin')!, num: root.querySelector<HTMLElement>('.wbx-bank-num')! };
 }
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
+const centre = (el: Element) => { const r = el.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
+
+/** Small four-point stars that pop out from (x, y) and fade. */
+function glints(layer: HTMLElement, x: number, y: number, n: number, reach: [number, number], size: [number, number]) {
+    for (let k = 0; k < n; k++) {
+        const el = document.createElement('span');
+        el.className = 'wbx-star';
+        layer.appendChild(el);
+        const a = R(0, Math.PI * 2), d = R(reach[0], reach[1]), s = R(size[0], size[1]);
+        gsap.set(el, { x, y, xPercent: -50, yPercent: -50, width: s, height: s, scale: 0, rotation: R(-20, 20) });
+        gsap.timeline({ onComplete: () => el.remove() })
+            .to(el, { x: x + Math.cos(a) * d, y: y + Math.sin(a) * d, duration: R(0.35, 0.6), ease: 'power3.out' }, 0)
+            .to(el, { scale: 1, duration: 0.14, ease: 'power2.out' }, R(0, 0.08))
+            .to(el, { scale: 0, rotation: '+=45', duration: R(0.25, 0.4), ease: 'power2.in' }, '>-0.02');
+    }
+}
+
+/** A coin's recent places, for its trail. `live` while it flies; afterwards the trail shrinks away. */
+interface Trail { pts: Array<{ x: number; y: number }>; live: boolean; get: () => { x: number; y: number } }
+const TRAIL_LEN = 16;
+
+/** Draws every trail: a ribbon from the coin back along its path, wide and white at the coin, thin and gold at the tail. */
+function drawTrails(ctx: CanvasRenderingContext2D, trails: Trail[], width: number) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.lineCap = 'round';
+    // a warm edge, so the white head still reads on the light theme
+    ctx.shadowColor = 'rgba(214, 140, 20, .55)';
+    ctx.shadowBlur = 5;
+    for (const t of trails) {
+        if (t.live) { t.pts.push(t.get()); if (t.pts.length > TRAIL_LEN) t.pts.shift(); }
+        else if (t.pts.length) t.pts.shift();
+        const n = t.pts.length;
+        for (let i = 1; i < n; i++) {
+            const f = i / (n - 1 || 1);                 // 0 at the tail, 1 at the coin
+            ctx.lineWidth = Math.max(0.5, width * Math.pow(f, 1.4));
+            // gold at the tail turns to near-white at the coin
+            const g = Math.round(196 + 59 * f), b = Math.round(70 + 170 * f);
+            ctx.strokeStyle = `rgba(255, ${g}, ${b}, ${(0.15 + 0.85 * f).toFixed(3)})`;
+            ctx.beginPath();
+            ctx.moveTo(t.pts[i - 1].x, t.pts[i - 1].y);
+            ctx.lineTo(t.pts[i].x, t.pts[i].y);
+            ctx.stroke();
+        }
+    }
+}
 
 /**
  * Plays the collect animation from `from` (the button) and counts the
- * balance chip from `before` to `after`.
+ * balance from `before` to `after`.
  */
 export function coinBurst(from: Element | null, before: number, after: number) {
     running?.progress(1).kill();
+    cleanup?.();
+    cleanup = null;
     const { root, coin, num } = bank();
     const gained = Math.max(0, after - before);
     num.textContent = fmt(before);
-    const counter = { v: before };
     const quiet = reducedMotion() || document.documentElement.classList.contains('low-end') || !from;
 
     const tl = gsap.timeline({ onComplete: () => { running = null; } });
@@ -47,6 +98,7 @@ export function coinBurst(from: Element | null, before: number, after: number) {
         .fromTo(root, { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: quiet ? 0.2 : 0.35, ease: 'power3.out' });
 
     if (quiet) {
+        const counter = { v: before };
         tl.to(counter, { v: after, duration: 0.6, ease: 'power2.out', onUpdate: () => { num.textContent = fmt(counter.v); } })
             .to(root, { opacity: 0, duration: 0.3, delay: 1.4 })
             .set(root, { display: 'none' });
@@ -58,68 +110,69 @@ export function coinBurst(from: Element | null, before: number, after: number) {
     layer.setAttribute('aria-hidden', 'true');
     document.body.appendChild(layer);
 
-    const start = from!.getBoundingClientRect();
-    const sx = start.left + start.width / 2, sy = start.top + start.height / 2;
-    // the chip's coin, where each coin lands (read when the coin leaves, after the chip is placed)
-    const target = () => { const r = coin.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; };
+    // the trails' canvas, sharp on a high-density screen
+    const canvas = document.createElement('canvas');
+    canvas.className = 'wbx-trails';
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    layer.appendChild(canvas);
+    const ctx = canvas.getContext('2d')!;
+    ctx.scale(dpr, dpr);
+    const trails: Trail[] = [];
+    const tick = () => drawTrails(ctx, trails, 12);
+    gsap.ticker.add(tick);
+    cleanup = () => { gsap.ticker.remove(tick); layer.remove(); };
 
-    const count = Math.max(8, Math.min(22, 6 + Math.round(gained / 25)));
+    // where you pressed: one thin ring of light and a few star glints
+    const s = centre(from!);
+    const ring = document.createElement('span');
+    ring.className = 'wbx-ring';
+    layer.appendChild(ring);
+    gsap.set(ring, { x: s.x, y: s.y, xPercent: -50, yPercent: -50 });
+    tl.fromTo(ring, { scale: 0.25, opacity: 1 }, { scale: 1.6, opacity: 0, duration: 0.5, ease: 'power2.out' }, 0)
+        .add(() => glints(layer, s.x, s.y, 6, [30, 70], [8, 14]), 0.02);
+
+    const count = Math.max(10, Math.min(24, 8 + Math.round(gained / 20)));
     const size = 30;
-    const coins: HTMLElement[] = [];
+    let landed = 0;
+    let lastLand = 0;
     for (let i = 0; i < count; i++) {
         const c = document.createElement('span');
         c.className = 'wbx-fly';
         c.innerHTML = `<img src="${COIN}" width="${size}" height="${size}" alt="">`;
         layer.appendChild(c);
-        coins.push(c);
-    }
-
-    const landAt = 0.55;          // the burst and the hover before the flight
-    const flight = 0.62;
-    const spread = 0.045;         // time between coins leaving
-    coins.forEach((c, i) => {
-        const angle = (i / count) * Math.PI * 2 + gsap.utils.random(-0.35, 0.35);
-        const dist = gsap.utils.random(56, 128);
-        const bx = sx + Math.cos(angle) * dist, by = sy + Math.sin(angle) * dist * 0.8 - 24;
-        gsap.set(c, { x: sx - size / 2, y: sy - size / 2, scale: 0.2, rotation: gsap.utils.random(-90, 90), opacity: 0 });
-        // burst: out from the button, a pop and a spin
-        tl.to(c, { x: bx - size / 2, y: by - size / 2, scale: gsap.utils.random(0.85, 1.15), rotation: `+=${gsap.utils.random(-140, 140)}`, opacity: 1, duration: 0.42, ease: 'back.out(1.6)' }, 0.04 + i * 0.008);
-        // the glint across the coin (css .wbx-fly.is-glint)
-        tl.add(() => c.classList.add('is-glint'), 0.3 + gsap.utils.random(0, 0.15));
-        const leave = landAt + i * spread;
-        // the flight: x and y on different curves, so the path bends; a trail of ghosts follows
+        // each coin on its own clock: when it pops, how long it hangs, how fast it flies
+        const pop = R(0, 0.32), popFor = R(0.32, 0.6), hang = R(0.08, 0.5), fly = R(0.48, 0.9);
+        const angle = R(0, Math.PI * 2), dist = R(50, 140);
+        const bx = s.x + Math.cos(angle) * dist, by = s.y + Math.sin(angle) * dist * 0.75 - R(10, 40);
+        gsap.set(c, { x: s.x, y: s.y, xPercent: -50, yPercent: -50, scale: 0.2, rotation: R(-90, 90), opacity: 0 });
+        tl.to(c, { x: bx, y: by, scale: R(0.8, 1.2), rotation: `+=${R(-160, 160)}`, opacity: 1, duration: popFor, ease: `back.out(${R(1.2, 2.2).toFixed(2)})` }, pop);
+        tl.add(() => c.classList.add('is-glint'), pop + popFor * R(0.4, 0.9));
+        const trail: Trail = { pts: [], live: false, get: () => ({ x: gsap.getProperty(c, 'x') as number, y: gsap.getProperty(c, 'y') as number }) };
+        trails.push(trail);
+        const leave = pop + popFor + hang;
         tl.add(() => {
-            const t = target();
-            const tx = t.x - size / 2, ty = t.y - size / 2;
-            gsap.to(c, { x: tx, duration: flight, ease: 'power2.in' });
-            gsap.to(c, { y: ty, duration: flight, ease: 'back.in(1.4)' });
-            gsap.to(c, { scale: 0.62, rotation: '+=220', duration: flight, ease: 'power1.in' });
-            trail(layer, c, tx, ty, flight);
+            const t = centre(coin);
+            trail.live = true;
+            // x and y on different curves, so each path bends its own way
+            gsap.to(c, { x: t.x, duration: fly, ease: 'power2.in' });
+            gsap.to(c, { y: t.y, duration: fly, ease: `back.in(${R(0.8, 1.8).toFixed(2)})` });
+            gsap.to(c, { scale: 0.55, rotation: `+=${R(160, 320)}`, duration: fly, ease: 'power1.in' });
         }, leave);
-        // landing: the coin goes, the chip bumps and counts
+        // landing: the coin goes, glints pop at the balance, it bumps and counts
         tl.add(() => {
+            trail.live = false;
             c.remove();
-            gsap.fromTo(coin, { scale: 1.28 }, { scale: 1, duration: 0.3, ease: 'back.out(3)' });
-            counter.v = before + (gained * (i + 1)) / count;
-            num.textContent = fmt(counter.v);
-        }, leave + flight);
-    });
-    const end = landAt + (count - 1) * spread + flight;
-    tl.add(() => { num.textContent = fmt(after); root.classList.add('is-full'); }, end + 0.02)
-        .to(root, { opacity: 0, x: -16, duration: 0.35, ease: 'power2.in', delay: 1.5 }, end + 0.05)
-        .add(() => { layer.remove(); root.classList.remove('is-full'); gsap.set(root, { display: 'none' }); });
-}
-
-/** Three fading copies that chase a coin, a step behind each other. */
-function trail(layer: HTMLElement, coinEl: HTMLElement, tx: number, ty: number, flight: number) {
-    const x0 = gsap.getProperty(coinEl, 'x') as number, y0 = gsap.getProperty(coinEl, 'y') as number;
-    for (let k = 1; k <= 3; k++) {
-        const g = document.createElement('span');
-        g.className = 'wbx-trail';
-        layer.appendChild(g);
-        gsap.set(g, { x: x0 + 7, y: y0 + 7, opacity: 0.55 - k * 0.12, scale: 1 - k * 0.18 });
-        gsap.to(g, { x: tx + 7, duration: flight, ease: 'power2.in', delay: k * 0.045 });
-        gsap.to(g, { y: ty + 7, duration: flight, ease: 'back.in(1.4)', delay: k * 0.045, onComplete: () => g.remove() });
-        gsap.to(g, { scale: 0.2, duration: flight, ease: 'power1.in', delay: k * 0.045 });
+            const t = centre(coin);
+            glints(layer, t.x, t.y, 3, [14, 30], [6, 10]);
+            gsap.fromTo(coin, { scale: 1.25 }, { scale: 1, duration: 0.3, ease: 'back.out(3)' });
+            landed++;
+            num.textContent = fmt(before + (gained * landed) / count);
+        }, leave + fly);
+        lastLand = Math.max(lastLand, leave + fly);
     }
+    tl.add(() => { num.textContent = fmt(after); root.classList.add('is-full'); }, lastLand + 0.02)
+        .to(root, { opacity: 0, x: -16, duration: 0.35, ease: 'power2.in', delay: 1.5 }, lastLand + 0.05)
+        .add(() => { cleanup?.(); cleanup = null; root.classList.remove('is-full'); gsap.set(root, { display: 'none' }); });
 }

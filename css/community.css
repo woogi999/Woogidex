@@ -402,7 +402,8 @@ button.community-detail-stat:focus-visible {
         min-width: 0; flex: 1;
     }
     .hub-nav-list::-webkit-scrollbar { display: none; }
-    .hub-nav-item { flex: 0 0 auto; height: 36px; padding: 0 var(--sp-3); border-radius: var(--ctl-r); }
+    /* justified: the chips share the row's width (a row too long for the screen still scrolls) */
+    .hub-nav-item { flex: 1 0 auto; justify-content: center; height: 36px; padding: 0 var(--sp-3); border-radius: var(--ctl-r); }
     .hub .feed-layout { justify-content: center; }
 }
 @media (max-width: 520px) {
@@ -543,7 +544,7 @@ button.community-detail-stat:focus-visible {
 }
 .community-update-selected { min-width: 0; display: flex; flex-direction: column; gap: 1px; font-size: 13px; color: var(--text-muted); }
 .community-update-selected strong { color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.community-update-selected-label { font-size: 10.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+.community-update-selected-label { font-size: 10.5px; font-weight: 700; }
 .community-update-action-buttons { display: flex; gap: 8px; flex: 0 0 auto; }
 .community-update-action-buttons .btn { gap: 6px; }
 

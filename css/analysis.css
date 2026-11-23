@@ -177,7 +177,7 @@
 .analysis-matchup-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
 .analysis-matchup-card{ display:flex; align-items:center; gap:10px; min-width:0; padding:9px 10px; border-radius:7px; background:var(--bg-input); transition:transform .15s ease,border-color .15s ease,box-shadow .15s ease; border: 0; }
 .analysis-matchup-card:hover{transform:translateY(-1px);outline: 1.5px solid var(--border); outline-offset: -1.5px; box-shadow:0 5px 14px rgba(0,0,0,.07)}
-.analysis-matchup-icon{width:46px;height:40px;flex:0 0 46px;display:flex;align-items:center;justify-content:center;border-radius:6px;background:var(--bg-panel);overflow:hidden}
+.analysis-matchup-icon{width:46px;height:40px;flex:0 0 46px;display:flex;align-items:center;justify-content:center;overflow:hidden}
 .analysis-matchup-icon img{width:54px;height:54px;object-fit:contain;image-rendering:auto}
 .analysis-matchup-info{min-width:0;display:flex;flex-direction:column;gap:2px;flex:1}
 .analysis-matchup-info strong{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -277,7 +277,7 @@
 .chart-strip-plot { position: relative; border-bottom: 1px solid var(--border); }
 .chart-strip-band { position: absolute; top: 0; bottom: 0; background: var(--bg-panel); }
 .chart-strip-band.alt { background: transparent; }
-.chart-strip-band em { position: absolute; top: 2px; left: 4px; font: 600 9.5px var(--font-sans); font-style: normal; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; white-space: nowrap; }
+.chart-strip-band em { position: absolute; top: 2px; left: 4px; font: 600 9.5px var(--font-sans); font-style: normal; color: var(--text-muted); white-space: nowrap; }
 .chart-strip-dot { position: absolute; width: 10px; height: 10px; margin-left: -5px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 2px var(--bg-card); cursor: default; transition: transform var(--dur-fast) var(--ease-out); }
 .chart-strip-dot:hover { transform: scale(1.3); }
 .chart-strip-axis { display: flex; justify-content: space-between; margin-top: 4px; font-size: 10.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }

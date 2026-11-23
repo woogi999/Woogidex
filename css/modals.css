@@ -196,7 +196,7 @@
 }
 .start-option:hover { background: color-mix(in srgb, var(--accent) 9%, var(--bg-panel)); }
 .start-option:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.start-option-icon { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; border-radius: var(--ctl-r); background: var(--bg-card); color: var(--text-secondary); }
+.start-option-icon { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; color: var(--text-secondary); }
 .start-option.is-primary .start-option-icon { background: var(--accent); color: #fff; }
 .start-option-text { display: grid; gap: 2px; min-width: 0; }
 .start-option-text strong { font-size: 14px; font-weight: 700; }

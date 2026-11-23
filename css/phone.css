@@ -197,11 +197,9 @@
     .species-evo-toggles { gap: var(--sp-4); }
     /* the Stats tab's own fields: the same soft fill as every other field */
     .stat-template-row .stat-template-select, .stat-template-row .stat-template-bst-input, .editor-stat-input { border-color: transparent; background: var(--bg-panel); }
-    /* tabs: a quieter strip, the tabs justified across the width (they share
-       it evenly; a strip too long for the screen still scrolls) */
+    /* tabs: a quieter strip (justified everywhere, css/controls.css) */
     .tabs { margin-bottom: var(--sp-5); gap: 0; }
     .tab { font-size: 13px; padding: 10px var(--sp-3); }
-    .tabs > .tab { flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; text-align: center; }
 
     /* ==================== My Collection ==================== */
     .collection-header-actions { gap: 8px !important; }
@@ -277,13 +275,14 @@
     .st-identity { border-radius: 12px; }
     .st-narrow .st-row { padding: 12px var(--sp-3); }
 
-    /* ==================== the editor: between the top bar and the tab bar ====================
+    /* ==================== the editor: under the top bar, behind the floating tab bar ====================
        The two bars stay on top and usable while you edit (the tab bar's
-       Create button opens quick commands), so the sheet fills the space
-       between them. */
+       Create button opens quick commands). The tab bar floats, so the sheet
+       runs down to the bottom edge behind it, and its last rows scroll up
+       clear of the bar. */
     #editor-view {
         top: var(--header-h);
-        bottom: calc(var(--bottom-nav-h) + env(safe-area-inset-bottom, 0px));
+        bottom: 0;
         width: 100vw;
     }
     #editor-view::before { top: var(--header-h); }
@@ -294,7 +293,7 @@
     .editor-tabs { grid-auto-columns: max-content; column-gap: 20px; padding: 0 var(--sp-4); scroll-padding: 0 var(--sp-4); }
     .editor-tabs .tab { font-size: 13px; padding-left: 0; padding-right: 0; }
     .editor-tabs .tab.active::after { left: 0; right: 0; }
-    .editor-sheet-body { --sheet-pad-top: var(--sp-5); padding: var(--sp-5) var(--sp-4) calc(var(--sp-6) + env(safe-area-inset-bottom, 0px)); }
+    .editor-sheet-body { --sheet-pad-top: var(--sp-5); padding: var(--sp-5) var(--sp-4) calc(var(--bottom-nav-h) + var(--sp-6) + env(safe-area-inset-bottom, 0px)); }
 
     /* ==================== dialogs: a sheet from the bottom ====================
        every centred dialog rises from the bottom edge instead, full width.

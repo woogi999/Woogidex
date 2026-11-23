@@ -34,21 +34,22 @@ function Rich({ text }: { text: string }) {
 const plainVersion = (v: string) => String(v || '').trim().replace(/^v/i, '');
 
 /**
- * The Woobux for reading an update, when that update pays (from v1.20.0 on).
- * The server pays once for each account; the button only asks.
+ * "Got it", the one button that closes an update. When the update pays
+ * Woobux (from v1.20.0 on) and you have not been paid for it, it reads
+ * "Got it (+500 [coin])" and asks the server to pay as it closes; the coins
+ * fly from it to your balance. The server pays once for each account.
  */
-function AcknowledgeButton({ version, close }: { version: string; close?: () => void }) {
+function GotItButton({ version, close }: { version?: string; close?: () => void }) {
     useStore();
     const [reward, setReward] = useState(0);
     const [busy, setBusy] = useState(false);
-    const v = plainVersion(version);
-    useEffect(() => { rewardedUpdates().then(r => setReward(r[v] || 0)); }, [v]);
-    if (!reward) return null;
-    const done = !!woobux()?.acknowledged.includes(v);
-    if (done) return <span className="update-ack is-done"><WoobuxIcon size={16} />You got {reward} Woobux for this one</span>;
+    const v = plainVersion(version || '');
+    useEffect(() => { if (v) rewardedUpdates().then(r => setReward(r[v] || 0)); }, [v]);
+    const pays = !!reward && !!state.user && !woobux()?.acknowledged.includes(v);
     return (
-        <button type="button" className="btn btn-primary update-ack" disabled={busy}
+        <button type="button" className="btn btn-primary update-got-it" disabled={busy}
             onClick={async e => {
+                if (!pays) { close?.(); return; }
                 const btn = e.currentTarget;
                 const before = woobux()?.balance ?? 0;
                 setBusy(true);
@@ -58,13 +59,13 @@ function AcknowledgeButton({ version, close }: { version: string; close?: () => 
                 if (paid) coinBurst(btn, before, woobux()?.balance ?? before + paid);
                 close?.();
             }}>
-            <WoobuxIcon size={18} />{state.user ? `Got it, +${reward} Woobux` : `Sign in to get ${reward} Woobux`}
+            Got it{pays && <span className="update-got-it-reward">(+{reward.toLocaleString()} <WoobuxIcon size={16} />)</span>}
         </button>
     );
 }
 
-/** One update: its version, title and date, the note, then each section of changes. */
-export function UpdateEntry({ update, latest = false }: { update: Update; latest?: boolean }) {
+/** One update: its version, title and date, the note, then each section of changes. `gotIt`: its own "Got it" at the end (the Updates list). */
+export function UpdateEntry({ update, latest = false, gotIt = true }: { update: Update; latest?: boolean; gotIt?: boolean }) {
     return (
         <article className={`update-entry${latest ? ' is-latest' : ''}`}>
             <header className="update-entry-head">
@@ -79,18 +80,28 @@ export function UpdateEntry({ update, latest = false }: { update: Update; latest
                     <ul>{s.items.map((item, j) => <li key={j}><Rich text={item} /></li>)}</ul>
                 </section>
             ))}
-            {update.version && <div className="update-entry-ack"><AcknowledgeButton version={update.version} /></div>}
+            {gotIt && update.version && <UpdatePayRow version={update.version} />}
         </article>
     );
+}
+
+/** In the Updates list: the same "Got it (+500)" for an update that still pays, nothing otherwise. */
+function UpdatePayRow({ version }: { version: string }) {
+    useStore();
+    const [reward, setReward] = useState(0);
+    const v = plainVersion(version);
+    useEffect(() => { rewardedUpdates().then(r => setReward(r[v] || 0)); }, [v]);
+    if (!reward || !state.user || woobux()?.acknowledged.includes(v)) return null;
+    return <div className="update-entry-ack"><GotItButton version={version} /></div>;
 }
 
 function WhatsNewDialog({ item, close }: DialogProps<{ item: Update }>) {
     return (
         <Modal onClose={close} title="What's New" className="whats-new" labelledBy="whats-new-title">
-            <div className="whats-new-body"><UpdateEntry update={item} /></div>
+            <div className="whats-new-body"><UpdateEntry update={item} gotIt={false} /></div>
             <div className="whats-new-actions">
                 <button type="button" className="btn btn-secondary" onClick={() => { closeDialog('whats-new'); openUpdates(); }}><Icon name="newspaper" />Every update</button>
-                <button type="button" className="btn btn-primary" onClick={close}>Got it</button>
+                <GotItButton version={item.version} close={close} />
             </div>
         </Modal>
     );

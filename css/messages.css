@@ -170,7 +170,7 @@ body[data-page="messages-view"] .app-container { max-width: none; padding: 0; }
 .chat-info-head strong { font-size: 17px; }
 .chat-info-close { position: absolute; top: 0; right: 0; }
 .chat-info-section { display: flex; flex-direction: column; gap: 6px; }
-.chat-info-section > label, .chat-info-section-head { font-size: 12px; font-weight: 800; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; display: flex; justify-content: space-between; align-items: center; }
+.chat-info-section > label, .chat-info-section-head { font-size: 12px; font-weight: 800; color: var(--text-muted); display: flex; justify-content: space-between; align-items: center; }
 .chat-info-section-head .link-btn { text-transform: none; letter-spacing: 0; }
 .chat-info-rename { display: flex; gap: 6px; }
 .chat-info-rename input { flex: 1; min-width: 0; }

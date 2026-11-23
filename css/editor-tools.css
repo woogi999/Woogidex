@@ -335,7 +335,7 @@
 .mb-col-mark { display: flex; align-items: center; }
 .mb-col-why { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mb-ls .ls-x { display: flex; justify-content: center; }
-.mb-tag { font: 700 9.5px var(--font-sans); letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted); }
+.mb-tag { font: 700 9.5px var(--font-sans); color: var(--text-muted); }
 /* the pick mark: an empty ring, a filled one when picked, a soft tick when it is in the learnset already */
 .mb-mark { display: inline-grid; place-items: center; width: 18px; height: 18px; border: 1.5px solid var(--border-strong); border-radius: 50%; color: #fff; }
 .mb-mark.is-on { border-color: var(--accent); background: var(--accent); }
@@ -365,7 +365,7 @@
 /* ---- Recommended: sections, Show more, and what is kept out ---- */
 .mb-section + .mb-section { margin-top: var(--sp-5); }
 .mb-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-3); margin: var(--sp-4) 0 var(--sp-2); }
-.mb-section-head h3 { margin: 0; font: 700 11px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; color: var(--text-secondary); }
+.mb-section-head h3 { margin: 0; font: 700 11px var(--font-sans); color: var(--text-secondary); }
 .mb-section-head span { font-size: 11px; color: var(--text-muted); }
 .mb-more-btn { margin: var(--sp-2) 0 0 8px; font-size: 12.5px; font-weight: 600; }
 .mb-kept-out { margin-top: var(--sp-5); padding-top: var(--sp-3); border-top: 1px solid var(--border-light); }

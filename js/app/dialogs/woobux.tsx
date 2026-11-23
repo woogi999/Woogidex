@@ -1,5 +1,5 @@
-// The Woobux pictures (public/assets/, drawn by scripts/coin-art.mjs and
-// scripts/badge-art.mjs) and the 30-day reward calendar. The calendar lives
+// The Woobux pictures (public/assets/, drawn by scripts/coin-art.mjs) and
+// the 30-day reward calendar. The calendar lives
 // on Fun > Streak (js/app/pages/FunPage.tsx): nothing about the streak pops
 // up any more.
 
@@ -12,13 +12,14 @@ export function WoobuxIcon({ size = 16, className = '' }: { size?: number; class
     return <img src="assets/woobux.svg" width={size} height={size} alt="" className={`woobux-icon ${className}`.trim()} draggable={false} />;
 }
 
-export function SavePassIcon({ size = 16 }: { size?: number }) {
-    return <img src="assets/save-pass.svg" width={size} height={size} alt="" className="woobux-icon" draggable={false} />;
+/** A save pass: a blue and white ticket (public/assets/save-pass.svg). */
+export function SavePassIcon({ size = 16, className = '' }: { size?: number; className?: string }) {
+    return <img src="assets/save-pass.svg" width={size} height={size} alt="" className={`woobux-icon ${className}`.trim()} draggable={false} />;
 }
 
-/** A coupon, in the coin's gold (public/assets/coupon.svg). */
-export function CouponIcon({ size = 16, className = '' }: { size?: number; className?: string }) {
-    return <img src="assets/coupon.svg" width={size} height={size} alt="" className={`woobux-icon ${className}`.trim()} draggable={false} />;
+/** The shop: a cart in the coin's gold (public/assets/shop-cart.svg). */
+export function ShopIcon({ size = 16, className = '' }: { size?: number; className?: string }) {
+    return <img src="assets/shop-cart.svg" width={size} height={size} alt="" className={`woobux-icon ${className}`.trim()} draggable={false} />;
 }
 
 /** The 30 days of the cycle: done, today, still to come. `multiplier` scales the shown amounts (a role's). */

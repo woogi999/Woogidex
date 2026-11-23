@@ -322,7 +322,7 @@
 .inherited-moves-toggle strong { display: block; font-size: 14px; }
 .inherited-moves-toggle small { display: block; color: var(--text-secondary); font-size: 12px; }
 .inherited-moves-head { border: 0; background: none; padding: 0; color: var(--text-primary); font: 700 13px var(--font-sans); display: inline-flex; align-items: center; gap: 4px; cursor: pointer; }
-.inherited-moves-from { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+.inherited-moves-from { font-size: 11px; font-weight: 800; color: var(--text-muted); margin-bottom: 4px; }
 .inherited-moves-list { display: flex; flex-wrap: wrap; gap: 6px; }
 .inherited-move { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px 3px 3px; border-radius: 999px; background: var(--bg-card); border: 1px solid var(--border); font-size: 12px; cursor: pointer; }
 .inherited-move .type-pill { font-size: 9px; padding: 2px 6px; }
@@ -591,7 +591,7 @@ button.poll-editor-x:focus-visible { outline: 2px solid var(--accent); outline-o
 .mon-teaser-head h1 { margin: 0; font-size: 30px; line-height: 1.15; letter-spacing: -0.01em; }
 .mon-teaser-species { margin: 4px 0 8px; color: var(--text-secondary); font-weight: 600; }
 .mon-teaser-by { margin: 8px 0 0; color: var(--text-secondary); font-size: 14px; }
-.mon-teaser-section h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); display: flex; align-items: center; gap: 10px; }
+.mon-teaser-section h2 { margin: 0 0 8px; font-size: 13px; color: var(--text-muted); display: flex; align-items: center; gap: 10px; }
 .mon-teaser-section p { margin: 0 0 6px; line-height: 1.6; }
 .mon-teaser-bst { padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); letter-spacing: .02em; }
 .mon-teaser-abilities { margin: 0; padding: 0; list-style: none; display: flex; flex-wrap: wrap; gap: 6px; }
@@ -615,7 +615,7 @@ button.poll-editor-x:focus-visible { outline: 2px solid var(--accent); outline-o
         radial-gradient(120% 140% at 100% 0%, color-mix(in srgb, var(--accent) 16%, transparent), transparent 60%),
         var(--bg-card);
 }
-.guest-hero-kicker { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font: 700 11.5px var(--font-sans); letter-spacing: .06em; text-transform: uppercase; }
+.guest-hero-kicker { display: inline-flex; align-items: center; gap: 6px; color: var(--accent); font: 700 11.5px var(--font-sans); }
 .guest-hero h2 { font-size: 22px; font-weight: 800; letter-spacing: -.015em; margin: 6px 0 4px; }
 .guest-hero p { color: var(--text-secondary); font-size: 14px; line-height: 1.5; max-width: 52ch; }
 .guest-cta-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -638,7 +638,7 @@ button.poll-editor-x:focus-visible { outline: 2px solid var(--accent); outline-o
 /* a file a staff post shares (js/features/downloads.ts), and the composer's draft of it */
 .post-download { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding: 10px 12px; border-radius: 10px; background: var(--bg-panel); }
 .post-download.is-draft { margin: 8px 0 0; }
-.post-download-icon { display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 auto; border-radius: 8px; background: var(--accent-soft); color: var(--accent); }
+.post-download-icon { display: grid; place-items: center; width: 40px; height: 40px; flex: 0 0 auto; color: var(--accent); }
 .post-download-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .post-download-text strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
 .post-download-text small { color: var(--text-muted); font-size: 12px; }
