@@ -13,7 +13,9 @@ import { FeedCard, FeedSkeleton, PostComposer, timeAgo } from './feed.tsx';
 import { registerDialog, openDialog, type DialogProps } from '../dialogs.tsx';
 import { SkeletonRows } from './Skeleton.tsx';
 import { staggerIn } from '../../core/motion.ts';
-import type { Group, GroupDraft, GroupTab, GroupSort, Member, MemberAction } from '../../features/groups.ts';
+import type { Group, GroupDraft, GroupTab, GroupSort, GroupTierRow, Member, MemberAction } from '../../features/groups.ts';
+import { openTierMaker } from '../dialogs/tierMaker.tsx';
+import { changelog, cleanTierList, newTierList } from '../../features/tier-lists.ts';
 
 const COLORS = ['', '#e0245e', '#f08030', '#d4a017', '#2d8a3e', '#1f9eb3', '#2c5aa0', '#55607a'];
 
@@ -246,6 +248,7 @@ function GroupPage({ slug, tab }: { slug: string; tab: GroupTab }) {
                 </div>
                 <div className="group-head-actions">
                     <JoinButton group={group} status={status} />
+                    {member && <GroupChatButton group={group} />}
                     <button type="button" className="btn btn-secondary btn-sm" title="Copy link" aria-label="Copy the group link"
                         onClick={() => { navigator.clipboard?.writeText(api.groupShareUrl(group)); api.showToast?.('Link copied.', 'success'); }}>
                         <Icon name="link" size={14} />
@@ -254,15 +257,16 @@ function GroupPage({ slug, tab }: { slug: string; tab: GroupTab }) {
                 </div>
             </header>
             <nav className="tabs group-tabs" role="tablist" aria-label="Group">
-                {(['posts', 'about', 'members'] as GroupTab[]).map(t => (
+                {(['posts', 'tiers', 'about', 'members'] as GroupTab[]).map(t => (
                     <button key={t} type="button" role="tab" aria-selected={tab === t} className={`tab${tab === t ? ' active' : ''}`} onClick={() => go(t)}>
-                        {t === 'posts' ? 'Posts' : t === 'about' ? 'About' : 'Members'}
+                        {t === 'posts' ? 'Posts' : t === 'tiers' ? 'Tier lists' : t === 'about' ? 'About' : 'Members'}
                     </button>
                 ))}
             </nav>
             <div className="group-body">
                 <div className="group-main">
                     {tab === 'posts' && (canSee ? <GroupPosts group={group} member={member} /> : <PrivateNotice group={group} status={status} />)}
+                    {tab === 'tiers' && (canSee ? <GroupTierLists group={group} /> : <PrivateNotice group={group} status={status} />)}
                     {tab === 'about' && <GroupAbout group={group} />}
                     {tab === 'members' && (canSee ? <GroupMembers group={group} /> : <PrivateNotice group={group} status={status} />)}
                 </div>
@@ -272,6 +276,90 @@ function GroupPage({ slug, tab }: { slug: string; tab: GroupTab }) {
                     </aside>
                 )}
             </div>
+        </div>
+    );
+}
+
+// ==================== the connected chat ====================
+
+/** Opens the group's chat, or joins it. Shown to members once a chat is connected. */
+function GroupChatButton({ group }: { group: Group }) {
+    const chat = api.groupsState().chats[group.id];
+    if (!chat) return null;
+    const inIt = (api.messagingState?.().conversations || []).some((c: any) => c.id === chat);
+    return (
+        <button type="button" className="btn btn-secondary btn-sm" onClick={() => inIt ? api.openMessages?.(chat) : api.joinGroupChat(group)}
+            title={inIt ? 'Open the group’s chat' : 'Join the group’s chat'}>
+            <Icon name="chat-bubble-left-right" size={14} /> {inIt ? 'Group chat' : 'Join the chat'}
+        </button>
+    );
+}
+
+/** Manage > Group chat: connect one of your group chats, or disconnect the one in place. */
+function ChatLink({ group }: { group: Group }) {
+    const chat = api.groupsState().chats[group.id];
+    // a chat can be connected only by its owner (link_group_chat checks it again)
+    const mine = (api.messagingState?.().conversations || []).filter((c: any) => c.kind === 'group' && c.my_role === 'owner');
+    const [pick, setPick] = useState('');
+    const current = (api.messagingState?.().conversations || []).find((c: any) => c.id === chat);
+    return (
+        <section className="groups-chat-link">
+            <h3>Group chat</h3>
+            <p className="groups-help">Connect a group chat, and members can join it from the group page. Anyone who leaves the group leaves the chat too. Messages stay end-to-end encrypted.</p>
+            {chat ? (
+                <div className="groups-chat-row">
+                    <span><Icon name="chat-bubble-left-right" size={16} /> {current ? api.conversationTitle?.(current) : 'A connected chat'}</span>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => api.linkGroupChat(group, null)}>Disconnect</button>
+                </div>
+            ) : mine.length ? (
+                <div className="groups-chat-row">
+                    <select value={pick} onChange={e => setPick(e.target.value)} aria-label="Group chat to connect">
+                        <option value="">Pick one of your group chats…</option>
+                        {mine.map((c: any) => <option key={c.id} value={c.id}>{api.conversationTitle?.(c) || 'Group chat'}</option>)}
+                    </select>
+                    <button type="button" className="btn btn-primary btn-sm" disabled={!pick} onClick={() => api.linkGroupChat(group, pick)}>Connect</button>
+                </div>
+            ) : <p className="groups-help">Make a group chat in Messages first. You must own the chat to connect it.</p>}
+        </section>
+    );
+}
+
+// ==================== tier lists ====================
+
+function GroupTierLists({ group }: { group: Group }) {
+    const t = api.groupsState().tiers[group.id];
+    if (!t || (t.loading && !t.items.length)) return <SkeletonRows count={3} label="Loading tier lists" />;
+    const ctx = (row: GroupTierRow | null) => ({ id: group.id, name: group.name, rowId: row?.id || null, canEdit: t.canEdit });
+    return (
+        <div className="group-tiers">
+            <div className="group-tiers-head">
+                <p>{t.canEdit
+                    ? 'Rank Fakémon into tiers for the group. Everyone in the group can see the lists.'
+                    : 'The group’s tier lists. The owner, the moderators and the tier leaders make them. Open one to look, or save a copy for yourself.'}</p>
+                {t.canEdit && <button type="button" className="btn btn-primary btn-sm" onClick={() => openTierMaker({ ...newTierList(`${group.name} tiers`) }, null, false, ctx(null))}><Icon name="plus" size={14} /> New tier list</button>}
+            </div>
+            {t.error && <div className="feed-empty"><p>{t.error}</p></div>}
+            {!t.error && !t.items.length && <div className="feed-empty"><Icon name="trophy" size={26} /><p>No tier lists yet.</p></div>}
+            {t.items.map((row: GroupTierRow) => {
+                const list = cleanTierList(row.data);
+                if (!list) return null;
+                const top = list.tiers.filter(x => (list.placed[x.id] || []).length).slice(0, 3);
+                const moves = changelog(list).length;
+                return (
+                    <article key={row.id} className="group-tier-card">
+                        <button type="button" className="group-tier-open" onClick={() => openTierMaker(list, null, false, ctx(row))}>
+                            <strong>{row.title}</strong>
+                            <small>{Object.keys(list.mons).length} ranked{list.format ? ` · ${list.format}` : ''} · version {row.version} · {timeAgo(row.updated_at)} ago{moves ? ` · ${moves} change${moves === 1 ? '' : 's'}` : ''}</small>
+                            {top.length > 0 && (
+                                <span className="chat-tierlist-tiers">
+                                    {top.map(x => <span key={x.id} className="chat-tierlist-tier"><b style={{ background: x.color }}>{x.name}</b> {(list.placed[x.id] || []).slice(0, 5).map(id => list.mons[id]?.name).join(', ')}</span>)}
+                                </span>
+                            )}
+                        </button>
+                        {t.canEdit && <button type="button" className="btn btn-secondary btn-sm" aria-label={`Delete ${row.title}`} onClick={() => api.deleteGroupTierList(group.id, row)}><Icon name="trash-2" size={14} /></button>}
+                    </article>
+                );
+            })}
         </div>
     );
 }
@@ -381,6 +469,7 @@ function GroupMembers({ group }: { group: Group }) {
                 {active.map((x: Member) => (
                     <MemberRow key={x.user_id} m={x}>
                         {x.role !== 'member' && <span className={`group-role is-${x.role}`}>{x.role === 'owner' ? 'Owner' : 'Moderator'}</span>}
+                        {api.isTierLeader(group.id, x.user_id) && <span className="group-role is-tier">Tier leader</span>}
                         {mod && x.user_id !== state.user?.id && x.role !== 'owner' && (x.role === 'member' || iAmOwner) && (
                             <MemberMenu group={group} m={x} owner={iAmOwner} />
                         )}
@@ -428,6 +517,9 @@ function MemberMenu({ group, m, owner }: { group: Group; m: Member; owner: boole
                     {owner && m.role === 'member' && <button type="button" role="menuitem" onClick={() => act('make_moderator')}><Icon name="shield-check" size={14} /> Make moderator</button>}
                     {owner && m.role === 'moderator' && <button type="button" role="menuitem" onClick={() => act('make_member')}><Icon name="user" size={14} /> Make member</button>}
                     {owner && <button type="button" role="menuitem" onClick={() => act('make_owner')}><Icon name="star" size={14} /> Make owner</button>}
+                    <button type="button" role="menuitem" onClick={() => { setOpen(false); api.setTierLeader(group, m.user_id, !api.isTierLeader(group.id, m.user_id), nameOf(m)); }}>
+                        <Icon name="trophy" size={14} /> {api.isTierLeader(group.id, m.user_id) ? 'Not a tier leader' : 'Make tier leader'}
+                    </button>
                     <button type="button" role="menuitem" onClick={() => act('remove')}><Icon name="user-minus" size={14} /> Remove</button>
                     <button type="button" role="menuitem" className="is-danger" onClick={() => act('ban')}><Icon name="no-symbol" size={14} /> Ban</button>
                 </div>
@@ -447,6 +539,7 @@ function GroupSettings({ close, group }: DialogProps<{ group: Group }>) {
         <Modal onClose={close} title="Manage group" className="groups-settings">
             <form className="groups-form" onSubmit={async e => { e.preventDefault(); setBusy(true); if (await api.updateGroup(group, d)) close(); setBusy(false); }}>
                 <GroupFields d={d} set={set} lockVisibility={!owner} />
+                <ChatLink group={group} />
                 <div className="modal-actions">
                     {owner && <button type="button" className="btn btn-danger groups-archive" onClick={() => { close(); api.archiveGroup(group); }}>Archive group</button>}
                     <button type="button" className="btn btn-secondary" onClick={close}>Cancel</button>

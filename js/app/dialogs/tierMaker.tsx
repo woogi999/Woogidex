@@ -46,7 +46,10 @@ function Chip({ list, id, onPick, onDragStart }: { list: TierList; id: string; o
     );
 }
 
-function TierMakerDialog({ close, list: start, conversationId = null }: DialogProps<{ list?: TierList; conversationId?: string | null }>) {
+/** A tier list opened from a group's Tier lists tab (js/features/groups.ts). */
+export interface GroupContext { id: string; name: string; rowId: string | null; canEdit: boolean }
+
+function TierMakerDialog({ close, list: start, conversationId = null, group = null }: DialogProps<{ list?: TierList; conversationId?: string | null; group?: GroupContext | null }>) {
     useStore();
     const [list, setList] = useState<TierList>(() => start ? (cleanTierList(start) || newTierList()) : newTierList());
     const [query, setQuery] = useState('');
@@ -118,6 +121,13 @@ function TierMakerDialog({ close, list: start, conversationId = null }: DialogPr
     };
 
     const save = () => { saveTierList(list); setDirty(false); api.showToast?.('Tier list saved on this device.', 'success'); };
+    // a group list: the version saved now is the next version's baseline, as with a chat
+    const [rowId, setRowId] = useState(group?.rowId || null);
+    const saveToGroup = async () => {
+        if (!group) return;
+        const id = await api.saveGroupTierList(group.id, list, rowId);
+        if (id) { setRowId(id); setList({ ...list, baseline: snapshot(list) }); setDirty(false); }
+    };
     const send = async () => {
         if (!sendTo) { api.showToast?.('Pick a chat first.', 'warning'); return; }
         if (await sendTierList(sendTo, list)) {
@@ -253,8 +263,14 @@ function TierMakerDialog({ close, list: start, conversationId = null }: DialogPr
                 </div>
                 <span className="tm-spacer" />
                 <div className="tm-actions">
-                    <button type="button" className="btn btn-secondary btn-sm" onClick={save}><span>{dirty ? 'Save on this device' : 'Saved'}</span></button>
-                    {chats.length > 0 && (
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={save}><span>{dirty && !group ? 'Save on this device' : group ? 'Save a copy on this device' : 'Saved'}</span></button>
+                    {group && (
+                        <button type="button" className="btn btn-primary btn-sm" disabled={!group.canEdit} onClick={saveToGroup}
+                            title={group.canEdit ? `Save to ${group.name}` : 'Only the owner, the moderators and the tier leaders can save to the group'}>
+                            <Icon name="users" size={14} /><span>{rowId ? 'Save to the group' : `Add to ${group.name}`}</span>
+                        </button>
+                    )}
+                    {!group && chats.length > 0 && (
                         <>
                             <select value={sendTo} onChange={e => setSendTo(e.target.value)} aria-label="Chat to send to" className="tm-chat">
                                 <option value="">Send to a chat...</option>
@@ -302,11 +318,13 @@ registerDialog('tier-lists', TierListsDialog);
  * Opens the tier maker. A list from a chat opens as a copy whose baseline is
  * what it holds now, so the Changes panel shows what you move.
  */
-export async function openTierMaker(list?: TierList | null, conversationId: string | null = null, fromChat = false) {
+export async function openTierMaker(list?: TierList | null, conversationId: string | null = null, fromChat = false, group: GroupContext | null = null) {
     // the main-game Pokémon in the Add box load lazily (Showdown's data)
     api.fetchShowdownData?.();
     const start = list ? cleanTierList(list) : null;
-    openDialog('tier-maker', { list: start && fromChat ? { ...start, baseline: snapshot(start) } : start || undefined, conversationId });
+    // a list from a chat or a group: what it holds now is the baseline the Changes panel compares with
+    const shared = fromChat || !!group;
+    openDialog('tier-maker', { list: start && shared ? { ...start, baseline: snapshot(start) } : start || undefined, conversationId, group });
 }
 
 export function openTierLists() { openDialog('tier-lists', {}); }

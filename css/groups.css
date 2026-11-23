@@ -158,3 +158,22 @@
     .group-head-text h1 { font-size: 21px; }
     .group-row { align-items: flex-start; }
 }
+
+/* ---- a group's tier lists (GroupTierLists in groups.tsx) ---- */
+.group-tiers { display: flex; flex-direction: column; gap: var(--sp-3); }
+.group-tiers-head { display: flex; gap: var(--sp-3); align-items: center; justify-content: space-between; flex-wrap: wrap; }
+.group-tiers-head p { margin: 0; font-size: 14px; color: var(--text-secondary); max-width: 60ch; }
+.group-tier-card { display: flex; gap: 8px; align-items: flex-start; }
+.group-tier-open { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 12px 14px; border: 0; border-radius: var(--card-r); background: var(--bg-panel); color: var(--text-primary); font: inherit; text-align: left; cursor: pointer; transition: var(--t-ui); }
+.group-tier-open:hover { background: var(--accent-soft); }
+.group-tier-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.group-tier-open small { color: var(--text-muted); }
+.group-role.is-tier { background: color-mix(in srgb, var(--group, var(--accent)) 14%, transparent); color: var(--group, var(--accent)); }
+
+/* ---- Manage > Group chat (ChatLink in groups.tsx) ---- */
+.groups-chat-link { margin-top: var(--sp-4); display: flex; flex-direction: column; gap: 8px; }
+.groups-chat-link h3 { font-size: 15px; }
+.groups-help { margin: 0; font-size: 13px; color: var(--text-secondary); }
+.groups-chat-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.groups-chat-row > span { display: inline-flex; gap: 6px; align-items: center; font-weight: 700; flex: 1; }
+.groups-chat-row select { flex: 1; min-width: 180px; }

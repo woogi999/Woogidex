@@ -29,11 +29,14 @@ export type GroupRole = 'owner' | 'moderator' | 'member';
 export type MemberStatus = 'active' | 'pending' | 'left' | 'removed' | 'banned';
 export interface Membership { group_id: string; user_id: string; role: GroupRole; status: MemberStatus; joined_at: string; }
 export interface Member extends Membership { profile: { id: string; username?: string; display_name?: string; avatar_url?: string } | null; }
-export type GroupTab = 'posts' | 'about' | 'members';
+export type GroupTab = 'posts' | 'tiers' | 'about' | 'members';
 export type GroupSort = 'new' | 'top';
 export type GroupView = { kind: 'list' } | { kind: 'new' } | { kind: 'group'; slug: string; tab: GroupTab };
 
-export const GROUP_TABS: GroupTab[] = ['posts', 'about', 'members'];
+export const GROUP_TABS: GroupTab[] = ['posts', 'tiers', 'about', 'members'];
+
+/** A tier list kept in a group (Woogidex-DB 20261123140000). `data` is a TierList (js/features/tier-lists.ts). */
+export interface GroupTierRow { id: string; group_id: string; title: string; data: any; updated_at: string; updated_by: string | null; version: number; }
 export const SLUG_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,30})[a-z0-9]$/;
 
 interface GroupsState {
@@ -45,6 +48,12 @@ interface GroupsState {
     bySlug: Record<string, { group: Group | null; loading: boolean; error: string }>;
     feeds: Record<string, { items: FeedItem[]; loading: boolean; hasMore: boolean; sort: GroupSort; error: string }>;
     members: Record<string, { items: Member[]; loading: boolean; error: string }>;
+    /** the group's tier lists, and whether you may change them */
+    tiers: Record<string, { items: GroupTierRow[]; loading: boolean; error: string; canEdit: boolean }>;
+    /** the user ids of each group's tier leaders */
+    leaders: Record<string, Set<string>>;
+    /** the chat connected to each group (undefined: not asked yet; null: none) */
+    chats: Record<string, string | null | undefined>;
 }
 
 function gs(): GroupsState {
@@ -52,7 +61,7 @@ function gs(): GroupsState {
         state.groups = {
             view: { kind: 'list' },
             list: { items: [], loading: false, loaded: false, error: '' },
-            mine: new Map(), mineFor: null, bySlug: {}, feeds: {}, members: {}
+            mine: new Map(), mineFor: null, bySlug: {}, feeds: {}, members: {}, tiers: {}, leaders: {}, chats: {}
         } as GroupsState;
     }
     return state.groups;
@@ -103,7 +112,9 @@ function loadForView(v: GroupView) {
         loadGroup(v.slug).then(g => {
             if (!g) return;
             if (v.tab === 'posts' && !gs().feeds[g.id]) loadGroupFeed(g.id);
-            if (v.tab === 'members') loadGroupMembers(g.id);
+            if (v.tab === 'members') { loadGroupMembers(g.id); loadTierLeaders(g.id); }
+            if (v.tab === 'tiers') loadGroupTierLists(g.id);
+            loadGroupChat(g.id);
             // the address and the tab title wait for the group's name
             if (gs().view === v) api.setPageTitle?.(routeFor(v)[1]);
         });
@@ -244,6 +255,140 @@ export async function loadGroupMembers(groupId: string) {
     } finally {
         m.loading = false;
         notify();
+    }
+}
+
+// ==================== tier lists ====================
+// Anyone who can see the group reads them. The owner, the moderators and the
+// tier leaders make and change them (the database checks it: group_can_edit_tiers).
+
+export async function loadGroupTierLists(groupId: string) {
+    const s = gs();
+    const t = s.tiers[groupId] ||= { items: [], loading: false, error: '', canEdit: false };
+    if (t.loading) return;
+    t.loading = true;
+    t.error = '';
+    notify();
+    try {
+        const client = await api.getClient();
+        const [rows, can] = await Promise.all([
+            client.from('group_tier_lists').select('id, group_id, title, data, updated_at, updated_by, version').eq('group_id', groupId)
+                .order('updated_at', { ascending: false }).limit(50),
+            state.user ? client.rpc('group_can_edit_tiers', { p_group: groupId }) : Promise.resolve({ data: false, error: null })
+        ]);
+        if (rows.error) throw rows.error;
+        t.items = (rows.data || []) as GroupTierRow[];
+        t.canEdit = can.data === true;
+    } catch (e: any) {
+        log.error('GROUPS', 'Could not load tier lists', e);
+        t.error = /group_tier_lists/.test(String(e?.message)) ? 'Tier lists aren’t switched on yet.' : 'Couldn’t load the tier lists.';
+    } finally {
+        t.loading = false;
+        notify();
+    }
+}
+
+/** Saves a tier list in the group: a new one (no row id) or a new version. Returns the row id, or null. */
+export async function saveGroupTierList(groupId: string, list: any, rowId: string | null): Promise<string | null> {
+    try {
+        const client = await api.getClient();
+        const title = String(list?.title || 'Tier list').trim().slice(0, 80) || 'Tier list';
+        const q = rowId
+            ? client.from('group_tier_lists').update({ title, data: list }).eq('id', rowId).select('id').single()
+            : client.from('group_tier_lists').insert({ group_id: groupId, title, data: list }).select('id').single();
+        const { data, error } = await q;
+        if (error) throw error;
+        api.showToast?.('Saved to the group.', 'success');
+        loadGroupTierLists(groupId);
+        return data?.id || null;
+    } catch (e: any) {
+        api.showToast?.(problem(e, 'Couldn’t save the tier list. Only the owner, moderators and tier leaders can.'), 'error');
+        return null;
+    }
+}
+
+export async function deleteGroupTierList(groupId: string, row: GroupTierRow) {
+    if (!await confirmDialog({ title: `Delete “${row.title}”?`, message: 'It’s gone for everyone in the group.', confirmLabel: 'Delete', danger: true })) return;
+    try {
+        const client = await api.getClient();
+        const { error } = await client.from('group_tier_lists').delete().eq('id', row.id);
+        if (error) throw error;
+        loadGroupTierLists(groupId);
+    } catch (e: any) {
+        api.showToast?.(problem(e, 'Couldn’t delete it.'), 'error');
+    }
+}
+
+export async function loadTierLeaders(groupId: string) {
+    try {
+        const client = await api.getClient();
+        const { data, error } = await client.from('group_tier_leaders').select('user_id').eq('group_id', groupId).limit(500);
+        if (error) throw error;
+        gs().leaders[groupId] = new Set((data || []).map((r: any) => r.user_id));
+        notify();
+    } catch (e) {
+        log.debug('GROUPS', 'Tier leaders not loaded', { error: String((e as any)?.message || e) });
+    }
+}
+
+export const isTierLeader = (groupId: string, userId: string) => !!gs().leaders[groupId]?.has(userId);
+
+export async function setTierLeader(g: Group, userId: string, on: boolean, name = 'them') {
+    try {
+        const client = await api.getClient();
+        const { error } = await client.rpc('set_group_tier_leader', { p_group: g.id, p_user: userId, p_on: on });
+        if (error) throw error;
+        api.showToast?.(on ? `${name} is a tier leader now.` : `${name} is not a tier leader any more.`, 'success');
+        loadTierLeaders(g.id);
+    } catch (e: any) {
+        api.showToast?.(problem(e, 'Couldn’t change that.'), 'error');
+    }
+}
+
+// ==================== the connected chat ====================
+// A group chat (end-to-end encrypted, js/features/messaging.ts) connected to
+// the group. Members join it from the group page. Someone who leaves the
+// group leaves the chat too (the database does it).
+
+export async function loadGroupChat(groupId: string) {
+    if (!state.user) return;
+    try {
+        const client = await api.getClient();
+        const { data, error } = await client.from('group_chats').select('conversation_id').eq('group_id', groupId).maybeSingle();
+        if (error) throw error;
+        gs().chats[groupId] = data?.conversation_id || null;
+        notify();
+    } catch (e) {
+        gs().chats[groupId] = null;
+        log.debug('GROUPS', 'Group chat not loaded', { error: String((e as any)?.message || e) });
+    }
+}
+
+/** Connects one of your group chats (you own it) to the group, or disconnects it (null). */
+export async function linkGroupChat(g: Group, conversationId: string | null): Promise<boolean> {
+    try {
+        const client = await api.getClient();
+        const { error } = await client.rpc('link_group_chat', { p_group: g.id, p_conversation: conversationId });
+        if (error) throw error;
+        api.showToast?.(conversationId ? 'The chat is connected. Members can join it from the group page.' : 'The chat is disconnected.', 'success');
+        await loadGroupChat(g.id);
+        return true;
+    } catch (e: any) {
+        api.showToast?.(problem(e, 'Couldn’t change the group’s chat.'), 'error');
+        return false;
+    }
+}
+
+/** Joins the group's chat (or opens it when you are in it). */
+export async function joinGroupChat(g: Group) {
+    try {
+        const client = await api.getClient();
+        const { data, error } = await client.rpc('join_group_chat', { p_group: g.id });
+        if (error) throw error;
+        await api.loadConversations?.();
+        await api.openMessages?.(data);
+    } catch (e: any) {
+        api.showToast?.(problem(e, 'Couldn’t join the chat.'), 'error');
     }
 }
 
