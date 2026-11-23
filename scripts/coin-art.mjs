@@ -238,19 +238,18 @@ function cart() {
     const outer = cut(trap, 2).map(v), inner = cut(inset(trap, 2.2), 1.2).map(v);
     const ring = (p, q) => `M${pts(p).replace(/ /g, ' L')}Z M${pts(q).replace(/ /g, ' L')}Z`;
     const by = [EDGE[0] * 0.6, EDGE[1] * 0.6];
-    // the frame runs along the basket's back edge (the same slope, from the
-    // grip down to the base) and then along the base; the grip sits on its top
-    const back = (y) => [tl[0] + (bl[0] - tl[0]) * (y - tl[1]) / (bl[1] - tl[1]), y];
-    const frame = barAlong([back(-19.5), back(10.5), [18, 10.5]], 2.8).map(v);
-    const grip = barAlong([[back(-19.5)[0] - 7, -19.5], [back(-19.5)[0] + 1.2, -19.5]], 4).map(v);
-    // the wheels hang from the base on short struts
-    const wheelX = [-3.6, 13.5];
+    // the frame: one steel bar from the handle, down the back and along the
+    // base. At the top it bends level into the handle bar.
+    const frame = barAlong([[-29.5, -18.5], [-21.5, -18.5], [-11.5, 10.5], [18, 10.5]], 2.8).map(v);
+    // the red grip: a rubber sleeve on the level handle bar only (it stops
+    // before the bend), a little thicker than the bar, with rounded ends
+    const grip = cut(barAlong([[-30.2, -18.5], [-23.4, -18.5]], 3.8), 0.9).map(v);
+    const wheelX = [-6.5, 13.5];
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"><defs>
 <linearGradient id="${id}steel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6f8fb"/><stop offset="1" stop-color="#b7c0cc"/></linearGradient>
 <linearGradient id="${id}grip" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff6f61"/><stop offset="1" stop-color="#d6342a"/></linearGradient>
 <linearGradient id="${id}tire" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4b515b"/><stop offset="1" stop-color="#23272e"/></linearGradient>
 </defs>`
-        + wheelX.map(x => wire(v, [[x, 10.5], [x, 17.6]], 1.6)).join('')
         + raised(frame, [EDGE[0] * 0.5, EDGE[1] * 0.5], STEEL, `${id}fc`)
         + wires.map(w => wire(v, w)).join('')
         + `<path d="${ring(outer.map(q => add(q, by)), inner.map(q => add(q, by)))}" fill="#5f6977" fill-rule="evenodd"/>`
