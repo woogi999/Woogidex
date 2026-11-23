@@ -1,5 +1,5 @@
 /* The tier maker page (/toolbox/tier-maker, js/app/pages/TierMakerPage.tsx),
-   its board (components/tier/TierBoard.tsx), the game modes (TierModes.tsx)
+   its board (components/tier/TierBoard.tsx)
    and a tier list in a chat (MessagesPage.tsx).
    One surface, no box around the page: hairline dividers and soft fills. */
 
@@ -23,7 +23,7 @@
 .tmp-flag { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 999px; background: var(--bg-panel); color: var(--text-secondary); font-size: 12.5px; font-weight: 700; white-space: nowrap; }
 
 /* ---- the tool rows: plain buttons on the page, no boxes ---- */
-.tmp-bar, .tmp-add, .tmp-modes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.tmp-bar, .tmp-add { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .tmp-bar { padding-bottom: var(--sp-2); border-bottom: 1px solid var(--border-light); }
 .tmp-layouts { display: flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: 10px; background: var(--bg-panel); }
 .tmp-layouts button { height: 30px; padding: 0 12px; border: 0; border-radius: 7px; background: transparent; color: var(--text-secondary); font: 600 13px var(--font-sans); cursor: pointer; white-space: nowrap; }
@@ -45,10 +45,6 @@
 .tmp-tile-colors button { width: 18px; height: 18px; padding: 0; border: 2px solid transparent; border-radius: 50%; cursor: pointer; }
 .tmp-tile-colors button.is-on { border-color: var(--text-primary); }
 .tmp-note { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; color: var(--text-secondary); }
-.tmp-modes > span { font-size: 12.5px; font-weight: 700; color: var(--text-muted); margin-right: 2px; }
-.tmp-modes button { height: 28px; padding: 0 11px; border: 1px dashed var(--border); border-radius: 999px; background: transparent; color: var(--text-secondary); font: 600 12.5px var(--font-sans); cursor: pointer; }
-.tmp-modes button:hover, .tmp-modes button.is-on { border-style: solid; border-color: var(--accent); color: var(--text-primary); }
-.tmp-modes button.is-on { background: var(--accent-soft); }
 
 /* ---- the body: the board, and the side panel behind a hairline ---- */
 .tmp-body { display: flex; gap: var(--sp-4); align-items: flex-start; min-width: 0; }
@@ -166,41 +162,6 @@
     color-mix(in srgb, var(--bg-panel) 88%, transparent); }
 .tm-plane-spot { position: absolute; transform: translate(-50%, -50%); }
 
-/* ---- game modes: on the page, in place of the board's tools ---- */
-.tm-mode { display: flex; flex-direction: column; gap: var(--sp-3); padding: var(--sp-4) 0; border-bottom: 1px solid var(--border-light); }
-.tm-mode-head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--sp-3); }
-.tm-mode-head h3 { margin: 0; font-size: 18px; font-weight: 800; }
-.tm-mode-head small { color: var(--text-secondary); }
-.tm-mode-stage { display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); text-align: center; }
-.tm-mode-count { margin: 0; font-size: 14px; color: var(--text-secondary); }
-.tm-mode-hint { margin: 0; color: var(--text-muted); }
-.tm-mode-card { display: inline-flex; flex-direction: column; align-items: center; gap: 6px; padding: 8px; border: 0; border-radius: 12px; background: var(--bg-panel); color: var(--text-primary); font: inherit; }
-button.tm-mode-card { cursor: pointer; transition: transform 140ms var(--ease-out, ease), box-shadow 140ms ease; }
-button.tm-mode-card:hover { transform: translateY(-2px); box-shadow: 0 0 0 2px var(--accent), 0 8px 20px rgba(0,0,0,.12); }
-.tm-mode-pic { display: grid; place-items: center; width: 72px; height: 72px; overflow: hidden; border-radius: 8px; }
-.tm-mode-pic .tm-item-img { width: 100%; height: 100%; object-fit: contain; }
-.tm-mode-pic .tm-item-letter { font-size: 30px; }
-.tm-mode-card.is-big .tm-mode-pic { width: 160px; height: 160px; }
-.tm-mode-card.is-big .tm-item-letter { font-size: 64px; }
-.tm-mode-card.is-big strong { font-size: 17px; }
-.tm-mode-vs { display: flex; align-items: center; justify-content: center; gap: var(--sp-4); flex-wrap: wrap; }
-.tm-mode-vs-word { font-size: 22px; font-weight: 900; color: var(--text-muted); }
-.tm-mode-choices { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
-.tm-mode-choice { min-width: 64px; height: 38px; padding: 0 14px; border: 0; border-radius: 8px; background: var(--c, var(--accent)); color: #fff; font: 800 14px var(--font-sans); text-shadow: 0 1px 2px rgba(0,0,0,.3); cursor: pointer; }
-.tm-mode-choice:disabled { opacity: .35; cursor: default; }
-.tm-mode-done { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.tm-mode-done p { margin: 0; color: var(--text-secondary); }
-.tm-mode-standings { margin: 0; padding-left: 20px; text-align: left; font-size: 14px; }
-.tm-mode-standings small { color: var(--text-muted); }
-.tm-mode-ktc { display: flex; justify-content: center; gap: var(--sp-4); flex-wrap: wrap; }
-.tm-mode-ktc-col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.tm-mode-setup { align-items: stretch; max-width: 360px; margin: 0 auto; text-align: left; }
-.tm-mode-setup label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; }
-.tm-mode-pool { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
-.tm-mode-teams { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; width: 100%; text-align: left; }
-.tm-mode-teams > div { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 8px; background: var(--bg-panel); }
-.tm-mode-teams > div.is-now { background: var(--accent-soft); }
-.tm-mode-teams small { color: var(--text-secondary); }
 
 /* ---- presentation mode: the board alone, full screen ---- */
 .tier-maker-page.is-presenting { max-width: none; padding: var(--sp-5); background: var(--bg-dark); overflow: auto; height: 100%; box-sizing: border-box; }
@@ -233,7 +194,6 @@ button.tm-mode-card:hover { transform: translateY(-2px); box-shadow: 0 0 0 2px v
     .tm-format { width: 100%; }
     .tmp-head { flex-wrap: wrap; }
     .tm-label strong { font-size: 14px; }
-    .tm-mode-card.is-big .tm-mode-pic { width: 110px; height: 110px; }
 }
 
 
@@ -280,11 +240,9 @@ button.tm-mode-card:hover { transform: translateY(-2px); box-shadow: 0 0 0 2px v
     .tm-tcell-move { width: 88px; }
 }
 
-/* ---- motion: a side panel slides in from the right when it opens, a game
-   mode's panel from above; reduced motion keeps a fade ---- */
+/* ---- motion: a side panel slides in from the right when it opens;
+   reduced motion keeps a fade ---- */
 .tmp-side { animation: tmp-side-in .32s cubic-bezier(.215, .61, .355, 1) both; }
-.tm-mode-panel, .tmp-main > :first-child:not(.tm-board-wrap) { animation: tmp-drop-in .3s cubic-bezier(.215, .61, .355, 1) both; }
 @keyframes tmp-side-in { from { opacity: 0; transform: translateX(18px); } }
-@keyframes tmp-drop-in { from { opacity: 0; transform: translateY(-10px); } }
-.reduce-motion :is(.tmp-side, .tm-mode-panel, .tmp-main > :first-child) { animation-name: fade-only; }
-@media (prefers-reduced-motion: reduce) { :is(.tmp-side, .tm-mode-panel, .tmp-main > :first-child) { animation-name: fade-only; } }
+.reduce-motion .tmp-side { animation-name: fade-only; }
+@media (prefers-reduced-motion: reduce) { .tmp-side { animation-name: fade-only; } }

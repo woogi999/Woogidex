@@ -1,7 +1,7 @@
 // /fun/tier-maker/edit: the tier maker, one of the Fun tab's tools, as a whole
 // page (no window, no card around it). Rank Fakémon, Pokémon, pictures or
 // words into any tiers you like, in five layouts (js/features/tier-lists.ts),
-// with game modes (TierModes.tsx), your own look, a presentation mode for
+// with your own look, a presentation mode for
 // streams, and the exports. The board is js/app/components/tier/TierBoard.tsx.
 //
 // Where a list comes from: openTierMaker() in js/app/dialogs/tierMaker.tsx
@@ -19,10 +19,8 @@ import { loadHtml2canvas } from '../../core/vendor.ts';
 import { confirmDialog } from '../../core/confirm-dialog.ts';
 import { BANNER_PRESETS } from '../components/profile.tsx';
 import { TierBoard } from '../components/tier/TierBoard.tsx';
-import { ModePanel } from '../components/tier/TierModes.tsx';
 import { openContextMenu } from '../components/ContextMenu.tsx';
 import { currentTierMakerStart, type GroupContext } from '../dialogs/tierMaker.tsx';
-import { MODES, type ModeKey } from '../../features/tier-modes.ts';
 import {
     BG_IMG_CHARS, LAYOUTS, LOOK_LIMITS, MAX_IMAGES, SD_TIERS, STARTS, UNRANKED, addColumn, addMons, addTier, applyPlacement, averageList,
     changelog, collectionMons, columnOf, convertLayout, exportFormatsData, exportText, forSharing, fromTemplate, importText,
@@ -126,7 +124,7 @@ function TierMaker() {
             seen.current = next.seq;
             setStart(next);
             setList(next.list || newTierList());
-            setHistory([]); setFuture([]); setPicked(null); setMode(null); setDirty(false);
+            setHistory([]); setFuture([]); setPicked(null); setDirty(false);
         };
         window.addEventListener('woogidex:tier-maker-start', take);
         return () => window.removeEventListener('woogidex:tier-maker-start', take);
@@ -164,7 +162,6 @@ function TierMaker() {
 
     const [picked, setPicked] = useState<string | null>(null);
     const [side, setSide] = useState<Side>(null);
-    const [mode, setMode] = useState<ModeKey | null>(null);
     const [present, setPresent] = useState(false);
     const [query, setQuery] = useState('');
     const [tileText, setTileText] = useState('');
@@ -503,23 +500,10 @@ function TierMaker() {
             )}
             {!present && shared && <p className="tmp-note"><Icon name="information-circle" size={14} />This is your copy. What you add stays in your copy (dashed) and is left out when you send or post it.</p>}
 
-            {!present && (
-                <div className="tmp-modes" role="group" aria-label="Game modes">
-                    <span>Play:</span>
-                    {MODES.map(([key, label, hint]) => <button key={key} type="button" className={mode === key ? 'is-on' : ''} title={hint} onClick={() => { setMode(mode === key ? null : key); setPicked(null); }}>{label}</button>)}
-                </div>
-            )}
-
             <div className="tmp-body">
                 <div className="tmp-main" ref={mainArea}>
-                    {mode && !present && (
-                        <ModePanel list={list} mode={mode} onChange={change} onClose={() => setMode(null)}
-                            onApply={next => { change(next); setMode(null); api.showToast?.('Done. It is in the list now.', 'success'); }} />
-                    )}
-                    {(!mode || mode === 'blind') && (
-                        <TierBoard list={list} onChange={change} picked={present ? null : picked} onPick={present ? () => {} : setPicked}
-                            locked={mode === 'blind'} boardRef={board} hideUnranked={present} />
-                    )}
+                    <TierBoard list={list} onChange={change} picked={present ? null : picked} onPick={present ? () => {} : setPicked}
+                        boardRef={board} hideUnranked={present} />
                 </div>
                 {/* a fresh key for each panel, so each one slides in when it opens (css .tmp-side) */}
                 {!present && sidePanel && <aside key={side || 'none'} className="tmp-side">{sidePanel}</aside>}

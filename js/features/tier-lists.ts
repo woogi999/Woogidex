@@ -242,7 +242,7 @@ export function rankedOrder(list: TierList): string[] {
 /**
  * Puts mons into the tiers in `order`, best first, split evenly over the
  * tiers (the first tiers take the extra). Mons not in `order` stay where they
- * are unranked. Used by the game modes.
+ * are unranked. Used when a list changes layout.
  */
 export function placeByOrder(list: TierList, order: string[]): TierList {
     const ids = order.filter(id => list.mons[id]);

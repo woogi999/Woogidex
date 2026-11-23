@@ -67,8 +67,6 @@ export interface BoardProps {
     onChange: (next: TierList) => void;
     picked: string | null;
     onPick: (id: string | null) => void;
-    /** blind ranking: placed items cannot move */
-    locked?: boolean;
     /** live votes: what to draw on an item (the majority tier, say) */
     badge?: (id: string) => ReactNode;
     boardRef?: React.RefObject<HTMLDivElement | null>;
@@ -88,11 +86,10 @@ export function boardStyle(list: TierList): CSSProperties {
     return style as CSSProperties;
 }
 
-export function TierBoard({ list, onChange, picked, onPick, locked = false, badge, boardRef, hideUnranked = false }: BoardProps) {
+export function TierBoard({ list, onChange, picked, onPick, badge, boardRef, hideUnranked = false }: BoardProps) {
     const own = useRef<HTMLDivElement>(null);
     const board = boardRef || own;
     const layout = list.layout || 'tiers';
-    const placedSet = new Set(list.tiers.flatMap(t => list.placed[t.id] || []));
 
     // ---- drag an item ----
     const drag = useRef<{ id: string; x: number; y: number; ghost: HTMLElement | null; moved: boolean } | null>(null);
@@ -101,7 +98,6 @@ export function TierBoard({ list, onChange, picked, onPick, locked = false, badg
     const clearOver = () => document.querySelectorAll('.tm-board-wrap .is-over').forEach(el => el.classList.remove('is-over'));
     const startDrag = (id: string) => (e: React.PointerEvent) => {
         if (e.button !== 0 && e.pointerType === 'mouse') return;
-        if (locked && (placedSet.has(id) || list.pos?.[id])) return;
         drag.current = { id, x: e.clientX, y: e.clientY, ghost: null, moved: false };
         const move = (ev: PointerEvent) => {
             const d = drag.current;
@@ -214,10 +210,7 @@ export function TierBoard({ list, onChange, picked, onPick, locked = false, badg
         );
     } else if (layout === 'table') {
         // a spreadsheet for real tiering: one row for each item, grouped by tier, small icons only
-        const moveTo = (id: string, tierId: string) => {
-            if (locked && placedSet.has(id)) return;
-            onChange(moveMonTo(list, id, tierId, null, null));
-        };
+        const moveTo = (id: string, tierId: string) => onChange(moveMonTo(list, id, tierId, null, null));
         const row = (t: { id: string; name: string; color: string }, id: string, i: number, n: number) => {
             const m = list.mons[id];
             if (!m) return null;
@@ -229,7 +222,7 @@ export function TierBoard({ list, onChange, picked, onPick, locked = false, badg
                     <td className="tm-tcell-name"><button type="button" onClick={() => onPick(picked === id ? null : id)}>{m.name}</button>{m.note && <small>{m.note}</small>}</td>
                     <td className="tm-tcell-types">{(m.types || []).map(ty => <span key={ty} className={`type-pill type-${ty.toLowerCase()}`}>{ty}</span>)}</td>
                     <td className="tm-tcell-move">
-                        <select aria-label={`Move ${m.name} to`} value={t.id} disabled={locked} onChange={e => moveTo(id, e.target.value)} onPointerDown={e => e.stopPropagation()}>
+                        <select aria-label={`Move ${m.name} to`} value={t.id} onChange={e => moveTo(id, e.target.value)} onPointerDown={e => e.stopPropagation()}>
                             {list.tiers.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
                             <option value={UNRANKED}>Unranked</option>
                         </select>
