@@ -108,8 +108,11 @@ export interface UniversalMovesEntry { id: Id; type: 'universal-moves'; name: st
 /** A tier list saved on this device (js/features/tier-lists.ts). */
 export interface TierListEntry { id: Id; type: 'tier-list'; name: string; list: any; [extra: string]: any; }
 
-/** state.folders holds all six, told apart by `type`. */
-export type FolderEntry = Folder | Region | CustomType | CustomCondition | UniversalMovesEntry | TierListEntry;
+/** Your own Pokédex colours and egg groups (js/features/custom-fields.ts): one entry, at most. */
+export interface CustomFieldsEntry { id: Id; type: 'custom-fields'; name: string; colors?: Array<{ name: string; hex: string }>; eggGroups?: string[]; [extra: string]: any; }
+
+/** state.folders holds all seven, told apart by `type`. */
+export type FolderEntry = Folder | Region | CustomType | CustomCondition | UniversalMovesEntry | TierListEntry | CustomFieldsEntry;
 
 export interface User {
     id: Id;

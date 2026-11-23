@@ -10,7 +10,7 @@ import { Icon } from '../Icon.tsx';
 import { ChartFrame, Histogram, Radar, Scatter, SplitBar, StripPlot } from '../charts.tsx';
 import { countUp } from '../../../core/motion.ts';
 import { useSlide } from '../../hooks.ts';
-import { POKEMON_COLORS } from '../../../core/data.ts';
+import { colorHex as customColorHex } from '../../../features/custom-fields.ts';
 import { dexNumberCheck, runs } from '../../../features/notebook.ts';
 import type { Region } from '../../types.ts';
 
@@ -187,7 +187,7 @@ function RoleDots({ mons }: { mons: Mon[] }) {
 }
 
 /** The Pokédex colours, as swatches of themselves. */
-const colorHex = (name: string) => POKEMON_COLORS.find((c: any) => c.name.toLowerCase() === name.toLowerCase())?.hex as string | undefined;
+const colorHex = (name: string) => customColorHex(name);
 
 function ColorSwatches({ colors }: { colors: Array<[string, number]> }) {
     const hex = (name: string) => colorHex(name) || 'var(--text-muted)';

@@ -10,6 +10,8 @@ import {
 import { ColorSwatchPicker, RollButton, RowHeading, TypeDropdown, TypePill } from './fields.tsx';
 import { CommitInput } from '../CommitInput.tsx';
 import { NAME_MAX } from '../../../core/data.ts';
+import { useState } from 'react';
+import { addCustomColor, addCustomEggGroup, customColors, customEggGroups, removeCustomColor } from '../../../features/custom-fields.ts';
 
 /** What the typing is weak to, resists and is immune to. */
 function TypeEffectiveness() {
@@ -42,11 +44,36 @@ function TypeEffectiveness() {
     );
 }
 
+const ADD_CUSTOM = '__add_custom__';
+
+/** The main-game egg groups, then yours, then "+ Custom" (js/features/custom-fields.ts). */
 function EggSelect({ id, value, onPick }: { id: string; value: string; onPick: (v: string) => void }) {
+    const [adding, setAdding] = useState(false);
+    const [name, setName] = useState('');
+    const own = customEggGroups();
+    const add = () => {
+        const kept = addCustomEggGroup(name);
+        if (!kept) return;
+        onPick(kept);
+        setName('');
+        setAdding(false);
+    };
+    if (adding) {
+        return (
+            <div className="custom-field-adder">
+                <input id={id} type="text" value={name} maxLength={24} placeholder="Egg group name" aria-label="New egg group name" autoFocus
+                    onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(); } if (e.key === 'Escape') setAdding(false); }} />
+                <button type="button" className="btn btn-primary btn-sm" disabled={!name.trim()} onClick={add}>Add</button>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAdding(false)}>Cancel</button>
+            </div>
+        );
+    }
     return (
-        <select id={id} value={value} onChange={e => onPick(e.target.value)}>
+        <select id={id} value={value} onChange={e => e.target.value === ADD_CUSTOM ? setAdding(true) : onPick(e.target.value)}>
             <option value="">None</option>
             {EGG_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
+            {own.length > 0 && <optgroup label="Yours">{own.map(g => <option key={g} value={g}>{g}</option>)}</optgroup>}
+            <option value={ADD_CUSTOM}>+ Custom...</option>
         </select>
     );
 }
@@ -168,7 +195,8 @@ export function BasicTab() {
             </div>
             <div className="form-group">
                 <label>Pokedex Colour</label>
-                <ColorSwatchPicker value={form.color} onPick={color => editForm({ color })} />
+                <ColorSwatchPicker value={form.color} onPick={color => editForm({ color })}
+                    custom={{ colors: customColors(), add: addCustomColor, remove: removeCustomColor }} />
             </div>
             <RowHeading roll={<RollButton id="egg-roll-btn" small title="Roll random egg groups" onRoll={e => api.openEggGroupRollPopover(e)} />}>Egg Groups</RowHeading>
             <div className="form-row">

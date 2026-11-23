@@ -47,15 +47,49 @@ export function TypeDropdown({ id, value, placeholder, allowNone, onPick }: {
 }
 
 /** The Pokédex colour, as the games' ten swatches. */
-export function ColorSwatchPicker({ value, onPick }: { value: string; onPick: (name: string) => void }) {
+/**
+ * The Pokédex colour swatches. With `custom`, your own colours follow the
+ * main-game ones, and "+ Custom" adds one (js/features/custom-fields.ts).
+ */
+export function ColorSwatchPicker({ value, onPick, custom }: { value: string; onPick: (name: string) => void; custom?: { colors: Array<{ name: string; hex: string }>; add: (name: string, hex: string) => string; remove: (name: string) => void } }) {
+    const [adding, setAdding] = useState(false);
+    const [name, setName] = useState('');
+    const [hex, setHex] = useState('#8b5cf6');
+    const swatch = (c: { name: string; hex: string }, own = false) => (
+        <div key={c.name} className={`color-option${c.name === value ? ' selected' : ''}`} style={{ backgroundColor: c.hex }} title={own ? `${c.name} (yours, right-click to remove)` : c.name}
+            role="button" tabIndex={0} aria-pressed={c.name === value} aria-label={c.name}
+            onContextMenu={own ? e => { e.preventDefault(); custom!.remove(c.name); } : undefined}
+            onClick={() => onPick(c.name)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(c.name); } }} />
+    );
+    const add = () => {
+        const kept = custom?.add(name, hex);
+        if (!kept) return;
+        onPick(kept);
+        setName('');
+        setAdding(false);
+    };
     return (
-        <div className="color-options" id="color-options">
-            {(POKEMON_COLORS as Array<{ name: string; hex: string }>).map(c => (
-                <div key={c.name} className={`color-option${c.name === value ? ' selected' : ''}`} style={{ backgroundColor: c.hex }} title={c.name}
-                    role="button" tabIndex={0} aria-pressed={c.name === value} aria-label={c.name}
-                    onClick={() => onPick(c.name)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onPick(c.name); } }} />
-            ))}
-        </div>
+        <>
+            <div className="color-options" id="color-options">
+                {(POKEMON_COLORS as Array<{ name: string; hex: string }>).map(c => swatch(c))}
+                {custom?.colors.map(c => swatch(c, true))}
+                {custom && (
+                    <button type="button" className={`color-option color-option-add${adding ? ' selected' : ''}`} title="Add your own colour" aria-label="Add your own colour"
+                        aria-expanded={adding} onClick={() => setAdding(v => !v)}>
+                        <Icon name="plus" size={14} />
+                    </button>
+                )}
+            </div>
+            {custom && adding && (
+                <div className="custom-field-adder">
+                    <input type="color" value={hex} aria-label="Colour" onChange={e => setHex(e.target.value)} />
+                    <input type="text" value={name} maxLength={24} placeholder="Colour name, like Teal" aria-label="Colour name" autoFocus
+                        onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); add(); } if (e.key === 'Escape') setAdding(false); }} />
+                    <button type="button" className="btn btn-primary btn-sm" disabled={!name.trim()} onClick={add}>Add</button>
+                    <button type="button" className="btn btn-secondary btn-sm" onClick={() => setAdding(false)}>Cancel</button>
+                </div>
+            )}
+        </>
     );
 }
 

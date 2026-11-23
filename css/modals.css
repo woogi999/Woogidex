@@ -416,3 +416,10 @@ body.quick-search-open { overflow: hidden; }
 .bg-remove-controls input[type="range"] { width: 100%; }
 .bg-remove-check { display: inline-flex !important; align-items: center; gap: 8px; margin-top: var(--sp-2); font-size: 13px !important; cursor: pointer; }
 @media (max-width: 560px) { .bg-remove-compare { grid-template-columns: 1fr; } }
+
+/* custom Pokédex colours and egg groups (js/features/custom-fields.ts) */
+.color-option-add { display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 2px dashed var(--border); color: var(--text-muted); padding: 0; }
+.color-option-add:hover, .color-option-add.selected { color: var(--text-primary); border-color: var(--text-secondary); box-shadow: none; }
+.custom-field-adder { display: flex; align-items: center; gap: 6px; margin-top: 8px; }
+.custom-field-adder input[type="text"] { flex: 1; min-width: 0; }
+.custom-field-adder input[type="color"] { width: 36px; height: 32px; padding: 2px; border: 0; background: none; cursor: pointer; }
