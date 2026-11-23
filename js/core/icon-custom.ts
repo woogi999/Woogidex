@@ -14,6 +14,9 @@ export const CUSTOM_ICONS: Record<string, string> = {
 
     sword: sword(45),
 
+    // a toolbox: a handle, the lid, a gap with the latch across it, the body
+    toolbox: '<path fill-rule="evenodd" d="M9.75 2.25A1.5 1.5 0 0 0 8.25 3.75v3h1.5v-3h4.5v3h1.5v-3a1.5 1.5 0 0 0-1.5-1.5h-4.5Z" clip-rule="evenodd"/><path d="M4.5 6.75A2.25 2.25 0 0 0 2.25 9v2.25h7.5v-.75a.75.75 0 0 1 .75-.75h3a.75.75 0 0 1 .75.75v.75h7.5V9a2.25 2.25 0 0 0-2.25-2.25h-15Z"/><path d="M2.25 12.75v5.25a2.25 2.25 0 0 0 2.25 2.25h15A2.25 2.25 0 0 0 21.75 18v-5.25h-7.5v.75a.75.75 0 0 1-.75.75h-3a.75.75 0 0 1-.75-.75v-.75h-7.5Z"/><rect x="10.5" y="11.25" width="3" height="1.5" rx=".5"/>',
+
     // a die, five pips
     dices: '<path fill-rule="evenodd" d="M6 2.25A3.75 3.75 0 0 0 2.25 6v12A3.75 3.75 0 0 0 6 21.75h12A3.75 3.75 0 0 0 21.75 18V6A3.75 3.75 0 0 0 18 2.25H6ZM8.25 6.75a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm7.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3ZM12 10.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm-3.75 3.75a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Zm7.5 0a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3Z" clip-rule="evenodd"/>',
 

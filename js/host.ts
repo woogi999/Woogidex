@@ -57,7 +57,7 @@ import { GlobalSearch } from './app/shell/GlobalSearch.tsx';
 import { GameSwitcher } from './app/shell/GameSwitcher.tsx';
 import { QuickSearch } from './app/shell/QuickSearch.tsx';
 import {
-    AccountButton, AccountMenuBottom, AccountMenuTop, FeedbackMenuItem, MessagesButton, Notifications, SignInButton
+    AccountButton, AccountMenuBottom, AccountMenuTop, FeedbackMenuItem, MessagesButton, Notifications, SignInButton, ToolboxButton
 } from './app/shell/HeaderAccount.tsx';
 import { MessagesDock } from './app/shell/MessagesDock.tsx';
 
@@ -140,7 +140,7 @@ export function installHost(): void {
     registerNav({ page: 'community-view', label: 'Community', title: 'Community', icon: 'users', order: 20, path: 'community', alsoFor: ['community-detail-view', 'post-view'] });
     // the game picker leads, and the search sits beside the bell (js/app/shell/GameSwitcher.tsx)
     ext.headerLeft.push(GameSwitcher);
-    ext.headerActions.push(GlobalSearch, MessagesButton, Notifications, SignInButton);
+    ext.headerActions.push(GlobalSearch, ToolboxButton, MessagesButton, Notifications, SignInButton);
     ext.accountButton = AccountButton;
     ext.accountMenuTop.push(AccountMenuTop);
     ext.accountMenuItems.push(FeedbackMenuItem, UpdatesMenuItem);

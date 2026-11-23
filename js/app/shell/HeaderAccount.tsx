@@ -22,6 +22,16 @@ export function SignInButton() {
 }
 
 /** Opens your chats; the badge counts unread messages (muted chats don't count). */
+/** The Toolbox (apps like the tier maker), an icon beside Messages. Signed out too: the apps work without an account. */
+export function ToolboxButton() {
+    const active = document.body.dataset.page === 'toolbox-view';
+    return (
+        <Link to="toolbox" className={`notifications-bell-btn header-toolbox-btn${active ? ' active' : ''}`} aria-label="Toolbox" title="Toolbox">
+            <Icon name="toolbox" size={20} />
+        </Link>
+    );
+}
+
 export function MessagesButton() {
     if (!state.user) return null;
     const active = document.body.dataset.page === 'messages-view';
@@ -162,10 +172,7 @@ export function UpdatesMenuItem({ close }: { close: () => void }) {
         <button type="button" className="header-profile-popover-item" onClick={() => { close(); openUpdates(); }}>
             <Icon name="newspaper" /><span>Updates</span>{unseen && <span className="header-menu-dot" aria-label="New" />}
         </button>
-        {/* the Toolbox (apps like the tier maker) and the team's downloads */}
-        <button type="button" className="header-profile-popover-item" onClick={() => { close(); api.openPath?.('toolbox'); }}>
-            <Icon name="trophy" /><span>Toolbox</span>
-        </button>
+        {/* the team's downloads; the Toolbox is an icon in the header (ToolboxButton) */}
         <button type="button" className="header-profile-popover-item" onClick={() => { close(); api.openPath?.('downloads'); }}>
             <Icon name="arrow-down-tray" /><span>Downloads</span>
         </button>

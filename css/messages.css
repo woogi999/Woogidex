@@ -4,7 +4,7 @@
    it. js/app/pages/MessagesPage.tsx. The chat dock in the bottom-right corner
    (js/app/shell/MessagesDock.tsx) is at the end of this file. */
 
-.header-messages-btn.active { color: var(--accent); border-color: var(--accent); }
+.header-messages-btn.active, .header-toolbox-btn.active { color: var(--accent); border-color: var(--accent); }
 
 .messenger {
     --chat-h: calc(100dvh - var(--header-h));
