@@ -54,7 +54,58 @@ function take(data: any): WoobuxState | null {
     return current;
 }
 
+// ---- the mock (dev server only) ----
+// Open the dev server with ?woobux=mock to see the Woobux row, the daily
+// reward and the calendar without the database: a 6-day streak, so today is
+// day 7 (a bonus and a save pass). ?woobux=missed starts two days behind with
+// two save passes, to see the "Keep your streak?" question. The numbers live
+// in this tab only. import.meta.env.DEV is false in a real build, so none of
+// this reaches the site.
+const MOCK: '' | 'mock' | 'missed' = (() => {
+    if (!import.meta.env.DEV) return '';
+    const v = new URLSearchParams(location.search).get('woobux');
+    return v === 'mock' || v === 'missed' ? v : '';
+})();
+const mockToday = () => new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10);
+const daysBefore = (n: number) => new Date(Date.parse(mockToday()) - n * 86400_000).toISOString().slice(0, 10);
+const mock = { balance: 1240, current: MOCK === 'missed' ? 12 : 6, best: 12, last: daysBefore(MOCK === 'missed' ? 3 : 1), passes: MOCK === 'missed' ? 2 : 1, acks: [] as string[] };
+
+function mockState(extra: Record<string, unknown> = {}) {
+    const today = mockToday();
+    const missed = Math.max(0, Math.round((Date.parse(today) - Date.parse(mock.last)) / 86400_000) - 1);
+    return {
+        balance: mock.balance, today, acknowledged: mock.acks,
+        streak: { current: missed ? 0 : mock.current, held: mock.current, best: mock.best, last_day: mock.last, claimed_today: mock.last === today, missed, save_passes: mock.passes },
+        ...extra
+    };
+}
+
+function mockCall(fn: string, args: Record<string, unknown>): any {
+    if (fn === 'my_woobux') return mockState();
+    if (fn === 'acknowledge_update') {
+        const v = String(args.p_version);
+        if (mock.acks.includes(v)) return mockState({ awarded: 0, already: true });
+        mock.acks.push(v);
+        mock.balance += 500;
+        return mockState({ awarded: 500, already: false });
+    }
+    // claim_daily_login, by the same rules as the database
+    const now = mockState().streak;
+    if (now.claimed_today) return mockState({ awarded: 0, already: true });
+    const used = now.missed && args.p_use_passes && now.missed <= mock.passes ? now.missed : 0;
+    mock.current = now.missed && !used ? 1 : mock.current + 1;
+    const day = cycleDay(mock.current);
+    const r = dayReward(day);
+    const gained = Math.max(0, Math.min(r.passes, 5 - (mock.passes - used)));
+    mock.passes = mock.passes - used + gained;
+    mock.best = Math.max(mock.best, mock.current);
+    mock.last = mockToday();
+    mock.balance += r.woobux;
+    return mockState({ awarded: r.woobux, cycle_day: day, passes_awarded: gained, passes_used: used, already: false });
+}
+
 async function call(fn: string, args: Record<string, unknown> = {}): Promise<any> {
+    if (MOCK) return mockCall(fn, args);
     const client = await api.getClient();
     const { data, error } = await client.rpc(fn, args);
     if (error) throw error;
@@ -101,6 +152,7 @@ let rewarded: Promise<Record<string, number>> | null = null;
 export function rewardedUpdates(): Promise<Record<string, number>> {
     // one request for every caller (What's New and the Updates list ask at once)
     rewarded ||= (async () => {
+        if (MOCK) return { '1.20.0': 500 };
         try {
             const client = await api.getClient();
             const { data, error } = await client.from('rewarded_updates').select('version, reward');

@@ -12,6 +12,8 @@ import { SearchRow } from '../components/SearchRow.tsx';
 import { useStore } from '../store.ts';
 
 const COMMUNITY_DEBOUNCE_MS = 250;
+/** A Mac, iPhone or iPad: the shortcut is Command + K there. */
+const IS_APPLE = typeof navigator !== 'undefined' && /Mac|iPhone|iPad|iPod/i.test((navigator as any).userAgentData?.platform || navigator.platform || navigator.userAgent);
 
 type Group = [string, SearchResult[]];
 
@@ -126,6 +128,8 @@ export function GlobalSearch() {
                     role="combobox" aria-expanded={listOpen} aria-controls="global-search-results" aria-autocomplete="list" aria-label="Search Woogidex"
                     aria-activedescendant={active !== -1 ? `gs-opt-${active}` : undefined}
                     value={text} onChange={e => setText(e.target.value)} onFocus={() => setListOpen(true)} onKeyDown={onKeyDown} />
+                {/* the quick search shortcut (QuickSearch.tsx), so people find it; hidden while you type here */}
+                {!text && <kbd className="global-search-kbd" aria-hidden="true">{IS_APPLE ? '⌘ K' : 'Ctrl K'}</kbd>}
                 {/* our own clear button; the browser's built-in one is hidden (css/header.css) */}
                 <button className="global-search-clear" type="button" aria-label="Clear search" title="Clear" hidden={!text}
                     // mousedown so the input keeps focus and the list stays open

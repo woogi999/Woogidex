@@ -35,7 +35,7 @@ function Calendar({ count, claimedToday }: { count: number; claimedToday: boolea
                 return (
                     <li key={d} className={`wbx-day${done ? ' is-done' : ''}${today ? ' is-today' : ''}${r.passes ? ' is-milestone' : ''}`}
                         aria-label={`Day ${d}: ${r.woobux} Woobux${r.passes ? ` and ${r.passes} save pass${r.passes > 1 ? 'es' : ''}` : ''}${done ? ', collected' : ''}`}>
-                        <span className="wbx-day-n">Day {d}</span>
+                        <span className="wbx-day-n">{d}</span>
                         <WoobuxIcon size={d === 30 ? 26 : 20} />
                         <strong>{r.woobux}</strong>
                         {r.passes > 0 && <span className="wbx-day-pass"><SavePassIcon size={12} />×{r.passes}</span>}

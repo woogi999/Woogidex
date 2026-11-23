@@ -133,14 +133,22 @@ function SavedAccountRows({ close }: { close: () => void }) {
 /** Your Woobux and login streak, under your name. Opens the Woobux window. */
 function WoobuxRow({ close }: { close: () => void }) {
     const w = woobux();
-    if (!w) return null;
+    // always there when signed in: a placeholder until the server answers
+    if (!w) {
+        return (
+            <div className="header-profile-popover-item header-woobux-row is-loading" aria-busy="true" aria-label="Woobux, loading">
+                <WoobuxIcon size={20} />
+                <span><span className="skel skel-text" style={{ width: 70 }} /></span>
+            </div>
+        );
+    }
     const days = w.streak.current;
     return (
         <button type="button" className="header-profile-popover-item header-woobux-row" onClick={() => { close(); openWoobux(); }}
             aria-label={`${w.balance} Woobux, ${days}-day login streak`}>
             <WoobuxIcon size={20} />
             <span><strong>{w.balance.toLocaleString()}</strong> Woobux</span>
-            <span className="header-profile-popover-note"><Icon name="fire" size={14} />{days} day{days === 1 ? '' : 's'}</span>
+            <span className="header-profile-popover-note" title="Login streak"><Icon name="fire" size={14} />{days} day{days === 1 ? '' : 's'}</span>
         </button>
     );
 }

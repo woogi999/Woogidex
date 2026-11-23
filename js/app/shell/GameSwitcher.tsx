@@ -22,7 +22,7 @@ function ComingSoon({ close, game }: DialogProps<{ game: string }>) {
         <Modal onClose={close} className="confirm-dialog game-soon" overlayClassName="confirm-dialog-overlay" labelledBy="game-soon-title">
             <div className="confirm-dialog-icon game-soon-icon" aria-hidden="true"><img src={g.icon} alt="" width={44} height={44} /></div>
             <h3 id="game-soon-title">{g.name} is coming soon</h3>
-            <p>I want Woogidex to work for {g.name} too: your own {g.what}, regions and tier lists, the same as for Pokémon. It isn’t ready yet, so stay tuned!</p>
+            <p>I want Woogidex to work for {g.name} too. Stuff like your own {g.what}, regions and tier lists, and much more! It isn’t ready yet, so stay tuned ;)</p>
             <div className="confirm-dialog-actions">
                 <button type="button" className="btn btn-primary" onClick={close}>Got it</button>
             </div>
