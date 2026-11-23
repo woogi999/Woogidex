@@ -1,18 +1,22 @@
 // /toolbox: Woogidex's apps, like Facebook's games and widgets. Every app
 // works on its own here, inside a group (its Toolbox tab), in a chat, and in
-// a post. The first app is the tier maker (js/app/dialogs/tierMaker.tsx).
-// Below the apps: the tier lists saved on this device.
+// a post. The first app is the tier maker (its own page, /toolbox/tier-maker,
+// js/app/pages/TierMakerPage.tsx). Below the apps: a box to join someone's
+// live tier list, and the tier lists saved on this device.
 
+import { useState } from 'react';
+import { api } from '../../core/app.ts';
 import { useStore } from '../store.ts';
 import { Icon } from '../components/Icon.tsx';
 import { Link } from '../components/Link.tsx';
 import { openTierMaker } from '../dialogs/tierMaker.tsx';
 import { deleteTierList, newTierList, savedTierLists } from '../../features/tier-lists.ts';
+import { liveCodeOk } from '../../features/tier-live.ts';
 
 const APPS = [
     {
         key: 'tier-maker', name: 'Tier maker', icon: 'trophy',
-        blurb: 'Rank Fakémon, Pokémon, pictures or anything into tiers. Use it for a format’s official tiers, or just for fun. Post it, send it in a chat, or keep it in a group.',
+        blurb: 'Rank anything: Fakémon, Pokémon, pictures, words. Any tiers you like ("Who would fly the plane?"), or a format’s Showdown tiers. Pyramids, alignment charts, brackets, live voting and more.',
         open: () => openTierMaker(newTierList())
     }
 ];
@@ -20,6 +24,8 @@ const APPS = [
 export function ToolboxPage() {
     useStore();
     const lists = savedTierLists();
+    const [code, setCode] = useState('');
+    const join = () => { if (liveCodeOk(code)) api.openPath?.(`toolbox/live/${code.toUpperCase()}`); };
     return (
         <div className="toolbox-page">
             <header className="page-header">
@@ -41,6 +47,12 @@ export function ToolboxPage() {
                     <span className="toolbox-app-text"><strong>More apps soon</strong><small>Tell us what you want next in <Link to="settings/about">feedback</Link>.</small></span>
                 </div>
             </section>
+            <form className="toolbox-join" onSubmit={e => { e.preventDefault(); join(); }}>
+                <label htmlFor="toolbox-live-code"><Icon name="signal" size={16} />Join a live tier list</label>
+                <input id="toolbox-live-code" value={code} maxLength={6} placeholder="Code, like K7QX2M" autoComplete="off"
+                    onChange={e => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))} />
+                <button type="submit" className="btn btn-primary btn-sm" disabled={!liveCodeOk(code)}>Join</button>
+            </form>
             <section className="toolbox-saved">
                 <h2>Your tier lists</h2>
                 {!lists.length && <p className="toolbox-empty">Nothing saved on this device yet. Make one with the tier maker.</p>}

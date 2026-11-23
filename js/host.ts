@@ -47,6 +47,7 @@ import { PostPage } from './app/pages/PostPage.tsx';
 import { MessagesPage } from './app/pages/MessagesPage.tsx';
 import { NotificationsPage } from './app/pages/NotificationsPage.tsx';
 import { ToolboxPage } from './app/pages/ToolboxPage.tsx';
+import { TierMakerPage } from './app/pages/TierMakerPage.tsx';
 import { DownloadsPage } from './app/pages/DownloadsPage.tsx';
 import { maybeShowWhatsNew, openUpdates, openWhatsNew } from './features/whats-new.ts';
 import { resumeAddAccount } from './features/accounts.ts';
@@ -81,6 +82,7 @@ export function installHost(): void {
     registerPage({ view: 'messages-view', Page: MessagesPage, lazy: true });
     registerPage({ view: 'notifications-view', Page: NotificationsPage, lazy: true });
     registerPage({ view: 'toolbox-view', Page: ToolboxPage, lazy: true });
+    registerPage({ view: 'tier-maker-view', Page: TierMakerPage, lazy: true });
     registerPage({ view: 'downloads-view', Page: DownloadsPage, lazy: true });
 
     // ---- routes ----
@@ -97,8 +99,19 @@ export function installHost(): void {
     registerRoute('groups', { needsAccount: true, open: async param => { await api.openGroups?.(param); return true; } });
     registerRoute('messages', { needsAccount: true, open: async param => await api.handleMessagesRoute?.(param) === true });
     // the Toolbox (/toolbox) and Downloads (/downloads) work signed out too
+    // /toolbox/tier-maker is the tier maker; /toolbox/live/<code> votes on someone's live tier list
     registerRoute('toolbox', {
-        open: async () => { api.activateTopLevelView?.('toolbox-view'); api.setPageTitle?.('Toolbox'); return true; }
+        open: async param => {
+            const [app, code] = String(param || '').split('/');
+            if (app === 'tier-maker' || app === 'live') {
+                api.activateTopLevelView?.('tier-maker-view');
+                api.setPageTitle?.(app === 'live' ? `Live tier list ${String(code || '').toUpperCase()}` : 'Tier maker');
+                return true;
+            }
+            api.activateTopLevelView?.('toolbox-view');
+            api.setPageTitle?.('Toolbox');
+            return true;
+        }
     });
     registerRoute('downloads', {
         open: async () => { api.activateTopLevelView?.('downloads-view'); api.setPageTitle?.('Downloads'); return true; }
