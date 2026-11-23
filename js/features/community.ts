@@ -1116,7 +1116,7 @@ async function warmArtworkCache(rows) {
 
 // React feed awaits artwork rather than having it patched in later; this just
 // wraps the existing batching in a promise.
-const artworkWaiters = new Map();    // cache key -> [resolve, ...]
+const artworkWaiters = new Map<string, Array<{ resolve: (art: string) => void; reject: (e: Error) => void }>>();
 
 // Keys: the post id for the card thumbnail, "full:<id>" for the original
 // artwork (the feed's big pictures, which a 160px thumbnail would blur).
@@ -1128,9 +1128,9 @@ function requestCardArtwork(postId, full = false) {
     const id = full ? FULL_PREFIX + postId : postId;
     const cached = artworkCache.get(id);
     if (cached !== undefined) return Promise.resolve(cached);
-    return new Promise(resolve => {
+    return new Promise((resolve, reject) => {
         if (!artworkWaiters.has(id)) artworkWaiters.set(id, []);
-        artworkWaiters.get(id).push(resolve);
+        artworkWaiters.get(id)!.push({ resolve, reject });
         // Disk first. A hit settles the waiter without a request at all; a
         // miss falls through to the batched network queue.
         getCachedArt(id).then(art => {
@@ -1145,11 +1145,13 @@ function requestCardArtwork(postId, full = false) {
 
 // settles and forgets everyone waiting on this id, including ids the query
 // didn't return - an unresolved waiter is a card stuck on a placeholder forever.
-function settleArtwork(id, art) {
+// `failed`: the request itself failed (not "this post has no artwork"). The
+// waiters reject, so the card (ArtLoader in ShieldedArt.tsx) tries again later.
+function settleArtwork(id, art, failed = false) {
     const waiters = artworkWaiters.get(id);
     if (!waiters) return;
     artworkWaiters.delete(id);
-    for (const resolve of waiters) resolve(art);
+    for (const w of waiters) failed ? w.reject(new Error('Artwork did not load.')) : w.resolve(art);
 }
 
 function queueArtwork(id) {
@@ -1208,9 +1210,8 @@ async function flushArtworkQueue() {
     } catch (e: any) {
         log.warn('COMMUNITY', 'Card artwork failed to load', e);
         for (const id of ids) artworkQueue.delete(id);   // let a later scroll retry
-        // Resolve rather than reject: a card that could not load its artwork
-        // keeps its placeholder, which is what it was already showing.
-        for (const id of ids) settleArtwork(id, '');
+        // The card keeps its placeholder, and its loader asks again a little later.
+        for (const id of ids) settleArtwork(id, '', true);
     }
 }
 

@@ -8,6 +8,7 @@ import { createContext, useContext, useEffect, useMemo, useRef, useState, type C
 import { api, state } from '../../core/app.ts';
 import { routeUrl } from '../../core/router.ts';
 import { TURNSTILE_SITE_KEY, Turnstile } from './Turnstile.tsx';
+import { ArtLoader } from './ShieldedArt.tsx';
 import { confirmDialog } from '../../core/confirm-dialog.ts';
 import { SELECTABLE_TYPES, NAME_MAX } from '../../core/data.ts';
 import {
@@ -887,7 +888,6 @@ function BallotCall({ ev, d }: { ev: EventRow; d: Detail }) {
 function EntryCard({ ev, d, entry: en, own = false, place, onEdit }: { ev: EventRow; d: Detail; entry: Entry; own?: boolean; place?: number; onEdit?: () => void }) {
     const winner = place !== undefined;
     const perms = permsFor(ev, d.helpers);
-    const img = entryImage(ev, en);
     const author = authorOf(d, en);
     const result = d.results?.find(r => r.entry_id === en.id);
     const myVote = d.myVotes[en.id];
@@ -897,7 +897,7 @@ function EntryCard({ ev, d, entry: en, own = false, place, onEdit }: { ev: Event
     return (
         <div className={`ev-entry${winner ? ' is-winner' : ''}${myVote && ev.voting === 'community' ? ' is-voted' : ''}`}>
             <button type="button" className="ev-entry-art" onClick={() => setOpen(true)} aria-label={`Open ${entryTitle(ev, en, d.people)}`}>
-                {img ? <img src={img} alt="" draggable={false} loading="lazy" /> : <Icon name="document-text" size={26} />}
+                <EntryArt ev={ev} en={en} fallback={<Icon name="document-text" size={26} />} />
                 {winner && <span className="ev-place">{place ? placeLabel(place) : 'Winner'}</span>}
             </button>
             <div className="ev-entry-body">
@@ -939,7 +939,7 @@ function Podium({ ev, d }: { ev: EventRow; d: Detail }) {
             <ol className="ev-podium">
                 {top.map(({ entry: en, result, place }) => (
                     <li key={en.id} className={`ev-podium-${place}`}>
-                        <span className="ev-podium-art">{entryImage(ev, en) ? <img src={entryImage(ev, en)} alt="" /> : <Icon name="trophy" size={28} />}</span>
+                        <EntryArt ev={ev} en={en} className="ev-podium-art" fallback={<Icon name="trophy" size={28} />} />
                         <span className="ev-place">{placeLabel(place || 1)}</span>
                         <strong>{entryTitle(ev, en, d.people)}</strong>
                         <span>{authorName(d, en)}{result ? ` · ${ev.voting === 'community' ? plural(Number(result.votes), 'vote') : `${Number(result.points_percent).toFixed(1)}%`}` : ''}</span>
@@ -1230,6 +1230,22 @@ function BallotView({ ev }: { ev: EventRow }) {
 const MAX_IMAGE_CHARS = 1_400_000;
 
 // Cloudflare Turnstile for guests: js/app/components/Turnstile.tsx (shared with sign in).
+
+/**
+ * An entry's picture in lists and results, drawn through the art shield
+ * (people's entries are their artwork). The list loads entries without
+ * pictures, so this shows the stored thumbnail. An entry with no thumbnail
+ * (older and guest entries) loads in full once it nears the screen.
+ */
+function EntryArt({ ev, en, className = '', fallback }: { ev: EventRow; en: Entry; className?: string; fallback: ReactNode }) {
+    return (
+        <ArtLoader className={className} src={entryImage(ev, en)} loadKey={en.id} alt={entryTitle(ev, en)} fallback={fallback}
+            load={async () => {
+                const full = await loadFullEntry(en);
+                return full ? entryImage(ev, en, full) : '';
+            }} />
+    );
+}
 
 /**
  * The entry form, Google Forms style: one card per question, page by page.
@@ -2542,7 +2558,7 @@ function IndividualResponse({ ev, d, perms, at, onAt }: { ev: EventRow; d: Detai
             </div>
             <div className="ev-individual-card">
                 <header className="ev-individual-head">
-                    <span className="ev-table-thumb">{entryImage(ev, en) ? <img src={entryImage(ev, en)} alt="" /> : <Icon name="document-text" size={18} />}</span>
+                    <EntryArt ev={ev} en={en} className="ev-table-thumb" fallback={<Icon name="document-text" size={18} />} />
                     <span className="ev-table-main">
                         <strong>{entryTitle(ev, en, d.people)}</strong>
                         <small>{en.user_id ? `@${p?.username || 'unknown'}` : 'Guest'} · {fmtDate(en.created_at)}</small>
@@ -2869,7 +2885,7 @@ function VoterFeedback({ ev, d, perms, at, onAt }: { ev: EventRow; d: Detail; pe
             </div>
             <div className="ev-individual-card">
                 <header className="ev-individual-head">
-                    <span className="ev-table-thumb">{entryImage(ev, en) ? <img src={entryImage(ev, en)} alt="" /> : <Icon name="document-text" size={18} />}</span>
+                    <EntryArt ev={ev} en={en} className="ev-table-thumb" fallback={<Icon name="document-text" size={18} />} />
                     <span className="ev-table-main">
                         <strong>{entryTitle(ev, en, d.people)}</strong>
                         <small>{en.user_id ? `@${authorOf(d, en)?.username || 'unknown'}` : 'Guest'} · {plural(rows.length, 'vote')}</small>

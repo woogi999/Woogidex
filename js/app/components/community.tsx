@@ -10,7 +10,7 @@ import { ReactionSummary } from './comments.tsx';
 import { Icon } from './Icon.tsx';
 import { SortTh, nextSort } from './SortHeader.tsx';
 import { Link, insideControl, monPath } from './Link.tsx';
-import { ShieldedArt } from './ShieldedArt.tsx';
+import { ArtLoader } from './ShieldedArt.tsx';
 import { TypeBadges } from './profile.tsx';
 import { modContext } from './ModButton.tsx';
 
@@ -47,33 +47,22 @@ export function LazyArt({ row, className = 'card-art', children, full = false }:
     const mon = row.fakemon_data || {};
     // signed out, an open Fakémon's thumbnail is all there is (its full art needs an account to fetch)
     const guestArt = !state.user && (row as any).is_open ? mon.thumbnail || '' : '';
-    const [art, setArt] = useState<string>(full ? guestArt : mon.thumbnail || mon.artwork || '');
-    const ref = useRef<HTMLElement>(null);
-
-    useEffect(() => {
-        if (art) return;
-        let live = true;
-        const fetchIt = () => api.requestCardArtwork?.(row.id, full).then((url: string) => { if (live && url) setArt(url); }).catch(() => {});
-        if (typeof IntersectionObserver === 'undefined') { fetchIt(); return () => { live = false; }; }
-        const observer = new IntersectionObserver(entries => {
-            if (!entries.some(e => e.isIntersecting)) return;
-            observer.disconnect();
-            fetchIt();
-        }, { rootMargin: '300px' });
-        if (ref.current) observer.observe(ref.current);
-        return () => { live = false; observer.disconnect(); };
-    }, [row.id, art, full]);
-
+    const known = full ? guestArt : mon.thumbnail || mon.artwork || '';
     const Tag = className.includes('community-landing-art') || className.includes('community-upload-art') ? 'span' : 'div';
     return (
-        <Tag className={className} ref={ref as any} data-scaling={mon.artScaling === 'smooth' ? 'smooth' : 'pixel'}>
-            {art
-                ? <ShieldedArt src={art} alt={`${mon.name || 'Fakémon'} artwork`} />
-                : <img className="no-art-placeholder" src="assets/no_art_placeholder.png" alt="No artwork" draggable={false} />}
+        <ArtLoader as={Tag} className={className} src={known} loadKey={`${row.id}|${full}`}
+            // a big picture that cannot load in full (signed out, a timeout) shows the card thumbnail
+            load={async () => full ? (await cardArt(row.id, true).catch(() => '')) || await cardArt(row.id, false) : cardArt(row.id, false)}
+            alt={`${mon.name || 'Fakémon'} artwork`} scaling={mon.artScaling === 'smooth' ? 'smooth' : 'pixel'}
+            fallback={<img className="no-art-placeholder" src="assets/no_art_placeholder.png" alt="No artwork" draggable={false} />}>
             {children}
-        </Tag>
+        </ArtLoader>
     );
 }
+
+/** A post's art through the one batched, cached, masked path (js/features/community.ts). */
+export const cardArt = (id: string, full = false): Promise<string> =>
+    api.requestCardArtwork ? api.requestCardArtwork(id, full) : Promise.resolve('');
 
 // ==================== the browse feed ====================
 

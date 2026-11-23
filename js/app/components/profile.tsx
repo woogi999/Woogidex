@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api } from '../../core/app.ts';
 import { Avatar } from './Avatar.tsx';
 import { BadgeIcon, BadgeRow, badgeDefinition } from './Badge.tsx';
-import { ShieldedArt } from './ShieldedArt.tsx';
+import { ArtLoader } from './ShieldedArt.tsx';
 import { Link, monPath } from './Link.tsx';
 
 export interface PublishedRow { id: string; user_id?: string; published_at?: string; fakemon_data?: { name?: string; type1?: string; type2?: string; artwork?: string }; }
@@ -16,29 +16,12 @@ export interface PublishedRow { id: string; user_id?: string; published_at?: str
 /** Artwork fetched once the card nears the screen (the list query carries none). */
 function MonArt({ row }: { row: PublishedRow }) {
     const mon = row.fakemon_data || {};
-    const [art, setArt] = useState(mon.artwork || '');
-    const ref = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        if (art || !api.requestCardArtwork) return;
-        let live = true;
-        const fetchIt = () => api.requestCardArtwork(row.id).then((url: string) => { if (live && url) setArt(url); }).catch(() => {});
-        if (typeof IntersectionObserver === 'undefined') { fetchIt(); return () => { live = false; }; }
-        const observer = new IntersectionObserver(entries => {
-            if (!entries.some(e => e.isIntersecting)) return;
-            observer.disconnect();
-            fetchIt();
-        }, { rootMargin: '300px' });
-        if (ref.current) observer.observe(ref.current);
-        return () => { live = false; observer.disconnect(); };
-    }, [row.id, art]);
-
+    // the same batched, cached, masked path as the Community Hub's cards (js/features/community.ts)
     return (
-        <div className="profile-mon-art" ref={ref}>
-            {art
-                ? <ShieldedArt src={art} alt={`${mon.name || 'Fakémon'} artwork`} />
-                : <img className="no-art-placeholder" src="assets/no_art_placeholder.png" alt="No artwork" draggable={false} />}
-        </div>
+        <ArtLoader as="div" className="profile-mon-art" src={mon.artwork || ''} loadKey={row.id}
+            load={() => api.requestCardArtwork ? api.requestCardArtwork(row.id) : Promise.resolve('')}
+            alt={`${mon.name || 'Fakémon'} artwork`}
+            fallback={<img className="no-art-placeholder" src="assets/no_art_placeholder.png" alt="No artwork" draggable={false} />} />
     );
 }
 

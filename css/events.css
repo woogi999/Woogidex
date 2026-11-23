@@ -1076,3 +1076,8 @@ img.ev-lib-art { background: var(--bg-panel); }
     .ev-ticket-date-label { line-height: 16px; margin-top: 2px; }
 }
 .ev-ticket-react-icon .reaction-heart { color: #e0245e; }
+
+/* entry pictures are shielded canvases (EntryArt in EventsPanel.tsx), sized like the old <img> */
+.ev-entry-art > span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+.ev-entry-art canvas.shielded-art, .ev-podium-art canvas.shielded-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+.ev-table-thumb canvas.shielded-art { width: 100%; height: 100%; object-fit: cover; }
