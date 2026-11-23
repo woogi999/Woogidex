@@ -98,9 +98,22 @@ export function useSelection(listing: RefObject<HTMLElement | null>, view: Entry
         };
 
         // ---- a drag on empty space: the box ----
+        // In the table, rows fill the space. As in a file manager's detail
+        // view, a drag that starts on a row's other cells draws a box; the
+        // name and the icon still drag the row into a folder.
+        const fromRowCell = (target: Element) => {
+            const cell = target.closest('.dex-row[data-entry-id] > td');
+            return !!cell && !cell.matches('.col-name, .col-icon') && !target.closest('button, a, input, select, textarea');
+        };
+        let boxPending = false;
+        const onDragStart = (e: DragEvent) => { if (boxPending) e.preventDefault(); };
         const onDown = (e: PointerEvent) => {
             if (e.pointerType === 'touch') { startPress(e); return; }
-            if (e.button !== 0 || (e.target as Element).closest(NOT_EMPTY)) return;
+            const target = e.target as Element;
+            const fromRow = fromRowCell(target);
+            if (e.button !== 0 || (!fromRow && target.closest(NOT_EMPTY))) return;
+            // a row drag (HTML drag and drop) and text selection must not start
+            if (fromRow) { e.preventDefault(); boxPending = true; }
             const add = e.ctrlKey || e.metaKey || e.shiftKey;
             const start = { x: e.clientX, y: e.clientY };
             const before = add && selectionKind() === view ? selectedIds() : [];
@@ -123,6 +136,7 @@ export function useSelection(listing: RefObject<HTMLElement | null>, view: Entry
                 setSelection(view, [...before, ...hit]);
             };
             const up = () => {
+                boxPending = false;
                 window.removeEventListener('pointermove', move);
                 window.removeEventListener('pointerup', up);
                 window.removeEventListener('pointercancel', up);
@@ -166,6 +180,7 @@ export function useSelection(listing: RefObject<HTMLElement | null>, view: Entry
         root.addEventListener('click', onClick, true);
         root.addEventListener('contextmenu', onMenu, true);
         root.addEventListener('pointerdown', onDown);
+        root.addEventListener('dragstart', onDragStart, true);
         root.addEventListener('pointermove', pressMove);
         root.addEventListener('pointerup', pressEnd);
         root.addEventListener('pointercancel', pressEnd);
@@ -173,6 +188,7 @@ export function useSelection(listing: RefObject<HTMLElement | null>, view: Entry
             root.removeEventListener('click', onClick, true);
             root.removeEventListener('contextmenu', onMenu, true);
             root.removeEventListener('pointerdown', onDown);
+            root.removeEventListener('dragstart', onDragStart, true);
             root.removeEventListener('pointermove', pressMove);
             root.removeEventListener('pointerup', pressEnd);
             root.removeEventListener('pointercancel', pressEnd);

@@ -492,3 +492,7 @@ body.is-box-selecting, body.is-box-selecting * { user-select: none !important; c
 .selection-bar-clear:hover { background: var(--accent-soft); color: var(--accent); }
 .selection-bar-delete { color: var(--danger); }
 @media (max-width: 760px) { .selection-bar .btn span { display: none; } }
+/* empty space under the entries in every tab, so a box drag has somewhere to start (Selection.tsx) */
+#collection-listing { min-height: 60vh; padding-bottom: 48px; }
+/* table: a drag from a row's stat or description cells draws a box, so those cells do not start a text selection */
+#collection-listing .dex-row[data-entry-id] > td:not(.col-name):not(.col-icon) { user-select: none; -webkit-user-select: none; }
