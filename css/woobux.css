@@ -26,7 +26,12 @@
 .wbx-day strong { font-size: 13px; font-variant-numeric: tabular-nums; }
 .wbx-day-pass { display: inline-flex; align-items: center; gap: 2px; font-size: 10.5px; font-weight: 700; color: #3b82f6; }
 .wbx-day.is-milestone { background: color-mix(in srgb, #f6a623 14%, var(--bg-panel)); }
-.wbx-day.is-done { opacity: .5; }
+/* a collected day: faded through its fill and its contents, not the day's own
+   opacity, so the entrance (staggerIn, which animates opacity to 1) ends on the
+   faded look instead of cutting to it */
+.wbx-day.is-done:not(.is-today) { background: color-mix(in srgb, var(--bg-panel) 50%, transparent); }
+.wbx-day.is-milestone.is-done:not(.is-today) { background: color-mix(in srgb, #f6a623 7%, color-mix(in srgb, var(--bg-panel) 50%, transparent)); }
+.wbx-day.is-done:not(.is-today) > * { opacity: .5; }
 .wbx-day.is-done::after { content: '✓'; position: absolute; top: 2px; right: 4px; font-size: 11px; font-weight: 800; color: #22c55e; }
 .wbx-day.is-today { opacity: 1; box-shadow: inset 0 0 0 2px #f6a623; }
 .wbx-note { margin: var(--sp-4) 0 0; font-size: 12.5px; line-height: 1.5; color: var(--text-secondary); }
@@ -45,7 +50,8 @@
 
 /* ---- the collect animation (js/app/components/coinBurst.ts) ---- */
 .wbx-fx { position: fixed; inset: 0; z-index: 30000; pointer-events: none; overflow: hidden; }
-.wbx-fly { position: absolute; left: 0; top: 0; will-change: transform; width: 30px; height: 30px; filter: drop-shadow(0 3px 4px rgba(120, 60, 0, .3)); }
+/* no filter on the flying coins: a drop-shadow on 18 moving, spinning coins repaints every frame */
+.wbx-fly { position: absolute; left: 0; top: 0; will-change: transform; width: 30px; height: 30px; }
 .wbx-fly img { display: block; width: 100%; height: 100%; }
 /* the glint: a light band across the coin, cut to the coin's own shape */
 .wbx-fly::after {
@@ -55,10 +61,13 @@
 }
 .wbx-fly.is-glint::after { animation: wbx-glint .55s ease-out both; }
 @keyframes wbx-glint { to { background-position: -60% 0; } }
-/* the trails: one canvas under the coins; each trail is a white-gold ribbon that tapers to a point */
+/* the trails: one canvas under the coins; each trail is one filled shape,
+   gold-white at the coin, almost white and fading out to a point behind it.
+   No outline and no CSS filter (a filter repaints the whole canvas each frame). */
 .wbx-trails { position: absolute; inset: 0; width: 100%; height: 100%; }
-/* on the light theme a warm edge keeps the white light visible against the page */
-:root:not([data-theme="dark"]) .wbx-trails { filter: drop-shadow(0 0 1px rgba(160, 120, 40, .55)) drop-shadow(0 1px 2px rgba(29, 36, 51, .12)); }
+/* a balance on the page that the coins land on: the number turns gold for a moment */
+[data-wbx-balance] [data-wbx-num] { transition: color .3s ease; }
+[data-wbx-balance].wbx-hit [data-wbx-num] { color: #d97706; }
 /* where you pressed: one thin ring of light */
 .wbx-ring { position: absolute; left: 0; top: 0; width: 110px; height: 110px; border-radius: 50%; border: 2px solid rgba(255, 236, 170, .95); }
 /* star glints: where you pressed and where a coin lands */

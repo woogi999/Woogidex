@@ -13,6 +13,7 @@ import { FlagPicker } from '../components/editor/FlagPicker.tsx';
 import { BattleEffect } from '../components/editor/BattleEffect.tsx';
 import { MultihitField } from '../components/editor/MultihitField.tsx';
 import { ModifiersField } from '../components/editor/ModifiersField.tsx';
+import { modifierSummary } from '../../features/move-modifiers.ts';
 import { TemplateNote } from '../components/editor/TemplateNote.tsx';
 import { NAME_MAX } from '../../core/data.ts';
 
@@ -234,7 +235,6 @@ function CustomMoveDialog({ index, libraryId, seed, close }: DialogProps<{ index
                     </select>
                 </div>
             </div>
-            <ModifiersField value={draft.modifiers} category={draft.category} onChange={modifiers => set({ modifiers })} />
             <details className="lib-details">
                 <summary><Icon name="chevron-right" size={14} className="lib-details-mark" />Flags<span className="lib-details-count">{Object.entries(draft.flags).filter(([k, on]) => on && k !== 'multihit').length || 'None'} on</span></summary>
                 <FlagPicker value={draft.flags} onChange={flags => set({ flags })} statusOnly={statusOnly} />
@@ -243,7 +243,10 @@ function CustomMoveDialog({ index, libraryId, seed, close }: DialogProps<{ index
                 <label htmlFor="custom-move-desc">Description</label>
                 <textarea id="custom-move-desc" rows={3} placeholder="Describe what this move does..." value={draft.desc} onChange={e => set({ desc: e.target.value })} />
             </div>
-            <BattleEffect kind="move" blocks={blocks} code={draft.rawCode || ''} setCode={rawCode => set({ rawCode })} openBlocks={openBlocks} />
+            {/* what the move does: modifiers picked from lists, blocks, or code (one section, three tabs) */}
+            <BattleEffect kind="move" blocks={blocks} code={draft.rawCode || ''} setCode={rawCode => set({ rawCode })} openBlocks={openBlocks}
+                hasModifiers={modifierSummary(draft.modifiers, draft.category, '').length > 0}
+                modifiers={<ModifiersField value={draft.modifiers} category={draft.category} onChange={modifiers => set({ modifiers })} />} />
             <Actions close={close} save={save} label="Save Move" />
         </Modal>
     );

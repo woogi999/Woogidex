@@ -1,5 +1,7 @@
-// The move editor's Modifiers: what the move does, picked from lists, with no
-// blocks or code. Effects with a chance (30% freeze, 20% flinch, -1 Defense),
+// The move editor's Modifiers, the first tab of "Battle effect" beside Blocks
+// and Code (BattleEffect.tsx): what the move does, picked from lists. You add
+// each effect and type its chance yourself (no ready-made picks).
+// Effects with a chance (30% freeze, 20% flinch, -1 Defense),
 // drain, recoil, healing, critical hits, switch-outs and the rest, and
 // "Behaves like" a main-game move (Pursuit, Sucker Punch...). The rules and
 // the Showdown fields they become are js/features/move-modifiers.ts.
@@ -13,17 +15,27 @@ import {
     type CritLevel, type ModEffect, type MoveModifiers, type StatId
 } from '../../../features/move-modifiers.ts';
 
-/** The quick picks people reach for most. */
-const PRESETS: Array<[string, ModEffect]> = [
-    ['10% burn', { kind: 'status', who: 'target', status: 'brn', chance: 10 }],
-    ['10% freeze', { kind: 'status', who: 'target', status: 'frz', chance: 10 }],
-    ['30% paralysis', { kind: 'status', who: 'target', status: 'par', chance: 30 }],
-    ['30% poison', { kind: 'status', who: 'target', status: 'psn', chance: 30 }],
-    ['30% flinch', { kind: 'volatile', who: 'target', volatile: 'flinch', chance: 30 }],
-    ['10% confusion', { kind: 'volatile', who: 'target', volatile: 'confusion', chance: 10 }],
-    ['-1 target Defense', { kind: 'boost', who: 'target', stat: 'def', stages: -1, chance: 100 }],
-    ['+1 user Attack', { kind: 'boost', who: 'self', stat: 'atk', stages: 1, chance: 100 }]
-];
+/** A new effect row: you pick the effect and type the chance. */
+const NEW_EFFECT: ModEffect = { kind: 'status', who: 'target', status: 'brn', chance: 100 };
+
+/**
+ * The chance of an effect, typed freely: the field keeps what you type (even
+ * empty while you change it) and the effect takes each whole number from 1
+ * to 100. Leaving the field puts back the number the effect holds.
+ */
+function ChanceInput({ value, onChange }: { value: number; onChange: (n: number) => void }) {
+    const [text, setText] = useState(String(value));
+    useEffect(() => { setText(t => (Number(t) === value ? t : String(value))); }, [value]);
+    return (
+        <input type="number" inputMode="numeric" min={1} max={100} step={1} value={text} aria-label="Chance in percent"
+            onChange={e => {
+                setText(e.target.value);
+                const n = Math.round(Number(e.target.value));
+                if (e.target.value !== '' && n >= 1 && n <= 100) onChange(n);
+            }}
+            onBlur={() => setText(String(value))} />
+    );
+}
 
 type Choice = `status:${string}` | `volatile:${string}` | 'boost';
 const choiceOf = (e: ModEffect): Choice => (e.kind === 'status' ? `status:${e.status}` : e.kind === 'volatile' ? `volatile:${e.volatile}` : 'boost');
@@ -38,8 +50,7 @@ function EffectRow({ effect, statusMove, onChange, onRemove }: { effect: ModEffe
         <div className="mod-effect">
             {!statusMove && (
                 <label className="mod-chance" title="The chance it happens on a hit">
-                    <input type="number" min={1} max={100} value={effect.chance} aria-label="Chance in percent"
-                        onChange={e => onChange({ ...effect, chance: Math.min(100, Math.max(1, Math.round(Number(e.target.value)) || 1)) })} />
+                    <ChanceInput value={effect.chance} onChange={chance => onChange({ ...effect, chance })} />
                     <span>%</span>
                 </label>
             )}
@@ -82,7 +93,6 @@ export function ModifiersField({ value, category, onChange }: { value: MoveModif
         return Object.entries(sdMoves).filter(([, m]) => String(m?.name || '').toLowerCase().includes(q)).slice(0, 8);
     }, [likeQuery, sdMoves]);
     const summary = modifierSummary(value, category, likeName);
-    const count = summary.length;
     const setEffect = (i: number, e: ModEffect) => set({ effects: value.effects.map((x, j) => (j === i ? e : x)) });
     const pct = (key: 'drain' | 'recoil' | 'heal', label: string, hint: string) => (
         <label className="mod-pct" title={hint}>
@@ -95,10 +105,8 @@ export function ModifiersField({ value, category, onChange }: { value: MoveModif
         </label>
     );
     return (
-        <details className="lib-details mod-details" open={count > 0 ? true : undefined}>
-            <summary><Icon name="chevron-right" size={14} className="lib-details-mark" />Modifiers<span className="lib-details-count">{count || 'None'}</span></summary>
             <div className="mod-panel">
-                <p className="lib-hint">What the move does, with no blocks or code. Blocks and code still run on top.</p>
+                <p className="battle-effect-help">Pick what the move does from lists. Blocks and code run on top of it.</p>
 
                 <section className="mod-section" aria-label="Effects">
                     <h5>Effects{statusMove ? '' : ' on a hit'}</h5>
@@ -107,13 +115,9 @@ export function ModifiersField({ value, category, onChange }: { value: MoveModif
                             onRemove={() => set({ effects: value.effects.filter((_, j) => j !== i) })} />
                     ))}
                     {value.effects.length < 8 && (
-                        <div className="mod-presets">
-                            {PRESETS.map(([label, e]) => (
-                                <button key={label} type="button" className="mod-preset" onClick={() => set({ effects: [...value.effects, { ...e, chance: statusMove ? 100 : e.chance }] })}>
-                                    <Icon name="plus" size={12} />{label}
-                                </button>
-                            ))}
-                        </div>
+                        <button type="button" className="btn btn-secondary btn-sm mod-add" onClick={() => set({ effects: [...value.effects, { ...NEW_EFFECT }] })}>
+                            <Icon name="plus" size={14} />Add an effect
+                        </button>
                     )}
                 </section>
 
@@ -169,10 +173,9 @@ export function ModifiersField({ value, category, onChange }: { value: MoveModif
                     )}
                 </section>
 
-                {count > 0 && (
+                {summary.length > 0 && (
                     <ul className="mod-summary" aria-live="polite">{summary.map((line, i) => <li key={i}>{line}</li>)}</ul>
                 )}
             </div>
-        </details>
     );
 }

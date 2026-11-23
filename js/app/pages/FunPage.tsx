@@ -64,19 +64,19 @@ export function FunPage() {
                 <nav className="fun-side" aria-label="Fun">
                     <Link to="fun" className={`fun-side-item${tool === null ? ' is-active' : ''}`} aria-current={tool === null ? 'page' : undefined}>
                         <span className="fun-side-icon"><Icon name="squares-2x2" size={20} /></span>
-                        <span className="fun-side-text"><strong>Home</strong><small>Everything in Fun</small></span>
+                        <span className="fun-side-text"><strong>Home</strong></span>
                     </Link>
                     {TOOLS.map(([key, label, icon]) => (
                         <Link key={key} to={`fun/${key}`} className={`fun-side-item${tool === key ? ' is-active' : ''}`}
                             aria-current={tool === key ? 'page' : undefined}>
                             <span className={`fun-side-icon is-${key}`}><Icon name={icon} size={20} /></span>
-                            <span className="fun-side-text"><strong>{label}</strong><small>{sideNote(key)}</small></span>
+                            <span className="fun-side-text"><strong>{label}</strong></span>
                             {key === 'streak' && funPing() && <span className="fun-ping" aria-label="Today’s reward is waiting" />}
                         </Link>
                     ))}
                     <button type="button" className="fun-side-item" onClick={openBattle} aria-haspopup="dialog">
                         <span className="fun-side-icon is-battle"><Icon name="swords" size={20} /></span>
-                        <span className="fun-side-text"><strong>Battle</strong><small>Taking a break</small></span>
+                        <span className="fun-side-text"><strong>Battle</strong></span>
                     </button>
                 </nav>
                 <section className="fun-main" ref={main} aria-label={tool ? TOOLS.find(t => t[0] === tool)?.[1] : 'Fun'}>
@@ -90,23 +90,17 @@ export function FunPage() {
     );
 }
 
-/** The short line under each sidebar row. */
-function sideNote(key: FunTool): string {
-    const w = woobux();
-    if (key === 'streak') return w ? (w.streak.claimed_today ? `${w.streak.current} days · collected` : 'Reward ready') : 'Daily Woobux';
-    if (key === 'shop') return w ? `${w.balance.toLocaleString()} Woobux` : 'Opens soon';
-    const n = savedTierLists().length;
-    return n ? `${n} saved list${n === 1 ? '' : 's'}` : 'Rank anything';
-}
-
-/** Your balance, top right. Signed out: nothing. */
+/**
+ * Your balance, top right. Signed out: nothing. data-wbx-balance marks it
+ * as a place the collect coins can fly to (coinBurst.ts).
+ */
 function BalanceChip() {
     const w = woobux();
     if (!woobuxOn()) return null;
     return (
-        <Link to="fun/streak" className="fun-balance" aria-label={w ? `${w.balance.toLocaleString()} Woobux` : 'Woobux'}>
+        <Link to="fun/streak" className="fun-balance" data-wbx-balance="" aria-label={w ? `${w.balance.toLocaleString()} Woobux` : 'Woobux'}>
             <WoobuxIcon size={22} />
-            {w ? <strong>{w.balance.toLocaleString()}</strong> : <span className="skel skel-text" style={{ width: 48 }} />}
+            {w ? <strong data-wbx-num="">{w.balance.toLocaleString()}</strong> : <span className="skel skel-text" style={{ width: 48 }} />}
         </Link>
     );
 }
@@ -360,7 +354,7 @@ function Streak({ w }: { w: WoobuxState }) {
             </section>
 
             <dl className="wbx-stats">
-                <div><dt>Balance</dt><dd><WoobuxIcon size={18} /><span>{w.balance.toLocaleString()}</span></dd></div>
+                <div><dt>Balance</dt><dd data-wbx-balance=""><WoobuxIcon size={18} /><span data-wbx-num="">{w.balance.toLocaleString()}</span></dd></div>
                 <div><dt>Best streak</dt><dd><Icon name="fire" size={16} />{s.best}</dd></div>
                 <div><dt>Streak savers</dt><dd><SavePassIcon size={18} />{s.save_passes}/5</dd></div>
                 <div><dt>Multiplier</dt><dd>×{mult % 1 ? mult.toFixed(2).replace(/0$/, '') : mult}</dd></div>

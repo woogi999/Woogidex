@@ -370,6 +370,7 @@ button.community-detail-stat:focus-visible {
 .hub-nav-item {
     display: flex;
     align-items: center;
+    gap: 12px;
     height: 40px;
     padding: 0 var(--sp-4);
     border: 0;

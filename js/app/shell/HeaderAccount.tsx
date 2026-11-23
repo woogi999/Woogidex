@@ -135,9 +135,9 @@ function WoobuxRow({ close }: { close: () => void }) {
     const days = w.streak.current;
     return (
         <button type="button" className="header-profile-popover-item header-woobux-row" onClick={() => { close(); openWoobux(); }}
-            aria-label={`${w.balance} Woobux, ${days}-day login streak`}>
+            aria-label={`${w.balance} Woobux, ${days}-day login streak`} data-wbx-balance="">
             <WoobuxIcon size={20} />
-            <span><strong>{w.balance.toLocaleString()}</strong> Woobux</span>
+            <span><strong data-wbx-num="">{w.balance.toLocaleString()}</strong> Woobux</span>
             <span className="header-profile-popover-note" title="Login streak"><Icon name="fire" size={14} />{days} day{days === 1 ? '' : 's'}</span>
         </button>
     );

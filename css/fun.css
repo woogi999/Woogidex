@@ -8,7 +8,9 @@
    The calendar, the stats and the coin animation: css/woobux.css.
    The streak fire: .fire-* below (js/app/components/fire/StreakFire.tsx). */
 
-.fun-page { max-width: 1180px; margin: 0 auto; }
+/* wide: the page uses the whole column, with less padding at the sides */
+.fun-page { max-width: none; margin: 0; }
+body[data-page="fun-view"] .app-container { padding-left: var(--sp-5); padding-right: var(--sp-5); }
 .fun-head { align-items: flex-end; }
 .fun-sub { margin-top: 4px; font-size: 14px; color: var(--text-secondary); }
 .fun-balance {
@@ -24,12 +26,13 @@
 /* the red ping: today's reward waits */
 .fun-ping { display: inline-block; flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); vertical-align: middle; }
 
-/* icons stand on their own: a colour per tool, nothing behind them */
+/* icons stand on their own, nothing behind them. The sidebar's icons take
+   the row's own text colour (no colour per tool), like the Community sidebar;
+   the bento's icons keep a colour per tool. */
 .fun-side-icon, .fun-tile-icon { flex: 0 0 auto; color: var(--accent); }
-.fun-side-icon { display: inline-grid; place-items: center; width: 24px; }
-.fun-side-icon.is-streak, .fun-tile-icon.is-streak { color: #ea580c; }
-.fun-side-icon.is-shop { color: #d97706; }
-.fun-side-icon.is-battle, .fun-tile-icon.is-battle { color: var(--text-secondary); }
+.fun-side-icon { display: inline-grid; place-items: center; width: 24px; color: inherit; }
+.fun-tile-icon.is-streak { color: #ea580c; }
+.fun-tile-icon.is-battle { color: var(--text-secondary); }
 
 /* ==================== the frame: sidebar and main ==================== */
 .fun-split { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: var(--sp-6); align-items: start; }
@@ -38,16 +41,32 @@
     position: relative; width: 100%;
     display: flex; align-items: center; gap: 12px; padding: 9px 10px;
     border: 0; border-radius: var(--ctl-r); background: transparent;
-    color: var(--text-primary); font: inherit; text-align: left; text-decoration: none; cursor: pointer; transition: var(--t-ui);
+    color: var(--text-secondary); font: inherit; text-align: left; text-decoration: none; cursor: pointer; transition: var(--t-ui);
 }
-.fun-side-item:hover { background: var(--bg-panel); }
-.fun-side-item.is-active { background: var(--accent-soft); }
-.fun-side-item.is-active strong { color: var(--accent); }
+/* the same colours as the Community sidebar (.hub-nav-item, css/community.css) */
+.fun-side-item:hover { background: var(--bg-panel); color: var(--text-primary); }
+.fun-side-item.is-active { background: var(--accent-soft); color: var(--accent-dark); }
+[data-theme="dark"] .fun-side-item.is-active { color: #b9a8ff; }
 .fun-side-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .fun-side-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
 .fun-side-text strong { font-size: 14px; font-weight: 700; }
-.fun-side-text small { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fun-main { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-5); }
+
+/* wide screens: the sidebar sits where My Collection's region sidebar is
+   (css/sidebar.css): fixed to the left edge under the header, the same
+   width (--sidebar-w), and the content clears it the same way */
+@media (min-width: 901px) {
+    body[data-page="fun-view"] .app-container {
+        max-width: calc(var(--shell-max) + var(--sidebar-w));
+        padding-left: calc(var(--sidebar-w) + var(--sp-5));
+    }
+    .fun-split { display: block; }
+    .fun-side {
+        position: fixed; top: var(--header-h); left: 0; bottom: 0; z-index: 11000;
+        width: var(--sidebar-w); padding: var(--sp-4) var(--sp-3);
+        background: var(--bg-dark); overflow-y: auto; scrollbar-width: thin;
+    }
+}
 
 /* ==================== Home: the bento grid ==================== */
 .fun-bento {
@@ -159,9 +178,9 @@
 
 /* ---- the fire (StreakFire.tsx): the owner's animation, bigger and hotter with the streak ---- */
 .fire { position: relative; flex: 0 0 auto; width: var(--fire-size); height: calc(var(--fire-size) * 1.2); }
-.fire-main, .fire-side { position: absolute; bottom: 0; left: 50%; pointer-events: none; }
+.fire-main { position: absolute; bottom: 0; left: 50%; pointer-events: none; }
 .fire-main { width: 100%; height: 100%; translate: -50% 0; transform-origin: 50% 100%; transition: transform .6s var(--ease-out), filter .6s ease; }
-.fire-main svg, .fire-side svg { display: block; }
+.fire-main svg { display: block; }
 .fire-lvl-0 .fire-main { transform: scale(.7); filter: grayscale(1); opacity: .35; }
 .fire-lvl-1 .fire-main { transform: scale(.72); }
 .fire-lvl-2 .fire-main { transform: scale(.84); }
@@ -169,11 +188,6 @@
 .fire-lvl-4 .fire-main { transform: scale(1); filter: hue-rotate(-70deg) saturate(1.3); }
 .fire-lvl-5 .fire-main { transform: scale(1.06); filter: hue-rotate(-160deg) saturate(1.4) brightness(1.08); }
 /* two smaller flames lean out from behind at 21 days and up */
-.fire-side { width: 62%; height: 62%; opacity: .9; }
-.fire-side.is-left { translate: -100% 0; rotate: -14deg; transform-origin: 100% 100%; }
-.fire-side.is-right { rotate: 14deg; transform-origin: 0 100%; }
-.fire-lvl-4 .fire-side { filter: hue-rotate(-70deg) saturate(1.3); }
-.fire-lvl-5 .fire-side { filter: hue-rotate(-160deg) saturate(1.4); }
 /* a glow under it from 14 days, wider and blue at 30 */
 .fire-glow { position: absolute; left: 50%; bottom: 4%; width: 110%; height: 34%; translate: -50% 0; border-radius: 50%; background: radial-gradient(closest-side, rgba(255, 120, 30, .45), transparent); animation: fire-pulse 1.8s ease-in-out infinite; }
 .fire-lvl-4 .fire-glow { background: radial-gradient(closest-side, rgba(168, 85, 247, .45), transparent); }
@@ -217,7 +231,6 @@
     .fun-side { position: static; flex-direction: row; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 calc(var(--sp-4) * -1); padding: 0 var(--sp-4) 2px; }
     .fun-side-item { flex: 1 0 auto; width: auto; justify-content: center; gap: 8px; padding: 0 14px; height: 38px; border-radius: 999px; background: var(--bg-panel); }
     .fun-side-text { flex: 0 0 auto; }
-    .fun-side-text small { display: none; }
     .fun-side-item .fun-ping { position: absolute; top: 6px; right: 8px; }
     .streak-hero { flex-direction: column; align-items: flex-start; gap: 6px; padding: var(--sp-4); }
     .streak-count strong { font-size: 40px; }

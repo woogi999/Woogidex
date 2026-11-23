@@ -258,9 +258,7 @@
 .mod-chance input { width: 58px; }
 .mod-remove { margin-left: auto; display: grid; place-items: center; width: 28px; height: 28px; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted); cursor: pointer; }
 .mod-remove:hover { background: var(--bg-input); color: var(--danger); }
-.mod-presets { display: flex; flex-wrap: wrap; gap: 6px; }
-.mod-preset { display: inline-flex; align-items: center; gap: 4px; height: 28px; padding: 0 10px; border: 1px dashed var(--border); border-radius: 999px; background: transparent; color: var(--text-secondary); font: 600 12px var(--font-sans); cursor: pointer; }
-.mod-preset:hover { border-style: solid; color: var(--text-primary); border-color: var(--accent); }
+.mod-add { display: inline-flex; align-items: center; gap: 6px; justify-self: start; width: auto; }
 .mod-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
 .mod-pct { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--text-secondary); }
 .mod-pct-input { display: inline-flex; align-items: center; gap: 4px; }

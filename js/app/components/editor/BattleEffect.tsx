@@ -3,8 +3,10 @@
 // js/editor/ability-blocks.ts) or written by hand as Showdown hook code.
 // One switch picks which of the two you look at. Both can hold something:
 // the export writes the blocks first, then the hand-written hooks.
+// A move has a third way, first in the switch: Modifiers, picked from lists
+// (js/app/components/editor/ModifiersField.tsx). All three can hold something.
 
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { api } from '../../../core/app.ts';
 import { Icon } from '../Icon.tsx';
 
@@ -29,18 +31,23 @@ const BLOCKS_HELP: Record<BattleKind, string> = {
 /**
  *   blocks: the saved block program (entry.blocks), for the summary
  *   openBlocks: saves the entry if it needs to, then opens the block editor
+ *   modifiers: the Modifiers pane (moves only), hasModifiers: whether it holds any
  */
-export function BattleEffect({ kind, blocks, code, setCode, openBlocks }: {
+export function BattleEffect({ kind, blocks, code, setCode, openBlocks, modifiers, hasModifiers = false }: {
     kind: BattleKind; blocks: unknown; code: string; setCode: (code: string) => void; openBlocks: () => void;
+    modifiers?: ReactNode; hasModifiers?: boolean;
 }) {
+    type Tab = 'modifiers' | 'blocks' | 'code';
     const triggers: Trigger[] = api.describeBlockTriggers?.(blocks) || [];
     const hasBlocks = triggers.some(t => t.blocks > 0);
     const hasCode = !!code.trim();
-    const [tab, setTab] = useState<'blocks' | 'code'>(() => hasCode && !hasBlocks ? 'code' : 'blocks');
+    // open on what the entry already uses; a new move opens on Modifiers
+    const [tab, setTab] = useState<Tab>(() => modifiers && (hasModifiers || (!hasBlocks && !hasCode)) ? 'modifiers' : hasCode && !hasBlocks ? 'code' : 'blocks');
     // a condition's code goes into conditions.ts as written, so its hooks are checked like an ability's
     const checkAs = kind === 'condition' ? 'ability' : kind;
     const report = tab === 'code' ? api.rawCodeReport(code, checkAs) : null;
-    const tabs: Array<['blocks' | 'code', string, string, boolean]> = [
+    const tabs: Array<[Tab, string, string, boolean]> = [
+        ...(modifiers ? [['modifiers', 'Modifiers', 'adjustments-horizontal', hasModifiers] as [Tab, string, string, boolean]] : []),
         ['blocks', 'Blocks', 'puzzle-piece', hasBlocks],
         ['code', 'Code', 'code-bracket', hasCode]
     ];
@@ -59,7 +66,9 @@ export function BattleEffect({ kind, blocks, code, setCode, openBlocks }: {
                 </div>
             </div>
 
-            {tab === 'blocks' ? (
+            {tab === 'modifiers' ? (
+                <div className="battle-effect-pane" role="tabpanel">{modifiers}</div>
+            ) : tab === 'blocks' ? (
                 <div className="battle-effect-pane" role="tabpanel">
                     {hasBlocks ? (
                         <ul className="battle-effect-triggers">

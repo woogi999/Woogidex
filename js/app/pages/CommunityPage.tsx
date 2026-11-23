@@ -21,7 +21,7 @@ import type { FeedItem } from '../../features/feed-algorithm.ts';
 
 type Panel = 'feed' | 'browse' | 'events' | 'groups';
 
-const TABS: Array<[Panel, string]> = [['feed', 'Home'], ['browse', 'Browse'], ['groups', 'Groups'], ['events', 'Events']];
+const TABS: Array<[Panel, string, string]> = [['feed', 'Home', 'home'], ['browse', 'Browse', 'magnifying-glass'], ['groups', 'Groups', 'user-group'], ['events', 'Events', 'calendar-days']];
 const PANELS = TABS.map(([k]) => k);
 
 // One column: the rail's sections become cards inside the feed. Keep in step
@@ -58,8 +58,8 @@ export function CommunityPage() {
                 {/* guests get one sign-up prompt: the GuestHero on the feed */}
                 {!guest && <button className="btn btn-primary hub-publish" type="button" onClick={() => api.openCommunityPublishModal()}><Icon name="upload" /><span>Publish a Fakémon</span></button>}
                 <nav className="hub-nav-list" id="community-tabs" role="tablist" aria-orientation="vertical">
-                    {TABS.map(([key, label]) => (
-                        <Link key={key} to={api.communityPanelPath(key)} className={`hub-nav-item${panel === key ? ' active' : ''}`} role="tab" aria-selected={panel === key}>{label}</Link>
+                    {TABS.map(([key, label, icon]) => (
+                        <Link key={key} to={api.communityPanelPath(key)} className={`hub-nav-item${panel === key ? ' active' : ''}`} role="tab" aria-selected={panel === key}><Icon name={icon} size={20} />{label}</Link>
                     ))}
                 </nav>
             </aside>
