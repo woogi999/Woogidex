@@ -7,7 +7,7 @@
 // Nothing pops up. While today's login reward waits, the Fun tab shows a red
 // ping (funPing, Settings > Notifications can turn it off), and you collect
 // it on Fun > Streak (js/app/pages/FunPage.tsx). After missed days, when you
-// have enough save passes, that tab asks first: keep the streak with the
+// have enough streak savers, that tab asks first: keep the streak with the
 // passes, or start over.
 //
 // Update notes in rewarded_updates pay for "Got it" once (acknowledge_update).
@@ -82,8 +82,8 @@ const mock = { balance: 1240, current: MOCK === 'missed' ? 12 : 6, best: 12, las
 export const MOCK_SCENARIOS = {
     ready: 'Day 7 ready (bonus day)',
     claimed: 'Collected today',
-    'missed-save': 'Missed 2 days, 2 save passes',
-    'missed-lost': 'Missed 3 days, 1 save pass',
+    'missed-save': 'Missed 2 days, 2 streak savers',
+    'missed-lost': 'Missed 3 days, 1 streak saver',
     fresh: 'No streak yet',
     day30: 'Day 30 ready (big bonus)'
 } as const;

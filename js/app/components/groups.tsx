@@ -13,11 +13,13 @@ import { cropThen } from '../dialogs/cropImage.tsx';
 import { FeedCard, FeedSkeleton, PostComposer, timeAgo } from './feed.tsx';
 import { SkeletonRows } from './Skeleton.tsx';
 import { staggerIn } from '../../core/motion.ts';
+import { useSlide } from '../hooks.ts';
 import type { Group, GroupDraft, GroupTab, GroupSort, GroupRoleRow, Member, MemberAction, ToolboxItem, ToolboxMode } from '../../features/groups.ts';
 import { GROUP_PERMS } from '../../features/groups.ts';
 import { openTierMaker, type GroupContext } from '../dialogs/tierMaker.tsx';
 import { changelog, cleanTierList, newTierList } from '../../features/tier-lists.ts';
 
+const GROUP_TAB_ORDER: GroupTab[] = ['posts', 'toolbox', 'about', 'members', 'settings'];
 const COLORS = ['', '#e0245e', '#f08030', '#d4a017', '#2d8a3e', '#1f9eb3', '#2c5aa0', '#55607a'];
 
 /** The group's own color, or the site accent. */
@@ -228,6 +230,8 @@ function GroupFields({ d, set, lockVisibility }: { d: Omit<GroupDraft, 'slug'>; 
 // ==================== one group ====================
 
 function GroupPage({ slug, tab }: { slug: string; tab: GroupTab }) {
+    // each tab's content slides in from the side of its tab (before any early return: a hook)
+    const pane = useSlide(tab, GROUP_TAB_ORDER);
     const s = api.groupsState();
     const entry = s.bySlug[slug];
     const group: Group | null = entry?.group || null;
@@ -281,7 +285,7 @@ function GroupPage({ slug, tab }: { slug: string; tab: GroupTab }) {
                 ))}
             </nav>
             <div className="group-body">
-                <div className="group-main">
+                <div className="group-main" ref={pane}>
                     {tab === 'posts' && (canSee ? <GroupPosts group={group} member={member} /> : <PrivateNotice group={group} status={status} />)}
                     {tab === 'toolbox' && (canSee ? <GroupToolbox group={group} /> : <PrivateNotice group={group} status={status} />)}
                     {tab === 'about' && <GroupAbout group={group} />}

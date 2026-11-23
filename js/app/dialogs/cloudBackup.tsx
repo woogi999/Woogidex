@@ -11,6 +11,7 @@ import { Icon } from '../components/Icon.tsx';
 import { CloudMeters } from '../components/CloudMeters.tsx';
 import { useStore } from '../store.ts';
 import { SkeletonRows } from '../components/Skeleton.tsx';
+import { SlideStage } from '../components/SlideStage.tsx';
 
 function CloudBackupDialog(_: DialogProps) {
     useStore();
@@ -46,6 +47,8 @@ function CloudBackupDialog(_: DialogProps) {
                     <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.selectAllCloudBackupMons()}>Select all</button>
                     <button className="btn btn-secondary btn-sm" type="button" onClick={() => api.clearCloudBackupSelection()}>Clear</button>
                 </div>
+                {/* a new tab's items slide in from the side of the tab */}
+                <SlideStage current={v.kind} order={v.tabs.map((t: any) => t.key)}>
                 <div className="cloud-pick-grid">
                     {v.loading ? <SkeletonRows count={4} label="Loading your backup" />
                         : !v.entries.length ? <div className="cloud-pick-empty">{v.empty}</div>
@@ -65,6 +68,7 @@ function CloudBackupDialog(_: DialogProps) {
                                 </button>
                             ))}
                 </div>
+                </SlideStage>
                 <div className="community-update-actions">
                     <div className="community-update-selected">
                         {v.uploading

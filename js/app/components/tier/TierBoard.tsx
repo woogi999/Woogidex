@@ -212,6 +212,47 @@ export function TierBoard({ list, onChange, picked, onPick, locked = false, badg
                 ))}
             </div>
         );
+    } else if (layout === 'table') {
+        // a spreadsheet for real tiering: one row for each item, grouped by tier, small icons only
+        const moveTo = (id: string, tierId: string) => {
+            if (locked && placedSet.has(id)) return;
+            onChange(moveMonTo(list, id, tierId, null, null));
+        };
+        const row = (t: { id: string; name: string; color: string }, id: string, i: number, n: number) => {
+            const m = list.mons[id];
+            if (!m) return null;
+            return (
+                <tr key={id} className={`tm-trow${picked === id ? ' is-picked' : ''}`} data-tier={t.id} data-mon={id} data-drop onPointerDown={startDrag(id)}>
+                    {i === 0 && <th scope="rowgroup" rowSpan={n} className="tm-tcell-tier" style={{ background: t.color }}>{t.name}</th>}
+                    <td className="tm-tcell-n">{i + 1}</td>
+                    <td className="tm-tcell-icon"><span className="tm-ticon"><ItemArt m={m} /></span></td>
+                    <td className="tm-tcell-name"><button type="button" onClick={() => onPick(picked === id ? null : id)}>{m.name}</button>{m.note && <small>{m.note}</small>}</td>
+                    <td className="tm-tcell-types">{(m.types || []).map(ty => <span key={ty} className={`type-pill type-${ty.toLowerCase()}`}>{ty}</span>)}</td>
+                    <td className="tm-tcell-move">
+                        <select aria-label={`Move ${m.name} to`} value={t.id} disabled={locked} onChange={e => moveTo(id, e.target.value)} onPointerDown={e => e.stopPropagation()}>
+                            {list.tiers.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
+                            <option value={UNRANKED}>Unranked</option>
+                        </select>
+                    </td>
+                    {badge && <td className="tm-tcell-vote">{badge(id)}</td>}
+                </tr>
+            );
+        };
+        body = (
+            <table className="tm-table">
+                <thead><tr><th scope="col">Tier</th><th scope="col">#</th><th scope="col"><span className="sr-only">Icon</span></th><th scope="col">Name</th><th scope="col">Types</th><th scope="col">Move to</th>{badge && <th scope="col">Votes</th>}</tr></thead>
+                {list.tiers.map(t => {
+                    const ids = (list.placed[t.id] || []).filter(id => list.mons[id]);
+                    return (
+                        <tbody key={t.id}>
+                            {ids.length
+                                ? ids.map((id, i) => row(t, id, i, ids.length))
+                                : <tr className="tm-trow is-empty" data-tier={t.id} data-drop><th scope="rowgroup" className="tm-tcell-tier" style={{ background: t.color }}>{t.name}</th><td colSpan={badge ? 6 : 5} className="tm-empty">Drop here, or pick a tier on a row</td></tr>}
+                        </tbody>
+                    );
+                })}
+            </table>
+        );
     } else if (layout === 'grid') {
         const t = list.tiers[0];
         body = t && (

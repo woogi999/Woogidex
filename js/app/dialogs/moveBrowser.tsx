@@ -15,6 +15,7 @@ import { CategoryBadge } from '../components/MoveCategory.tsx';
 import { Icon } from '../components/Icon.tsx';
 import { customFlags } from '../../features/move-flags.ts';
 import { useStore } from '../store.ts';
+import { useSlide } from '../hooks.ts';
 import { universalForEditing } from '../../features/universal-moves.ts';
 import { openUniversalMoves } from './universalMoves.tsx';
 
@@ -159,11 +160,15 @@ function MoveList({ items, layout, picked, onToggle, battle, sort, onSort }: {
     );
 }
 
+const VIEW_ORDER = VIEWS.map(([k]) => k);
+
 function MoveBrowserDialog({ mode, target, view: startView = 'all', close }: DialogProps<{ mode: 'editor' | 'battle'; target?: BattleTarget; view?: View }>) {
     // a saved universal list shows at once
     useStore();
     const battle = mode === 'battle';
     const [view, setView] = useState<View>(battle ? 'all' : startView);
+    // a new view slides in from the side of its tab
+    const pane = useSlide(view, VIEW_ORDER);
     const [layout, setLayoutState] = useState<Layout>(readLayout);
     const setLayout = (l: Layout) => { setLayoutState(l); try { localStorage.setItem(LAYOUT_KEY, l); } catch { /* the choice just is not remembered */ } };
     const [f, setF] = useState<Filters>(NO_FILTERS);
@@ -358,7 +363,7 @@ function MoveBrowserDialog({ mode, target, view: startView = 'all', close }: Dia
                 </div>
             )}
             <div className="mb-count">{count}</div>
-            <div className={`mb-body is-${layout}`}>{body}</div>
+            <div className={`mb-body is-${layout}`} ref={pane}>{body}</div>
             {picks.size > 0 && (
                 <div className="mb-actions">
                     <span>{picks.size} picked</span>

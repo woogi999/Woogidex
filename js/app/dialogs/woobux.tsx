@@ -12,7 +12,7 @@ export function WoobuxIcon({ size = 16, className = '' }: { size?: number; class
     return <img src="assets/woobux.svg" width={size} height={size} alt="" className={`woobux-icon ${className}`.trim()} draggable={false} />;
 }
 
-/** A save pass: a blue and white ticket (public/assets/save-pass.svg). */
+/** A streak saver: a blue and white ticket (public/assets/save-pass.svg). */
 export function SavePassIcon({ size = 16, className = '' }: { size?: number; className?: string }) {
     return <img src="assets/save-pass.svg" width={size} height={size} alt="" className={`woobux-icon ${className}`.trim()} draggable={false} />;
 }
@@ -37,7 +37,7 @@ export function Calendar({ count, claimedToday, multiplier = 1 }: { count: numbe
                 const today = d === at;
                 return (
                     <li key={d} className={`wbx-day${done ? ' is-done' : ''}${today ? ' is-today' : ''}${r.passes ? ' is-milestone' : ''}`}
-                        aria-label={`Day ${d}: ${amount} Woobux${r.passes ? ` and ${r.passes} save pass${r.passes > 1 ? 'es' : ''}` : ''}${done ? ', collected' : ''}`}>
+                        aria-label={`Day ${d}: ${amount} Woobux${r.passes ? ` and ${r.passes} streak saver${r.passes > 1 ? 's' : ''}` : ''}${done ? ', collected' : ''}`}>
                         <span className="wbx-day-n">{d}</span>
                         <WoobuxIcon size={d === 30 ? 26 : 20} />
                         <strong>{amount}</strong>

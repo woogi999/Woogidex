@@ -10,6 +10,7 @@
 // what you send, post or save to a group (forSharing).
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useSlide } from '../hooks.ts';
 import { api, state } from '../../core/app.ts';
 import { useStore } from '../store.ts';
 import { Icon } from '../components/Icon.tsx';
@@ -108,6 +109,8 @@ export function TierMakerPage() {
     return <TierMaker />;
 }
 
+const LAYOUT_ORDER = LAYOUTS.map(([k]) => k);
+
 function TierMaker() {
     const [start, setStart] = useState(() => currentTierMakerStart());
     const [list, setList] = useState<TierList>(() => start?.list || newTierList());
@@ -179,6 +182,8 @@ function TierMaker() {
     const chats = (api.messagingState?.().conversations || []) as any[];
     const showdown = list.kind === 'showdown';
     const layout = list.layout || 'tiers';
+    // a new layout slides in from the side of its button (left or right in the row)
+    const mainArea = useSlide(layout, LAYOUT_ORDER);
 
     // anything you add to someone else's list is yours only
     const add = (mons: TierMon[]) => change(addMons(list, shared ? mons.map(m => ({ ...m, temp: true })) : mons));
@@ -506,7 +511,7 @@ function TierMaker() {
             )}
 
             <div className="tmp-body">
-                <div className="tmp-main">
+                <div className="tmp-main" ref={mainArea}>
                     {mode && !present && (
                         <ModePanel list={list} mode={mode} onChange={change} onClose={() => setMode(null)}
                             onApply={next => { change(next); setMode(null); api.showToast?.('Done. It is in the list now.', 'success'); }} />
@@ -516,7 +521,8 @@ function TierMaker() {
                             locked={mode === 'blind'} boardRef={board} hideUnranked={present} />
                     )}
                 </div>
-                {!present && sidePanel && <aside className="tmp-side">{sidePanel}</aside>}
+                {/* a fresh key for each panel, so each one slides in when it opens (css .tmp-side) */}
+                {!present && sidePanel && <aside key={side || 'none'} className="tmp-side">{sidePanel}</aside>}
             </div>
 
             {!present && importing && (

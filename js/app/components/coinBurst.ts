@@ -58,7 +58,7 @@ function glints(layer: HTMLElement, x: number, y: number, n: number, reach: [num
 interface Trail { pts: Array<{ x: number; y: number; t: number }>; live: boolean; get: () => { x: number; y: number } }
 const TRAIL_LIFE = 380;     // ms a point of light lasts
 const TRAIL_STEP = 3;       // px between points, filled in when a coin moves fast
-const TRAIL_SIZE = 30;      // px across the glow at the coin
+const TRAIL_SIZE = 24;      // px across the trail at the coin
 
 /**
  * The light every point draws: a solid white-gold disc with a defined edge,
@@ -71,13 +71,13 @@ function glow(): HTMLCanvasElement {
     c.width = c.height = 64;
     const g = c.getContext('2d')!;
     const r = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    // a wind trail: almost white, a hint of warmth only at the very edge
     r.addColorStop(0, 'rgba(255, 255, 255, 1)');
-    r.addColorStop(0.3, 'rgba(255, 249, 222, 1)');
-    r.addColorStop(0.5, 'rgba(255, 222, 128, 1)');
+    r.addColorStop(0.5, 'rgba(255, 255, 252, 1)');
     // the edge: the disc ends in a short step, not a long fade
-    r.addColorStop(0.58, 'rgba(255, 196, 64, .9)');
-    r.addColorStop(0.64, 'rgba(255, 180, 48, .22)');
-    r.addColorStop(1, 'rgba(255, 170, 40, 0)');
+    r.addColorStop(0.58, 'rgba(255, 246, 220, 1)');
+    r.addColorStop(0.64, 'rgba(255, 236, 190, .25)');
+    r.addColorStop(1, 'rgba(255, 236, 190, 0)');
     g.fillStyle = r;
     g.fillRect(0, 0, 64, 64);
     return (glowSprite = c);
@@ -91,8 +91,8 @@ function glow(): HTMLCanvasElement {
 function drawTrails(ctx: CanvasRenderingContext2D, trails: Trail[]) {
     const now = performance.now();
     const sprite = glow();
-    // stronger on the dark theme, where light reads as light
-    const strength = document.documentElement.getAttribute('data-theme') === 'dark' ? 0.9 : 0.65;
+    // nearly solid, like a game's wind trail; the age fade does the rest
+    const strength = 0.95;
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     for (const tr of trails) {
         if (tr.live) {
@@ -111,7 +111,7 @@ function drawTrails(ctx: CanvasRenderingContext2D, trails: Trail[]) {
         for (const p of tr.pts) {
             const k = 1 - (now - p.t) / TRAIL_LIFE;              // 1 fresh, 0 gone
             const size = TRAIL_SIZE * (0.15 + 0.85 * Math.pow(k, 0.9));
-            ctx.globalAlpha = Math.pow(k, 1.3) * strength;
+            ctx.globalAlpha = Math.min(1, Math.pow(k, 0.8) * strength);
             ctx.drawImage(sprite, p.x - size / 2, p.y - size / 2, size, size);
         }
     }

@@ -246,3 +246,45 @@ button.tm-mode-card:hover { transform: translateY(-2px); box-shadow: 0 0 0 2px v
 .chat-tierlist .btn { align-self: flex-start; }
 
 /* the Toolbox page is gone: its tools live on the Fun page (css/fun.css) */
+
+/* ---- the Table layout (TierBoard.tsx): a spreadsheet for real tiering ----
+   one row for each item, grouped by tier; small icons only, no full pictures */
+.tm-table { width: 100%; border-collapse: collapse; font-size: 13px; background: var(--bg-card); }
+.tm-table th, .tm-table td { padding: 4px 8px; border: 1px solid var(--border-light); text-align: left; vertical-align: middle; }
+.tm-table thead th { position: sticky; top: 0; z-index: 1; background: var(--bg-panel); font-size: 12px; font-weight: 700; color: var(--text-secondary); white-space: nowrap; }
+.tm-table tbody + tbody { border-top: 2px solid var(--border); }
+.tm-tcell-tier { width: 56px; text-align: center !important; color: #fff; font-size: 15px; font-weight: 900; text-shadow: 0 1px 2px rgba(0, 0, 0, .35); }
+.tm-tcell-n { width: 32px; color: var(--text-muted); font-variant-numeric: tabular-nums; text-align: right !important; }
+.tm-tcell-icon { width: 40px; padding: 2px 4px !important; }
+.tm-ticon { position: relative; display: grid; place-items: center; width: 32px; height: 32px; overflow: hidden; }
+.tm-ticon .tm-item-img, .tm-ticon img, .tm-ticon canvas { width: 100%; height: 100%; object-fit: contain; image-rendering: pixelated; }
+.tm-ticon .tm-item-letter { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-size: 12px; font-weight: 800; }
+.tm-tcell-name button { padding: 0; border: 0; background: none; color: var(--text-primary); font: 600 13px var(--font-sans); text-align: left; cursor: pointer; }
+.tm-tcell-name button:hover { color: var(--accent); }
+.tm-tcell-name small { display: block; font-size: 11px; color: var(--text-muted); }
+.tm-tcell-types { white-space: nowrap; }
+.tm-tcell-types .type-pill { margin-right: 3px; }
+.tm-tcell-move { width: 110px; }
+.tm-tcell-move select { height: 28px; width: 100%; font-size: 12px; }
+.tm-trow { cursor: grab; transition: background-color .12s ease; }
+.tm-trow:hover td { background: var(--bg-panel); }
+.tm-trow.is-picked td { background: var(--accent-soft); }
+.tm-trow.is-over td, .tm-trow.is-over th { box-shadow: inset 0 2px 0 var(--accent); }
+.tm-trow.is-empty .tm-empty { color: var(--text-muted); font-style: italic; }
+/* the Unranked pool beside a table: compact chips with a small icon */
+.tm-board-wrap.is-table .tm-item { flex-direction: row; width: auto; gap: 6px; padding: 3px 8px 3px 3px; }
+.tm-board-wrap.is-table .tm-item-pic { width: 28px; height: 28px; flex: 0 0 28px; }
+.tm-board-wrap.is-table .tm-item-name { font-size: 12px; }
+@media (max-width: 640px) {
+    .tm-tcell-types, .tm-table thead th:nth-child(5) { display: none; }
+    .tm-tcell-move { width: 88px; }
+}
+
+/* ---- motion: a side panel slides in from the right when it opens, a game
+   mode's panel from above; reduced motion keeps a fade ---- */
+.tmp-side { animation: tmp-side-in .32s cubic-bezier(.215, .61, .355, 1) both; }
+.tm-mode-panel, .tmp-main > :first-child:not(.tm-board-wrap) { animation: tmp-drop-in .3s cubic-bezier(.215, .61, .355, 1) both; }
+@keyframes tmp-side-in { from { opacity: 0; transform: translateX(18px); } }
+@keyframes tmp-drop-in { from { opacity: 0; transform: translateY(-10px); } }
+.reduce-motion :is(.tmp-side, .tm-mode-panel, .tmp-main > :first-child) { animation-name: fade-only; }
+@media (prefers-reduced-motion: reduce) { :is(.tmp-side, .tm-mode-panel, .tmp-main > :first-child) { animation-name: fade-only; } }

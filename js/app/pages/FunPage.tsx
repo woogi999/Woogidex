@@ -15,7 +15,7 @@ import { api } from '../../core/app.ts';
 import { Icon } from '../components/Icon.tsx';
 import { Link } from '../components/Link.tsx';
 import { useStore } from '../store.ts';
-import { useRoute } from '../hooks.ts';
+import { usePhone, useRoute, useSlide } from '../hooks.ts';
 import { countUp } from '../../core/motion.ts';
 import { coinBurst } from '../components/coinBurst.ts';
 import { StreakFire, fireLevel } from '../components/fire/StreakFire.tsx';
@@ -39,11 +39,14 @@ export function funToolFrom(param: string): FunTool | null {
 }
 
 const openBattle = () => api.openBattle?.();
+const SLIDE_ORDER = ['home', ...KEYS];
 
 export function FunPage() {
     useStore();
     const route = useRoute();
     const tool = route.name === 'fun' ? funToolFrom(route.param) : null;
+    // the main area slides from the side of the row you picked (down the sidebar: from below)
+    const main = useSlide(tool || 'home', SLIDE_ORDER, usePhone() ? 'x' : 'y');
     useEffect(() => { if (woobuxOn() && !woobux()) refreshWoobux(); }, []);
     // an old /fun/battle address: the window, over the main menu
     useEffect(() => { if (route.name === 'fun' && String(route.param || '').startsWith('battle')) openBattle(); }, [route.param]);
@@ -76,7 +79,7 @@ export function FunPage() {
                         <span className="fun-side-text"><strong>Battle</strong><small>Taking a break</small></span>
                     </button>
                 </nav>
-                <section className="fun-main" key={tool || 'home'} aria-label={tool ? TOOLS.find(t => t[0] === tool)?.[1] : 'Fun'}>
+                <section className="fun-main" ref={main} aria-label={tool ? TOOLS.find(t => t[0] === tool)?.[1] : 'Fun'}>
                     {tool === null && <Bento />}
                     {tool === 'streak' && <StreakPanel />}
                     {tool === 'shop' && <ShopPanel />}
@@ -115,6 +118,7 @@ function BalanceChip() {
 function Bento() {
     const w = woobux();
     const lists = savedTierLists().length;
+    // (the blocks arrive one after another with the main area's slide, useSlide in FunPage)
     return (
         <div className="fun-bento">
             <div className="fun-tile is-streak">
@@ -265,7 +269,7 @@ function useStreak(w: WoobuxState) {
     const [busy, setBusy] = useState(false);
     const [justGot, setJustGot] = useState(0);
     const claimed = s.claimed_today;
-    // after missed days: save passes can keep the streak, or it starts over
+    // after missed days: streak savers can keep the streak, or it starts over
     const canSave = !claimed && s.missed > 0 && s.held > 0 && s.save_passes >= s.missed;
     const breaking = !claimed && s.missed > 0 && s.held > 0;
     const days = claimed ? s.current : breaking ? s.held : s.current;
@@ -315,7 +319,7 @@ function Streak({ w }: { w: WoobuxState }) {
                         {claimed
                             ? <>You collected today{justGot ? <> (<strong>+{justGot.toLocaleString()}</strong>)</> : null}. The next reward opens in <strong>{untilNextDay()}</strong>.</>
                             : breaking
-                                ? <>You missed {s.missed} day{s.missed > 1 ? 's' : ''}. {canSave ? 'Save passes can keep your streak alive.' : 'Not enough save passes this time, so the streak starts over.'}</>
+                                ? <>You missed {s.missed} day{s.missed > 1 ? 's' : ''}. {canSave ? 'Streak savers can keep your streak alive.' : 'Not enough streak savers this time, so the streak starts over.'}</>
                                 : <>Today is day <strong>{freshDay}</strong> of {CYCLE}. Collect before the day ends to keep the flame going.</>}
                     </p>
                     {!claimed && (
@@ -326,7 +330,7 @@ function Streak({ w }: { w: WoobuxState }) {
                                         <SavePassIcon size={18} /> Keep my {s.held}-day streak (+{pay(keepDay).toLocaleString()})
                                     </button>
                                     <button type="button" className="btn btn-secondary" disabled={busy} onClick={e => collect(false, e.currentTarget)}>Start over (+{pay(1).toLocaleString()})</button>
-                                    <small className="streak-cost">Uses {s.missed} of your {s.save_passes} save pass{s.save_passes === 1 ? '' : 'es'}.</small>
+                                    <small className="streak-cost">Uses {s.missed} of your {s.save_passes} streak saver{s.save_passes === 1 ? '' : 's'}.</small>
                                 </>
                             ) : (
                                 <button ref={button} type="button" className="btn btn-primary streak-collect" disabled={busy} onClick={() => collect(false, button.current)}>
@@ -341,7 +345,7 @@ function Streak({ w }: { w: WoobuxState }) {
             <section className="streak-track" aria-label="The 30-day cycle">
                 <div className="streak-track-head">
                     <span>{pos >= 30 && claimed ? 'Cycle complete! A new one starts tomorrow.' : <>
-                        <strong>{toNext} day{toNext === 1 ? '' : 's'}</strong> to the day {next} bonus: +{pay(next).toLocaleString()} and {dayReward(next).passes} save pass{dayReward(next).passes > 1 ? 'es' : ''}
+                        <strong>{toNext} day{toNext === 1 ? '' : 's'}</strong> to the day {next} bonus: +{pay(next).toLocaleString()} and {dayReward(next).passes} streak saver{dayReward(next).passes > 1 ? 's' : ''}
                     </>}</span>
                     <span className="streak-track-count">{pos}/{CYCLE}</span>
                 </div>
@@ -358,7 +362,7 @@ function Streak({ w }: { w: WoobuxState }) {
             <dl className="wbx-stats">
                 <div><dt>Balance</dt><dd><WoobuxIcon size={18} /><span>{w.balance.toLocaleString()}</span></dd></div>
                 <div><dt>Best streak</dt><dd><Icon name="fire" size={16} />{s.best}</dd></div>
-                <div><dt>Save passes</dt><dd><SavePassIcon size={18} />{s.save_passes}/5</dd></div>
+                <div><dt>Streak savers</dt><dd><SavePassIcon size={18} />{s.save_passes}/5</dd></div>
                 <div><dt>Multiplier</dt><dd>×{mult % 1 ? mult.toFixed(2).replace(/0$/, '') : mult}</dd></div>
             </dl>
 

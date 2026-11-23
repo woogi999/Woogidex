@@ -39,7 +39,7 @@ export interface Tier { id: string; name: string; sd: string; color: string }
  * small picture (a data URI, 96px) for picture items.
  */
 export interface TierMon { id: string; name: string; types?: string[]; from: 'fakemon' | 'pokemon' | 'custom' | 'image'; note?: string; img?: string; temp?: boolean }
-export type Layout = 'tiers' | 'pyramid' | 'grid' | 'alignment' | 'quadrant';
+export type Layout = 'tiers' | 'table' | 'pyramid' | 'grid' | 'alignment' | 'quadrant';
 export interface Column { id: string; name: string }
 export interface Look { bg?: string; bgImg?: string; width?: number; itemSize?: number; labelWidth?: number }
 export interface Axes { top: string; bottom: string; left: string; right: string }
@@ -66,6 +66,7 @@ export interface TierList {
 
 export const LAYOUTS: Array<[Layout, string, string]> = [
     ['tiers', 'Tiers', 'Rows of tiers, with columns if you want them'],
+    ['table', 'Table', 'A spreadsheet for real tiering: one row each, small icons, a tier menu on every row'],
     ['pyramid', 'Pyramid', 'One at the top, two under it, three under that...'],
     ['grid', 'Grid', 'A numbered ranking from #1 down'],
     ['alignment', 'Alignment chart', 'Lawful to Chaotic, Good to Evil'],
@@ -262,6 +263,9 @@ export function placeByOrder(list: TierList, order: string[]): TierList {
  */
 export function convertLayout(list: TierList, layout: Layout): TierList {
     if (list.layout === layout) return list;
+    // Tiers and Table are two views of the same tiers: everything stays where it is
+    const from = list.layout || 'tiers';
+    if ((from === 'tiers' && layout === 'table') || (from === 'table' && layout === 'tiers')) return { ...list, layout, updatedAt: Date.now() };
     const order = rankedOrder(list);
     const base: TierList = { ...list, layout, columns: undefined, col: undefined, pos: undefined, axes: undefined, updatedAt: Date.now() };
     const fill = (names: string[], caps: (i: number) => number): TierList => {
