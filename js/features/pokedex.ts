@@ -10,6 +10,7 @@ import { eggGroupsFromText, genderFromText, setForm, STAT_KEYS, type StatKey } f
 import type { CollectionTab } from '../app/types.ts';
 import { matchesSearch } from './notebook.ts';
 import { entriesOf } from './collection-entries.ts';
+import { isSelected, moveSelectionTo, selectionSize } from './selection.ts';
 // PokeAPI never rewrites a species entry, so a month is conservative.
 const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 86400000 };
 
@@ -576,7 +577,11 @@ const POKEAPI_CACHE = { cacheName: 'woogidex-pokeapi-v1', maxAgeMs: 30 * 8640000
         /** A card let go over a folder card. */
         function dropOnFolder(folderId, event) {
             event.preventDefault();
-            if (draggedLibraryItem) {
+            // a selected card brings the rest of the selection with it
+            const draggedId = draggedLibraryItem?.id || draggedFakemonId;
+            if (draggedId && isSelected(draggedId) && selectionSize() > 1) {
+                moveSelectionTo(folderId);
+            } else if (draggedLibraryItem) {
                 moveLibraryItemToFolder(draggedLibraryItem.kind, draggedLibraryItem.id, folderId);
             } else {
                 const id = draggedFakemonId || event.dataTransfer?.getData('text/plain');

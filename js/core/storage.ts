@@ -745,7 +745,17 @@ function normalizeCollections() {
             event.stopPropagation();
             const shouldConfirm = api.getConfirmBeforeDelete ? api.getConfirmBeforeDelete() : true;
             if (shouldConfirm && !await confirmDialog({ title: 'Delete this Fakémon?', message: 'This can’t be undone.' })) return;
+            await removeFakemonRecords([id]);
+            api.showToast('Fakemon deleted!', 'info');
+        }
 
+        /** Deletes several Fakémon at once (a selection in My Collection). The caller asks first. */
+        async function deleteFakemonMany(ids: string[]) {
+            await removeFakemonRecords(ids);
+        }
+
+        async function removeFakemonRecords(ids: string[]) {
+            const gone = new Set(ids.map(String));
             // invalidate delayed/in-flight autosaves before removing the record
             if (state.autoSaveTimer) {
                 clearTimeout(state.autoSaveTimer);
@@ -753,16 +763,15 @@ function normalizeCollections() {
             }
             autoSaveGeneration++;
 
-            state.fakemonDB = state.fakemonDB.filter(f => String(f.id) !== String(id));
-            if (String(state.editingId) === String(id)) {
+            state.fakemonDB = state.fakemonDB.filter(f => !gone.has(String(f.id)));
+            if (gone.has(String(state.editingId))) {
                 state.editingId = null;
                 state.lastSavedId = null;
             }
-            if (String(state.editorLoadedId) === String(id)) state.editorLoadedId = null;
+            if (gone.has(String(state.editorLoadedId))) state.editorLoadedId = null;
 
             await saveToStorage({ allowEmpty: true });
             api.renderCollection();
-            api.showToast('Fakemon deleted!', 'info');
         }
 
         async function duplicateFakemon(id, event) {
@@ -1108,4 +1117,4 @@ function normalizeCollections() {
 
         
 
-export { autoSave, buildFakemonObject, updateSaveStatus, saveFakemon, deleteFakemon, duplicateFakemon, saveToStorage, loadFromStorage, migrateLearnsetsToMinimal, migrateCustomLibrariesFromCollection, requestPersistentStorage };
+export { autoSave, buildFakemonObject, updateSaveStatus, saveFakemon, deleteFakemon, deleteFakemonMany, duplicateFakemon, saveToStorage, loadFromStorage, migrateLearnsetsToMinimal, migrateCustomLibrariesFromCollection, requestPersistentStorage };

@@ -23,6 +23,7 @@ import { useStore } from '../store.ts';
 import { useOnScroll, useSlide } from '../hooks.ts';
 import type { CollectionTab, LibraryKind } from '../types.ts';
 import { TagBar, UnfinishedShelf } from '../components/collection/Notebook.tsx';
+import { SelectionBar, selectionKeys, useSelection } from '../components/collection/Selection.tsx';
 import {
     AddRow, DexTable, FakemonRow, FolderRow, LibraryRow, MoreRow, VanillaLibraryRow, VanillaPokemonRow
 } from '../components/collection/CollectionTable.tsx';
@@ -98,11 +99,17 @@ export function CollectionPage() {
 /** The listing under the tabs: it slides in from the side of the tab that was picked. */
 function TabStage({ view, children }: { view: CollectionTab; children: ReactNode }) {
     const box = useSlide(view, TABS.map(([k]) => k));
+    // select like a file manager: a box, Ctrl and Shift clicks, a long press (Selection.tsx)
+    useSelection(box as React.RefObject<HTMLElement | null>, view);
     // a click on the empty space takes the focus, so the keys below work there too
     return (
-        <div ref={box} id="collection-listing" tabIndex={-1} onContextMenu={e => backgroundMenu(e, view)} onKeyDown={e => listingKeys(e, view)}>
-            {children}
-        </div>
+        <>
+            <SelectionBar view={view} />
+            <div ref={box} id="collection-listing" tabIndex={-1} onContextMenu={e => backgroundMenu(e, view)}
+                onKeyDown={e => { if (!selectionKeys(e, view, box.current)) listingKeys(e, view); }}>
+                {children}
+            </div>
+        </>
     );
 }
 
