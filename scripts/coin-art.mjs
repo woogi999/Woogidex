@@ -115,39 +115,107 @@ function coin() {
 }
 
 // ==================== the coupon ====================
-/** A ticket: chamfered corners (like the coin's octagon) and a half-round notch in each side. */
-function ticket(hw, hh, c, notch) {
-    const arc = side => Array.from({ length: 7 }, (_, i) => {
-        const a = -Math.PI / 2 + (i * Math.PI) / 6;
-        return side > 0 ? [hw - notch * Math.cos(a), notch * Math.sin(a)] : [-hw + notch * Math.cos(a), -notch * Math.sin(a)];
-    });
-    return [[-hw + c, -hh], [hw - c, -hh], [hw, -hh + c], ...arc(1), [hw, hh - c], [hw - c, hh], [-hw + c, hh], [-hw, hh - c], ...arc(-1), [-hw, -hh + c]];
+// A crumpled sheet of blue paper, in the coin's style: flat facets lit from
+// the upper left (each crease is a small triangle with its own tilt), a thin
+// edge to the lower left, a tear-off line, and a raised emblem: a flame with
+// angel wings and a halo.
+
+/** The same numbers every run, so the paper crumples the same way each time. */
+function seeded(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+
+/** Shade for a facet from its three corners in 3D (x, y, height): light from the upper left and in front. */
+function facetShade([a, b, c], darkC, lightC) {
+    const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], w = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+    let n = [u[1] * w[2] - u[2] * w[1], u[2] * w[0] - u[0] * w[2], u[0] * w[1] - u[1] * w[0]];
+    if (n[2] < 0) n = n.map(x => -x);
+    const len = Math.hypot(...n) || 1;
+    const L = [-0.45, -0.6, 0.66];
+    const d = (n[0] * L[0] + n[1] * L[1] + n[2] * L[2]) / len;
+    return mix(darkC, lightC, Math.max(0, Math.min(1, (d - 0.35) / 0.6)));
 }
-const chamferRect = (x0, y0, x1, y1, c) => [[x0 + c, y0], [x1 - c, y0], [x1, y0 + c], [x1, y1 - c], [x1 - c, y1], [x0 + c, y1], [x0, y1 - c], [x0, y0 + c]];
+
+/** A feather: a long leaf from `b` toward angle `a` (degrees, y down). */
+function feather([bx, by], a, len, wid) {
+    const d = [Math.cos(a * Math.PI / 180), Math.sin(a * Math.PI / 180)], n = [-d[1], d[0]];
+    const at = (t, s) => [bx + d[0] * len * t + n[0] * wid * s, by + d[1] * len * t + n[1] * wid * s];
+    return [[bx, by], at(0.28, 0.5), at(0.72, 0.42), at(1, 0), at(0.78, -0.3), at(0.32, -0.42)];
+}
+
+const FLAME = [[0, -11], [2.2, -6.5], [5.5, -3.5], [6.8, 1], [6, 5.2], [3.5, 8.2], [0, 9.2], [-3.5, 8.2], [-6, 5.2], [-6.8, 1], [-5.3, -2.6], [-3.6, -1], [-3.2, -4.6], [-1.6, -7.6]];
 
 function coupon() {
     const id = 'cpn';
-    const v = view(32.8, 31, -0.2, 0.95);
-    const shape = ticket(28, 17, 5, 4.6);
-    const outer = shape.map(v);
-    const rim = scale(shape, 0.915, 0.86).map(v);
-    const lipL = chamferRect(-21.5, -10.5, 9.5, 10.5, 3.4);
-    const floorL = chamferRect(-19.4, -8.5, 7.4, 8.5, 2.4);
-    const stub = 15.2;
-    const holes = Array.from({ length: 6 }, (_, i) => v([stub, -11.5 + i * 4.6]));
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">${defs(id)}`
-        + extrude(outer, EDGE, '#a24d07', '#ef8a0f', '#b4580a')
-        + bevel(outer, rim, '#f29010', '#fff2a2')
-        + `<polygon points="${pts(rim)}" fill="url(#${id}rim)"/>`
-        + bevel(lipL.map(v), floorL.map(v), '#b35a0b', '#ffe37c', true)
-        + `<polygon points="${pts(floorL.map(v))}" fill="url(#${id}floor)"/>`
-        // the tear-off line: small holes punched through, edge colour inside
-        + holes.map(([x, y]) => `<circle cx="${f(x)}" cy="${f(y)}" r="1.05" fill="#b35a0b"/><circle cx="${f(x - 0.25)}" cy="${f(y + 0.25)}" r=".55" fill="#8f4306"/>`).join('')
-        + raisedW(p => v([p[0] * 0.95 - 6, p[1] * 0.95]), 0.7, id)
-        // the stub: a raised sparkle
-        + (() => { const [x, y] = v([21.6, 0]); return sparkle(x - 0.9, y + 0.8, 5.2, 1).replace('#ffffff', '#b35a0b') + sparkle(x, y, 5.2, 1).replace('#ffffff', '#fff1a6'); })()
-        + sheen(id, rim, 16, -12)
-        + sparkle(55.5, 10.5, 3.6, 0.95)
+    const v = view(32.6, 31.5, -0.17, 0.95);
+    const rnd = seeded(20261123);
+    // the sheet: a 6 x 4 grid of points, the edge ones pushed in and out a little, the inner ones a lot, each with a height
+    const NX = 6, NY = 4, HW = 27, HH = 17.5;
+    const grid = [];
+    for (let j = 0; j <= NY; j++) {
+        const row = [];
+        for (let i = 0; i <= NX; i++) {
+            const edge = i === 0 || j === 0 || i === NX || j === NY;
+            const jx = (rnd() - 0.5) * (edge ? (i === 0 || i === NX ? 1.8 : 1.2) : 3.2);
+            const jy = (rnd() - 0.5) * (edge ? (j === 0 || j === NY ? 1.8 : 1.2) : 3.2);
+            row.push([-HW + (2 * HW * i) / NX + jx, -HH + (2 * HH * j) / NY + jy, (rnd() - 0.5) * (edge ? 3 : 7)]);
+        }
+        grid.push(row);
+    }
+    const P = (i, j) => grid[j][i];
+    const facets = [];
+    for (let j = 0; j < NY; j++) {
+        for (let i = 0; i < NX; i++) {
+            const a = P(i, j), b = P(i + 1, j), c = P(i + 1, j + 1), d = P(i, j + 1);
+            // the crease runs one way or the other, so the folds do not line up
+            if ((i + j) % 2) facets.push([a, b, c], [a, c, d]); else facets.push([a, b, d], [b, c, d]);
+        }
+    }
+    const outline = [
+        ...Array.from({ length: NX + 1 }, (_, i) => P(i, 0)),
+        ...Array.from({ length: NY - 1 }, (_, j) => P(NX, j + 1)),
+        ...Array.from({ length: NX + 1 }, (_, i) => P(NX - i, NY)),
+        ...Array.from({ length: NY - 1 }, (_, j) => P(0, NY - 1 - j))
+    ].map(p => v([p[0], p[1]]));
+    const paper = facets.map(t => {
+        const fill = facetShade(t, '#2a55c8', '#a8d0ff');
+        return `<polygon points="${pts(t.map(p => v([p[0], p[1]])))}" fill="${fill}" stroke="${fill}" stroke-width=".3" stroke-linejoin="round"/>`;
+    }).join('');
+
+    // the tear-off line: holes punched through, edge colour inside
+    const holes = Array.from({ length: 7 }, (_, i) => v([16.5 + (rnd() - 0.5) * 0.6, -13.2 + i * 4.4]));
+
+    // the emblem: centred left of the tear line
+    const at = (x, y, k = 0.82) => v([x * k - 5, y * k + 1.5]);
+    const flame = FLAME.map(([x, y]) => at(x, y));
+    const core = FLAME.map(([x, y]) => at(x * 0.5, y * 0.5 + 3.6));
+    const wingL = [[220, 12.5, 4.2], [198, 11, 3.8], [176, 8.5, 3.4]].map(([a, l, w]) => feather([-5.6, 1.8], a, l, w));
+    const wingR = [[320, 12.5, 4.2], [342, 11, 3.8], [4, 8.5, 3.4]].map(([a, l, w]) => feather([5.6, 1.8], a, l, w));
+    const wings = [...wingL, ...wingR].map(fp => {
+        const p = fp.map(([x, y]) => at(x, y));
+        return extrude(p, [-0.7, 0.7], '#5d7fc4', '#93b2ea', '#4a68ad')
+            + `<polygon points="${pts(p)}" fill="url(#${id}feather)" stroke="#ffffff" stroke-width=".35" stroke-linejoin="round"/>`;
+    }).join('');
+    const [hx, hy] = at(0, -14.8);
+    const halo = (dx, dy, color, w) => `<ellipse cx="${f(hx + dx)}" cy="${f(hy + dy)}" rx="5" ry="1.55" fill="none" stroke="${color}" stroke-width="${w}" transform="rotate(-9.7 ${f(hx)} ${f(hy)})"/>`;
+
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64"><defs>
+<linearGradient id="${id}fire" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffcf3a"/><stop offset=".55" stop-color="#ff8a1f"/><stop offset="1" stop-color="#f05a14"/></linearGradient>
+<linearGradient id="${id}core" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6c2"/><stop offset="1" stop-color="#ffd54a"/></linearGradient>
+<linearGradient id="${id}feather" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d4e5ff"/></linearGradient>
+<linearGradient id="${id}sheen" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".28"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+</defs>`
+        + extrude(outline, [-1.3, 1.2], '#14307a', '#2d56b8', '#173887')
+        + paper
+        + holes.map(([x, y]) => `<circle cx="${f(x)}" cy="${f(y)}" r="1" fill="#183a8f"/><circle cx="${f(x - 0.25)}" cy="${f(y + 0.25)}" r=".5" fill="#0f2763"/>`).join('')
+        + wings
+        // the flame: its own edge, the face, a light rim, the bright core
+        + extrude(flame, [-1, 1.1], '#9c3206', '#d4570e', '#a63a08')
+        + `<polygon points="${pts(flame)}" fill="url(#${id}fire)"/>`
+        + `<clipPath id="${id}fc"><polygon points="${pts(flame)}"/></clipPath><polygon points="${pts(flame)}" fill="none" stroke="#ffe9a0" stroke-width=".8" stroke-linejoin="round" opacity=".8" clip-path="url(#${id}fc)"/>`
+        + `<polygon points="${pts(core)}" fill="url(#${id}core)"/>`
+        // the halo: a darker ring under it gives the raised look
+        + halo(-0.6, 0.7, '#b07a06', 1.6) + halo(0, 0, '#ffd84a', 1.4) + halo(-0.3, -0.3, '#fff3b0', 0.45)
+        + sheen(id, outline, 14, -12)
+        + sparkle(54.5, 9.5, 3.4, 0.95)
         + '</svg>\n';
 }
 

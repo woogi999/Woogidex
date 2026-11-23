@@ -6,11 +6,11 @@
 //   'header'  the tabs in the middle of the header on a computer
 //             (Settings > Appearance > Header bar).
 // A tab you put in a bar leaves the header's icon row on the right
-// (Toolbox, messages, notifications), so nothing shows twice.
+// (messages, notifications), so nothing shows twice.
 
 import { notify } from '../store.ts';
 
-export type PhoneTab = 'collection' | 'community' | 'create' | 'fun' | 'toolbox' | 'messages' | 'notifications';
+export type PhoneTab = 'collection' | 'community' | 'create' | 'fun' | 'messages' | 'notifications';
 export type BarKind = 'phone' | 'header';
 
 /** Every tab you can pick: [key, name, icon], in the order the bars show them. */
@@ -19,7 +19,6 @@ export const PHONE_TAB_CHOICES: Array<[PhoneTab, string, string]> = [
     ['community', 'Community', 'users'],
     ['create', 'Create', 'plus-circle'],
     ['fun', 'Fun', 'fun-box'],
-    ['toolbox', 'Toolbox', 'toolbox'],
     ['messages', 'Messages', 'chat-bubble-oval-left-ellipsis'],
     ['notifications', 'Notifications', 'bell']
 ];
@@ -31,8 +30,8 @@ const BARS: Record<BarKind, { key: string; dataset: 'phoneTabs' | 'headerTabs'; 
 export const barLimits = (kind: BarKind) => ({ min: BARS[kind].min, max: BARS[kind].max, def: BARS[kind].def });
 
 const ORDER = PHONE_TAB_CHOICES.map(([k]) => k);
-// the old names: Battle lives in Fun now, and search is in the top bar again
-const RENAMED: Record<string, PhoneTab> = { battle: 'fun' };
+// the old names: Battle and the Toolbox live in Fun now, and search is in the top bar again
+const RENAMED: Record<string, PhoneTab> = { battle: 'fun', toolbox: 'fun' };
 
 const cached: Partial<Record<BarKind, PhoneTab[]>> = {};
 

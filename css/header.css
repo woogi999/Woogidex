@@ -58,7 +58,6 @@
 .header-nav-badge.is-ping { min-width: 0; width: 8px; height: 8px; padding: 0; top: 12px; left: calc(50% + 8px); }
 /* a tab the Header bar setting put in the middle row leaves the icons on the right (js/app/shell/phoneTabs.ts) */
 @media (min-width: 761px) {
-    html[data-header-tabs~="toolbox"] .header-actions .header-toolbox-btn,
     html[data-header-tabs~="messages"] .header-actions .header-messages-btn,
     html[data-header-tabs~="notifications"] .header-actions .notifications-wrap { display: none; }
 }

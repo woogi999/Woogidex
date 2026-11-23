@@ -18,6 +18,7 @@ import { log } from '../core/log.ts';
 import { prepareFeedRows } from './social.ts';
 import { confirmDialog } from '../core/confirm-dialog.ts';
 import { replaceRoute } from '../core/router.ts';
+import { DEV_MOCK } from '../core/dev-mock.ts';
 import type { FeedItem } from './feed-algorithm.ts';
 
 export interface Group {
@@ -191,8 +192,9 @@ export async function loadGroup(slug: string, force = false): Promise<Group | nu
     notify();
     try {
         const client = await api.getClient();
-        const { data, error } = await client.from('community_groups').select('*').eq('slug', slug).maybeSingle();
+        let { data, error } = await client.from('community_groups').select('*').eq('slug', slug).maybeSingle();
         if (error) throw error;
+        if (data && mockArt[data.id]) data = { ...data, ...mockArt[data.id] };
         s.bySlug[slug] = { group: data || null, loading: false, error: data ? '' : 'This group doesn’t exist, or it was archived.' };
         notify();
         return data || null;
@@ -300,7 +302,8 @@ export async function loadMyGroupPerms(groupId: string) {
 }
 
 /** Whether you may do something in a group (the database checks again). */
-export const canInGroup = (groupId: string, perm: GroupPerm) => !!gs().perms[groupId]?.[perm];
+// preview mode (js/core/dev-mock.ts): you may edit any group's picture, banner and details, in this tab only
+export const canInGroup = (groupId: string, perm: GroupPerm) => !!gs().perms[groupId]?.[perm] || (DEV_MOCK && perm === 'edit_group');
 
 export async function loadGroupRoles(groupId: string) {
     try {
@@ -568,6 +571,8 @@ export async function createGroup(d: GroupDraft): Promise<string | null> {
 }
 
 export async function updateGroup(g: Group, d: Omit<GroupDraft, 'slug'>): Promise<boolean> {
+    // preview mode never writes to the live database
+    if (DEV_MOCK) { api.showToast?.('Preview: the details are not saved.', 'info'); return false; }
     const text = [d.name, d.description, d.rules].join('\n');
     if (!(await api.guardContent?.(text, 'group') ?? true)) return false;
     try {
@@ -592,6 +597,8 @@ export async function updateGroup(g: Group, d: Omit<GroupDraft, 'slug'>): Promis
 // only takes an address inside that folder (Woogidex-DB 20261123190000).
 
 const GROUP_ART_BUCKET = 'group-art';
+/** preview mode only: the pictures picked in this tab, by group id */
+const mockArt: Record<string, { avatar_url?: string; banner_url?: string }> = {};
 const GROUP_ART_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'];
 export const GROUP_ART_MAX_BYTES = 2 * 1024 * 1024;
 
@@ -611,6 +618,17 @@ function groupArtPath(url: string, groupId: string): string {
 export async function setGroupArt(g: Group, kind: 'avatar' | 'banner', file: File | null): Promise<boolean> {
     if (file && !GROUP_ART_TYPES.includes(file.type)) { api.showToast?.('Choose a PNG, JPG, WebP or GIF image.', 'error'); return false; }
     if (file && file.size > GROUP_ART_MAX_BYTES) { api.showToast?.('That image is over 2 MB. Choose a smaller one.', 'error'); return false; }
+    if (DEV_MOCK) {
+        // preview mode: the picture stays in this tab, nothing is uploaded or saved
+        const art = mockArt[g.id] ||= {};
+        art[kind === 'avatar' ? 'avatar_url' : 'banner_url'] = file ? URL.createObjectURL(file) : '';
+        const s = gs();
+        for (const e of Object.values(s.bySlug)) if (e.group?.id === g.id) e.group = { ...e.group, ...art };
+        s.list.items = s.list.items.map(x => (x.id === g.id ? { ...x, ...art } : x));
+        notify();
+        api.showToast?.('Preview: shown in this tab only, not saved.', 'info');
+        return true;
+    }
     const old = kind === 'avatar' ? g.avatar_url || '' : g.banner_url || '';
     let uploaded = '';
     try {

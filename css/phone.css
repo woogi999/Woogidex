@@ -63,7 +63,6 @@
     .header .notifications-bell-btn:hover { background: var(--bg-panel); }
     .header .notifications-bell-btn svg { width: 22px; height: 22px; }
     /* a tab in the bottom bar leaves the top bar (js/app/shell/phoneTabs.ts) */
-    html[data-phone-tabs~="toolbox"] .header-actions .header-toolbox-btn,
     html[data-phone-tabs~="messages"] .header-actions .header-messages-btn,
     html[data-phone-tabs~="notifications"] .header-actions .header-bell-btn { display: none; }
 

@@ -1,4 +1,4 @@
-// /toolbox/tier-maker: the tier maker, the Toolbox's first app, as a whole
+// /fun/tier-maker/edit: the tier maker, one of the Fun tab's tools, as a whole
 // page (no window, no card around it). Rank Fakémon, Pokémon, pictures or
 // words into any tiers you like, in five layouts (js/features/tier-lists.ts),
 // with game modes (TierModes.tsx), your own look, a presentation mode for
@@ -439,7 +439,7 @@ function TierMaker() {
     return (
         <div className={`tier-maker-page${present ? ' is-presenting' : ''}`} ref={page}>
             <header className="tmp-head">
-                <Link to="toolbox" className="tmp-back" aria-label="Back to the Toolbox"><Icon name="arrow-left" size={18} /></Link>
+                <Link to="fun/tier-maker" className="tmp-back" aria-label="Back to Fun"><Icon name="arrow-left" size={18} /></Link>
                 <input className="tmp-title" value={list.title} maxLength={80} aria-label="Tier list name" onChange={e => change({ ...list, title: e.target.value })} />
                 {showdown && <input className="tm-format" value={list.format} maxLength={40} placeholder="Format, like gen9pokeathlon" aria-label="Showdown format or mod"
                     onChange={e => change({ ...list, format: e.target.value.replace(/[^a-z0-9]/gi, '').toLowerCase() })} />}

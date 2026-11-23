@@ -16,6 +16,7 @@
 import { api, state } from '../core/app.ts';
 import { log } from '../core/log.ts';
 import { notify } from '../app/store.ts';
+import { DEV_MOCK } from '../core/dev-mock.ts';
 
 export interface Streak { current: number; held: number; best: number; last_day: string | null; claimed_today: boolean; missed: number; save_passes: number }
 export interface WoobuxState { balance: number; today: string; streak: Streak; acknowledged: string[]; multiplier: number }
@@ -34,10 +35,14 @@ let current: WoobuxState | null = null;
 let forUser: string | null = null;
 let busy = false;
 
-/** What the server said last, or null when signed out or not loaded. */
+/** What the server said last, or null when signed out or not loaded. In preview mode, the local numbers, signed in or not. */
 export function woobux(): WoobuxState | null {
+    if (MOCK) return current;
     return state.user && forUser === state.user.id ? current : null;
 }
+
+/** Whether Woobux can show here: signed in, or the preview mode. */
+export const woobuxOn = () => !!state.user || !!MOCK;
 
 function take(data: any): WoobuxState | null {
     if (!data || typeof data !== 'object') return null;
@@ -58,34 +63,59 @@ function take(data: any): WoobuxState | null {
 }
 
 // ---- the mock (dev server only) ----
-// Open the dev server with ?woobux=mock to see the Woobux row, the daily
-// reward and the calendar without the database: a 6-day streak, so today is
-// day 7 (a bonus and a save pass). ?woobux=missed starts two days behind with
-// two save passes, to see the "Keep your streak?" question. The numbers live
-// in this tab only. import.meta.env.DEV is false in a real build, so none of
-// this reaches the site.
+// The preview mode (?mock, js/core/dev-mock.ts) runs Woobux on local
+// numbers, signed in or not, and the preview panel switches the situation
+// (setMockScenario). The older ?woobux=mock (today is day 7) and
+// ?woobux=missed (two days behind, two save passes) still work. The numbers
+// live in this tab only. import.meta.env.DEV is false in a real build, so
+// none of this reaches the site.
 const MOCK: '' | 'mock' | 'missed' = (() => {
     if (!import.meta.env.DEV) return '';
     const v = new URLSearchParams(location.search).get('woobux');
-    return v === 'mock' || v === 'missed' ? v : '';
+    return v === 'mock' || v === 'missed' ? v : DEV_MOCK ? 'mock' : '';
 })();
 const mockToday = () => new Date(Date.now() + 8 * 3600_000).toISOString().slice(0, 10);
 const daysBefore = (n: number) => new Date(Date.parse(mockToday()) - n * 86400_000).toISOString().slice(0, 10);
-const mock = { balance: 1240, current: MOCK === 'missed' ? 12 : 6, best: 12, last: daysBefore(MOCK === 'missed' ? 3 : 1), passes: MOCK === 'missed' ? 2 : 1, acks: [] as string[] };
+const mock = { balance: 1240, current: MOCK === 'missed' ? 12 : 6, best: 12, last: daysBefore(MOCK === 'missed' ? 3 : 1) as string | null, passes: MOCK === 'missed' ? 2 : 1, acks: [] as string[], mult: 1 };
+
+/** The situations the preview panel offers. */
+export const MOCK_SCENARIOS = {
+    ready: 'Day 7 ready (bonus day)',
+    claimed: 'Collected today',
+    'missed-save': 'Missed 2 days, 2 save passes',
+    'missed-lost': 'Missed 3 days, 1 save pass',
+    fresh: 'No streak yet',
+    day30: 'Day 30 ready (big bonus)'
+} as const;
+export type MockScenario = keyof typeof MOCK_SCENARIOS;
+
+/** Preview mode: puts the streak in one situation (and the multiplier), then reloads the numbers. */
+export async function setMockScenario(name: MockScenario, mult = mock.mult) {
+    if (!MOCK) return;
+    const set: Record<MockScenario, [number, string | null, number]> = {
+        ready: [6, daysBefore(1), 1], claimed: [7, mockToday(), 2], 'missed-save': [12, daysBefore(3), 2],
+        'missed-lost': [12, daysBefore(4), 1], fresh: [0, null, 0], day30: [29, daysBefore(1), 3]
+    };
+    [mock.current, mock.last, mock.passes] = set[name];
+    mock.best = Math.max(12, mock.current);
+    mock.mult = mult;
+    await refreshWoobux();
+}
 
 function mockState(extra: Record<string, unknown> = {}) {
     const today = mockToday();
-    const missed = Math.max(0, Math.round((Date.parse(today) - Date.parse(mock.last)) / 86400_000) - 1);
+    const missed = mock.last ? Math.max(0, Math.round((Date.parse(today) - Date.parse(mock.last)) / 86400_000) - 1) : 0;
+    const held = mock.last ? mock.current : 0;
     return {
         balance: mock.balance, today, acknowledged: mock.acks,
-        streak: { current: missed ? 0 : mock.current, held: mock.current, best: mock.best, last_day: mock.last, claimed_today: mock.last === today, missed, save_passes: mock.passes },
+        streak: { current: missed ? 0 : held, held, best: mock.best, last_day: mock.last, claimed_today: mock.last === today, missed, save_passes: mock.passes },
         ...extra
     };
 }
 
 function mockCall(fn: string, args: Record<string, unknown>): any {
     if (fn === 'my_woobux') return mockState();
-    if (fn === 'my_woobux_multiplier') return 1;
+    if (fn === 'my_woobux_multiplier') return mock.mult;
     if (fn === 'acknowledge_update') {
         const v = String(args.p_version);
         if (mock.acks.includes(v)) return mockState({ awarded: 0, already: true });
@@ -97,15 +127,16 @@ function mockCall(fn: string, args: Record<string, unknown>): any {
     const now = mockState().streak;
     if (now.claimed_today) return mockState({ awarded: 0, already: true });
     const used = now.missed && args.p_use_passes && now.missed <= mock.passes ? now.missed : 0;
-    mock.current = now.missed && !used ? 1 : mock.current + 1;
+    mock.current = (now.missed && !used) || !mock.last ? 1 : mock.current + 1;
     const day = cycleDay(mock.current);
     const r = dayReward(day);
+    const amount = Math.round(r.woobux * mock.mult);
     const gained = Math.max(0, Math.min(r.passes, 5 - (mock.passes - used)));
     mock.passes = mock.passes - used + gained;
     mock.best = Math.max(mock.best, mock.current);
     mock.last = mockToday();
-    mock.balance += r.woobux;
-    return mockState({ awarded: r.woobux, cycle_day: day, passes_awarded: gained, passes_used: used, already: false });
+    mock.balance += amount;
+    return mockState({ awarded: amount, multiplier: mock.mult, cycle_day: day, passes_awarded: gained, passes_used: used, already: false });
 }
 
 async function call(fn: string, args: Record<string, unknown> = {}): Promise<any> {
@@ -117,7 +148,7 @@ async function call(fn: string, args: Record<string, unknown> = {}): Promise<any
 }
 
 export async function refreshWoobux(): Promise<WoobuxState | null> {
-    if (!state.user) return null;
+    if (!state.user && !MOCK) return null;
     try {
         const [data, mult] = await Promise.all([
             call('my_woobux'),

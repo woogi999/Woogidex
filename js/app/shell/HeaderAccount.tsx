@@ -24,16 +24,6 @@ export function SignInButton() {
 }
 
 /** Opens your chats; the badge counts unread messages (muted chats don't count). */
-/** The Toolbox (apps like the tier maker), an icon beside Messages. Signed out too: the apps work without an account. */
-export function ToolboxButton() {
-    const active = ['toolbox-view', 'tier-maker-view'].includes(document.body.dataset.page || '');
-    return (
-        <Link to="toolbox" className={`notifications-bell-btn header-toolbox-btn${active ? ' active' : ''}`} aria-label="Toolbox" title="Toolbox">
-            <Icon name="toolbox" size={20} />
-        </Link>
-    );
-}
-
 export function MessagesButton() {
     if (!state.user) return null;
     const active = document.body.dataset.page === 'messages-view';

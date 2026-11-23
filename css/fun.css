@@ -1,11 +1,12 @@
 /* ==================== Fun ====================
-   /fun (js/app/pages/FunPage.tsx): the login streak, the shop, the tier
-   maker and battles. One surface like the rest of the site: soft fills,
-   hairlines, no outline boxes. The gold belongs to Woobux (it is content,
-   like a type colour); the interface keeps the violet accent.
+   /fun (js/app/pages/FunPage.tsx): a bento grid of tools and widgets. A
+   click on a block turns the grid into a sidebar beside the open tool (GSAP
+   Flip moves each block into its row). One surface like the rest of the
+   site: soft fills, no outline boxes, no blur. The gold belongs to Woobux
+   (it is content, like a type colour); the interface keeps the violet accent.
    The calendar, the stats and the coin animation: css/woobux.css. */
 
-.fun-page { max-width: 900px; margin: 0 auto; }
+.fun-page { max-width: 1100px; margin: 0 auto; }
 .fun-head { align-items: flex-end; }
 .fun-sub { margin-top: 4px; font-size: 14px; color: var(--text-secondary); }
 .fun-balance {
@@ -18,11 +19,105 @@
 .fun-balance:hover { background: color-mix(in srgb, #f6a623 20%, var(--bg-card)); }
 .fun-balance strong { font-weight: 800; }
 
-/* the tabs: icon and name, a small red ping on Streak while the reward waits */
-.fun-tabs .tab { display: inline-flex; align-items: center; gap: 6px; text-decoration: none; }
-.fun-tab-ping { width: 7px; height: 7px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--bg-card); }
+/* the red ping: today's reward waits */
+.fun-ping { display: inline-block; flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; background: var(--danger); box-shadow: 0 0 0 2px var(--bg-card); vertical-align: middle; }
 
-.fun-body { display: flex; flex-direction: column; gap: var(--sp-5); }
+/* a block's icon: a soft round plate, tinted per tool */
+.fun-block-icon { display: inline-grid; place-items: center; flex: 0 0 auto; width: 44px; height: 44px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); }
+.fun-block-icon.is-streak { background: color-mix(in srgb, #f97316 14%, var(--bg-card)); color: #ea580c; }
+.fun-block-icon.is-shop { background: color-mix(in srgb, #3b82f6 13%, var(--bg-card)); color: #2563eb; }
+.fun-block-icon.is-battle { background: var(--bg-card); color: var(--text-secondary); }
+
+/* ==================== the grid ==================== */
+.fun-bento {
+    display: grid; gap: var(--sp-3);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-auto-rows: minmax(148px, auto);
+    grid-template-areas:
+        "streak streak shop   shop"
+        "streak streak tier   battle"
+        "week   week   week   soon";
+}
+.fun-tile {
+    position: relative; overflow: hidden; min-width: 0;
+    display: flex; gap: var(--sp-4); align-items: flex-start;
+    padding: var(--sp-5);
+    border-radius: var(--panel-r);
+    background: var(--bg-panel);
+    transition: var(--t-ui);
+}
+.fun-tile.is-streak { grid-area: streak; background: color-mix(in srgb, #f6a623 8%, var(--bg-panel)); }
+.fun-tile.is-shop { grid-area: shop; align-items: center; background: color-mix(in srgb, #3b82f6 7%, var(--bg-panel)); }
+.fun-tile.is-tier { grid-area: tier; flex-direction: column; justify-content: space-between; }
+.fun-tile.is-battle { grid-area: battle; flex-direction: column; justify-content: space-between; }
+.fun-tile.is-week { grid-area: week; }
+.fun-tile.is-soon { grid-area: soon; flex-direction: column; justify-content: space-between; background: transparent; box-shadow: inset 0 0 0 1px var(--border-light); }
+/* the whole block opens its tool; its own buttons sit above that link */
+.fun-tile-link { position: absolute; inset: 0; z-index: 0; border-radius: inherit; }
+.fun-tile-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fun-tile > :not(.fun-tile-link) { position: relative; z-index: 1; pointer-events: none; }
+.fun-tile button, .fun-tile a:not(.fun-tile-link) { pointer-events: auto; }
+.fun-tile:has(.fun-tile-link):hover { transform: translateY(-2px); background: color-mix(in srgb, var(--text-primary) 4%, var(--bg-panel)); }
+.fun-tile.is-streak:hover { background: color-mix(in srgb, #f6a623 13%, var(--bg-panel)); }
+.fun-tile.is-shop:hover { background: color-mix(in srgb, #3b82f6 11%, var(--bg-panel)); }
+.fun-tile-text { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.fun-tile-text strong { font-size: 17px; font-weight: 800; letter-spacing: -0.01em; }
+.fun-tile-text small { font-size: 13px; line-height: 1.45; color: var(--text-secondary); }
+.fun-tile-text b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.fun-tile-kicker { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.fun-tile-btn { align-self: flex-start; margin-top: var(--sp-3); }
+.fun-tile-art { flex: 0 0 auto; animation: fun-bob 3.6s ease-in-out infinite; }
+.fun-tile-inline { color: var(--accent); }
+
+/* the Streak block: the flame big on the left, the count and Collect beside it */
+.fun-streak-mini { display: flex; align-items: center; gap: var(--sp-5); width: 100%; height: 100%; }
+.fun-streak-mini .streak-flame { width: 120px; height: 140px; }
+.fun-streak-mini-count { font-size: 36px !important; font-weight: 900 !important; letter-spacing: -0.03em !important; font-variant-numeric: tabular-nums; line-height: 1.05; }
+
+/* the week strip */
+.fun-week { display: flex; flex-direction: column; gap: var(--sp-3); width: 100%; }
+.fun-week-days { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.fun-week-days li { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px 2px; border-radius: 8px; background: var(--bg-card); }
+.fun-week-days small { font-size: 10.5px; font-weight: 700; color: var(--text-muted); white-space: nowrap; }
+.fun-week-days b { font-size: 13px; font-variant-numeric: tabular-nums; }
+.fun-week-days li.is-bonus { background: color-mix(in srgb, #f6a623 16%, var(--bg-card)); }
+.fun-week-days li.is-today { box-shadow: inset 0 0 0 2px #f6a623; }
+
+/* ==================== a tool open: the sidebar ==================== */
+.fun-split { display: grid; grid-template-columns: 236px minmax(0, 1fr); gap: var(--sp-6); align-items: start; }
+.fun-side { position: sticky; top: calc(var(--header-h) + var(--sp-5)); display: flex; flex-direction: column; gap: 4px; }
+.fun-side-home {
+    display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 10px; margin-bottom: 6px;
+    border-radius: var(--ctl-r); color: var(--text-secondary); font-size: 13px; font-weight: 700; text-decoration: none; transition: var(--t-ui);
+}
+.fun-side-home:hover { background: var(--bg-panel); color: var(--text-primary); }
+.fun-side-item {
+    position: relative; overflow: hidden;
+    display: flex; align-items: center; gap: 10px; padding: 8px;
+    border-radius: var(--panel-r); color: var(--text-primary); text-decoration: none; transition: var(--t-ui);
+}
+.fun-side-item .fun-block-icon { width: 36px; height: 36px; border-radius: 10px; }
+.fun-side-item:hover { background: var(--bg-panel); }
+.fun-side-item.is-active { background: var(--accent-soft); }
+.fun-side-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.fun-side-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.fun-side-text strong { font-size: 14px; font-weight: 700; }
+.fun-side-text small { font-size: 12px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fun-tool { min-width: 0; display: flex; flex-direction: column; gap: var(--sp-5); animation: fun-tool-in .45s var(--ease-out) .12s both; }
+@keyframes fun-tool-in { from { opacity: 0; transform: translateY(10px); } }
+
+/* the tier maker tool */
+.fun-tier-new {
+    display: flex; align-items: center; gap: var(--sp-4); width: 100%; padding: var(--sp-4) var(--sp-5);
+    border: 0; border-radius: var(--panel-r); background: var(--bg-panel); color: var(--text-primary);
+    font: inherit; text-align: left; cursor: pointer; transition: var(--t-ui);
+}
+.fun-tier-new:hover { background: var(--accent-soft); }
+.fun-tier-new:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.fun-tier-new .fun-tile-text { flex: 1; }
+.fun-tier-saved { display: flex; flex-direction: column; gap: 6px; }
+.fun-tier-saved h2 { font-size: 17px; font-weight: 800; margin-bottom: 4px; }
+.fun-tier-empty { margin: 0; color: var(--text-secondary); font-size: 14px; }
 
 /* ---- signed out, the shop, battles: one centred message ---- */
 .fun-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: var(--sp-7) var(--sp-4); text-align: center; }
@@ -128,7 +223,28 @@
     .streak-collect { width: 100%; }
     .fun-shop-hero { flex-direction: column; text-align: center; padding: var(--sp-5) var(--sp-4); }
     .fun-shop-hero .btn { width: 100%; justify-content: center; }
-    .fun-tabs .tab svg { display: none; }
+    /* the sidebar becomes a row of chips above the tool, that scrolls sideways */
+    .fun-split { grid-template-columns: minmax(0, 1fr); gap: var(--sp-4); }
+    .fun-side { position: static; flex-direction: row; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 calc(var(--sp-4) * -1); padding: 0 var(--sp-4) 2px; }
+    .fun-side-home { flex: 0 0 auto; margin: 0; padding: 0 12px; height: 44px; background: var(--bg-panel); border-radius: 999px; }
+    .fun-side-home span { display: none; }
+    .fun-side-item { flex: 0 0 auto; padding: 4px 14px 4px 4px; border-radius: 999px; background: var(--bg-panel); }
+    .fun-side-item .fun-block-icon { width: 36px; height: 36px; border-radius: 50%; }
+    .fun-side-text small { display: none; }
+    .fun-streak-mini .streak-flame { width: 84px; height: 100px; }
+    .fun-streak-mini-count { font-size: 30px !important; }
+    .fun-tile { padding: var(--sp-4); }
+    .fun-tile-art { width: 64px; height: 64px; }
+}
+/* a narrower window: the grid in two columns */
+@media (max-width: 900px) {
+    .fun-bento {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-auto-rows: minmax(132px, auto);
+        grid-template-areas: "streak streak" "shop shop" "tier battle" "week week" "soon soon";
+    }
+    .fun-week-days { gap: 4px; }
+    .fun-week-days small { font-size: 9.5px; }
 }
 
 /* reduced motion: the flame and the button hold still */
@@ -138,3 +254,20 @@
     .streak-flame path, .is-ready .streak-collect, .is-ready .streak-collect::after, .fun-empty-coin, .fun-shop-coupon { animation: none !important; }
 }
 .low-end .streak-flame path, .low-end .is-ready .streak-collect::after { animation: none; }
+
+/* ---- the preview panel (dev server only, js/app/shell/MockPanel.tsx) ---- */
+.mock-panel, .mock-chip { position: fixed; right: 16px; top: calc(var(--header-h) + 12px); z-index: 20500; font-family: var(--font-sans); }
+.mock-chip { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border: 0; border-radius: 999px; background: var(--text-primary); color: var(--bg-card); font-size: 12px; font-weight: 700; cursor: pointer; box-shadow: var(--shadow-md); }
+.mock-panel { width: 290px; max-height: calc(100dvh - var(--header-h) - 32px); overflow-y: auto; padding: 14px; border-radius: var(--panel-r); background: var(--bg-card); box-shadow: 0 0 0 1px var(--border), 0 18px 45px rgba(0, 0, 0, .18); }
+.mock-panel header { display: flex; align-items: center; justify-content: space-between; }
+.mock-panel header strong { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.mock-panel p { margin: 6px 0 4px; font-size: 12px; line-height: 1.45; color: var(--text-secondary); }
+.mock-panel h4 { margin: 12px 0 6px; font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.mock-grid, .mock-links { display: grid; grid-template-columns: 1fr; gap: 4px; }
+.mock-row { display: flex; flex-wrap: wrap; gap: 4px; }
+.mock-panel button:not(.mock-x) { min-height: 30px; padding: 4px 10px; border: 0; border-radius: var(--ctl-r); background: var(--bg-panel); color: var(--text-primary); font: 600 12px var(--font-sans); text-align: left; cursor: pointer; }
+.mock-panel button:not(.mock-x):hover { background: var(--accent-soft); }
+.mock-panel button.is-on { background: var(--accent); color: #fff; }
+.mock-x { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 50%; background: var(--bg-panel); color: var(--text-secondary); cursor: pointer; }
+.mock-leave { display: block; margin-top: 12px; font-size: 12px; color: var(--danger); }
+@media (max-width: 760px) { .mock-panel { right: 8px; left: 8px; width: auto; max-height: 50dvh; } .mock-chip { right: 8px; } }

@@ -143,11 +143,10 @@ function BarTabButton({ tab, section }: { tab: PhoneTab; section: string }) {
     const signedIn = !!api.isLoggedIn?.();
     if ((tab === 'messages' || tab === 'notifications') && !signedIn) return null;
     const spec = {
-        toolbox: { to: 'toolbox', view: 'toolbox-view', icon: 'toolbox', title: 'Toolbox', count: 0 },
         messages: { to: 'messages', view: 'messages-view', icon: 'chat-bubble-oval-left-ellipsis', title: 'Messages', count: Number(api.unreadMessageTotal?.() || 0) },
         // an update you have not opened counts too, unless its pings are off (Settings > Notifications)
         notifications: { to: 'notifications', view: 'notifications-view', icon: 'bell', title: 'Notifications', count: notificationsView().unread + (api.updatePingShown?.() ? 1 : 0) }
-    }[tab as 'toolbox' | 'messages' | 'notifications'];
+    }[tab as 'messages' | 'notifications'];
     if (!spec) return null;
     const on = section === spec.view;
     return (

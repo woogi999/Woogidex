@@ -46,11 +46,11 @@ import { CommunityDetailPage } from './app/pages/CommunityDetailPage.tsx';
 import { PostPage } from './app/pages/PostPage.tsx';
 import { MessagesPage } from './app/pages/MessagesPage.tsx';
 import { NotificationsPage } from './app/pages/NotificationsPage.tsx';
-import { ToolboxPage } from './app/pages/ToolboxPage.tsx';
 import { TierMakerPage } from './app/pages/TierMakerPage.tsx';
 import { FunPage } from './app/pages/FunPage.tsx';
 import { maybeShowWhatsNew, openUpdates, openWhatsNew, updatePingShown } from './features/whats-new.ts';
 import { funPing } from './features/woobux.ts';
+import { DEV_MOCK } from './core/dev-mock.ts';
 import { resumeAddAccount } from './features/accounts.ts';
 import { LandingPage } from './app/pages/LandingPage.tsx';
 import { registerAccountSettings } from './app/pages/SettingsAccount.tsx';
@@ -61,7 +61,7 @@ import { GlobalSearch } from './app/shell/GlobalSearch.tsx';
 import { GameSwitcher } from './app/shell/GameSwitcher.tsx';
 import { QuickSearch } from './app/shell/QuickSearch.tsx';
 import {
-    AccountButton, AccountMenuBottom, AccountMenuTop, FeedbackMenuItem, MessagesButton, Notifications, SignInButton, ToolboxButton
+    AccountButton, AccountMenuBottom, AccountMenuTop, FeedbackMenuItem, MessagesButton, Notifications, SignInButton
 } from './app/shell/HeaderAccount.tsx';
 import { MessagesDock } from './app/shell/MessagesDock.tsx';
 
@@ -82,7 +82,6 @@ export function installHost(): void {
     registerPage({ view: 'post-view', Page: PostPage, lazy: true });
     registerPage({ view: 'messages-view', Page: MessagesPage, lazy: true });
     registerPage({ view: 'notifications-view', Page: NotificationsPage, lazy: true });
-    registerPage({ view: 'toolbox-view', Page: ToolboxPage, lazy: true });
     registerPage({ view: 'tier-maker-view', Page: TierMakerPage, lazy: true });
     registerPage({ view: 'fun-view', Page: FunPage, lazy: true });
 
@@ -99,22 +98,22 @@ export function installHost(): void {
     registerRoute('post', { needsAccount: true, open: async param => !!param && await api.openPost?.(param, { preserveRoute: true }) === true });
     registerRoute('groups', { needsAccount: true, open: async param => { await api.openGroups?.(param); return true; } });
     registerRoute('messages', { needsAccount: true, open: async param => await api.handleMessagesRoute?.(param) === true });
-    // the Toolbox (/toolbox) works signed out too; /toolbox/tier-maker is the tier maker
+    // the old Toolbox addresses: its tools live in Fun now
     registerRoute('toolbox', {
         open: async param => {
-            if (String(param || '').split('/')[0] === 'tier-maker') {
+            await api.openPath?.(String(param || '').split('/')[0] === 'tier-maker' ? 'fun/tier-maker/edit' : 'fun');
+            return true;
+        }
+    });
+    // /fun[/streak|shop|tier-maker|battle]: the Fun tab (js/app/pages/FunPage.tsx); works signed out too.
+    // /fun/tier-maker/edit is the tier maker itself (TierMakerPage.tsx)
+    registerRoute('fun', {
+        open: async param => {
+            if (String(param || '').startsWith('tier-maker/edit')) {
                 api.activateTopLevelView?.('tier-maker-view');
                 api.setPageTitle?.('Tier maker');
                 return true;
             }
-            api.activateTopLevelView?.('toolbox-view');
-            api.setPageTitle?.('Toolbox');
-            return true;
-        }
-    });
-    // /fun[/streak|shop|tier-maker|battle]: the Fun tab (js/app/pages/FunPage.tsx); works signed out too
-    registerRoute('fun', {
-        open: async () => {
             api.activateTopLevelView?.('fun-view');
             api.setPageTitle?.('Fun');
             return true;
@@ -161,7 +160,7 @@ export function installHost(): void {
     registerNav({ page: 'fun-view', label: 'Fun', title: 'Fun', icon: 'fun-box', order: 30, path: 'fun', alsoFor: ['battle-view', 'tier-maker-view'], ping: funPing });
     // the game picker leads, and the search sits beside the bell (js/app/shell/GameSwitcher.tsx)
     ext.headerLeft.push(GameSwitcher);
-    ext.headerActions.push(GlobalSearch, ToolboxButton, MessagesButton, Notifications, SignInButton);
+    ext.headerActions.push(GlobalSearch, MessagesButton, Notifications, SignInButton);
     ext.accountButton = AccountButton;
     ext.accountMenuTop.push(AccountMenuTop);
     ext.accountMenuItems.push(FeedbackMenuItem, UpdatesMenuItem);
@@ -229,6 +228,10 @@ export function installHost(): void {
         mountIsland(document.body.appendChild(Object.assign(document.createElement('div'), { id: 'messages-dock-root' })), MessagesDock);
         // Ctrl+K: a layer of its own, above the page and the dialogs
         mountIsland(document.body.appendChild(Object.assign(document.createElement('div'), { id: 'quick-search-root' })), QuickSearch);
+        // preview mode on the dev server (?mock, js/core/dev-mock.ts); a real build drops this
+        if (import.meta.env.DEV && DEV_MOCK) {
+            import('./app/shell/MockPanel.tsx').then(m => mountIsland(document.body.appendChild(Object.assign(document.createElement('div'), { id: 'mock-panel-root' })), m.MockPanel));
+        }
         return api.initAuth();
     });
 }

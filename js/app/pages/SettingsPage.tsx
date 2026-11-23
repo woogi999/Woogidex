@@ -85,7 +85,7 @@ const CORE_SECTIONS: Section[] = [
             {
                 id: 'universal', title: 'Toolbox and universal moves',
                 items: [
-                    { id: 'toolbox', label: 'Toolbox', text: 'toolbox apps tier list tier maker rank ou uu showdown formats-data', desc: 'Apps like the tier maker: rank Fakémon, Pokémon or pictures, post it, or use it in a group or chat.', control: () => <button type="button" className="btn btn-secondary btn-sm" onClick={() => api.openPath?.('toolbox')}>Open</button> },
+                    { id: 'toolbox', label: 'Fun', text: 'fun toolbox apps tier list tier maker rank ou uu showdown formats-data streak woobux shop', desc: 'The tier maker, the login streak, the shop and battles: rank Fakémon, Pokémon or pictures, post it, or use it in a group or chat.', control: () => <button type="button" className="btn btn-secondary btn-sm" onClick={() => api.openPath?.('fun')}>Open</button> },
                     { id: 'universal-list', label: 'The global universal moves', text: 'universal moves tm generation list region', desc: "The moves Browse Moves offers as universal: Woogidex's list, one generation's, or your own. A region can have its own list on its page.", control: () => <button type="button" className="btn btn-secondary btn-sm" onClick={() => openUniversalMoves(null)}>Change</button> }
                 ]
             }

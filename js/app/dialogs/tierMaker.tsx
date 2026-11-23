@@ -1,5 +1,5 @@
 // Opening the tier maker. Since 2026-11-23 it is its own page,
-// /toolbox/tier-maker (js/app/pages/TierMakerPage.tsx), not a window: this
+// /fun/tier-maker/edit (js/app/pages/TierMakerPage.tsx), not a window: this
 // file keeps the way in (openTierMaker, used by the Toolbox, groups, chats
 // and posts) and the saved lists dialog.
 
@@ -24,7 +24,7 @@ let latest: TierMakerStart | null = null;
 /**
  * The last start openTierMaker made (null before the first). Reading it does
  * not use it up: React may run the page's first render twice, and coming
- * back to /toolbox/tier-maker shows the list you had open. The page compares
+ * back to /fun/tier-maker/edit shows the list you had open. The page compares
  * `seq` to know a start is new.
  */
 export function currentTierMakerStart(): TierMakerStart | null {
@@ -42,7 +42,7 @@ export async function openTierMaker(list?: TierList | null, conversationId: stri
     const start = list ? cleanTierList(list) : null;
     const shared = fromChat || !!group;
     latest = { seq: (latest?.seq || 0) + 1, list: start && shared ? { ...start, baseline: snapshot(start) } : start, conversationId, group, shared };
-    await api.openPath?.('toolbox/tier-maker');
+    await api.openPath?.('fun/tier-maker/edit');
     // the page is already open: tell it to take the new start
     window.dispatchEvent(new CustomEvent('woogidex:tier-maker-start'));
 }
