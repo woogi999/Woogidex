@@ -14,6 +14,7 @@
 // Pure module: no DOM, no app.ts. Node can run it directly for tests.
 
 import { BattleRNG } from './rng.ts';
+import { risingPower } from '../../features/multihit.ts';
 import { calcStat, typeEffectiveness, toId, BOOST_IDS } from './dex.ts';
 import { compileProgram } from './ability-runtime.ts';
 import { builtinHandlers } from './builtin-abilities.ts';
@@ -1648,8 +1649,8 @@ export class Battle {
         // Gyro Ball, Grass Knot, Electro Ball and the rest work their power out
         // from live battle state rather than carrying a fixed number.
         let power = move.basePower;
-        // A custom move's "Like Triple Axel" setting: base power x hit number.
-        if (move.multihitStyle === 'rising') power = move.basePower * (move.hit || 1);
+        // A custom move's "Rising" setting: the power grows with each hit (js/features/multihit.ts).
+        if (move.multihitStyle === 'rising') power = risingPower(move.basePower, move.hit || 1, move.multihitGrowth || 'linear', Number(move.multihitStep) || 1);
         const computed = runMoveHook(fx, 'basePowerCallback',
             { battle: this, user, target, move }, undefined);
         if (Number.isFinite(computed)) power = Math.max(0, Math.trunc(computed));

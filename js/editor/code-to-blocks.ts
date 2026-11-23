@@ -662,7 +662,7 @@ export function translateEntry(entry: any, kind: EntryKind, compiler: BlockCompi
             events.push({ id: newBlockId(), kind: 'event', trigger: 'moveData', triggerParams: {}, body: blocks });
         }
     }
-    // base power x hit number is the move editor's "Like Triple Axel" setting, so that field holds it
+    // base power x hit number is the move editor's "Rising" setting (linear growth), so that field holds it
     const rising = kind === 'move' && entry?.multihit != null && typeof entry.basePowerCallback === 'function'
         && sameCode(readFunction(String(entry.basePowerCallback))?.body || '', `return ${entry.basePower} * move.hit;`)
         && /\bmove\s*\)/.test(String(entry.basePowerCallback).split('{')[0]);

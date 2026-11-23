@@ -213,6 +213,8 @@ function normalizeCustomMove(entry, fallbackId) {
         secondaries: Object.freeze(m.secondaries || (m.secondary ? [m.secondary] : [])),
         multihit: m.multihit || null,
         multihitStyle: m.multihitStyle || null,
+        multihitGrowth: m.multihitGrowth || null,
+        multihitStep: m.multihitStep ?? null,
         multiaccuracy: m.multiaccuracy || false,
         // see SD_MOVE_FIELDS
         weather: m.weather || null,
